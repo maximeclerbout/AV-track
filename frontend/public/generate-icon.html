@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Générer apple-touch-icon.png</title></head>
+<body style="font-family:sans-serif;padding:32px;background:#1a1a2e;color:#eee">
+  <h2 style="color:#10B981">Générateur d'icône AVTrack</h2>
+  <canvas id="c" width="180" height="180" style="border:1px solid #333;border-radius:12px;display:block;margin:16px 0"></canvas>
+  <a id="dl" download="apple-touch-icon.png" style="display:inline-block;background:#10B981;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700">
+    Télécharger apple-touch-icon.png
+  </a>
+  <p style="color:#888;font-size:13px;margin-top:16px">
+    Placez le fichier téléchargé dans <code style="color:#10B981">frontend/public/</code> et transférez-le sur le serveur.
+  </p>
+  <script>
+    const c = document.getElementById('c')
+    const ctx = c.getContext('2d')
+    const W = 180, H = 180
+
+    // Background
+    ctx.fillStyle = '#0f1117'
+    roundRect(ctx, 0, 0, W, H, 36)
+    ctx.fill()
+
+    // Subtle border
+    ctx.strokeStyle = 'rgba(16,185,129,0.3)'
+    ctx.lineWidth = 3
+    roundRect(ctx, 1.5, 1.5, W - 3, H - 3, 35)
+    ctx.stroke()
+
+    // Glow
+    const grd = ctx.createRadialGradient(90, 85, 10, 90, 85, 80)
+    grd.addColorStop(0, 'rgba(16,185,129,0.18)')
+    grd.addColorStop(1, 'rgba(16,185,129,0)')
+    ctx.fillStyle = grd
+    ctx.fillRect(0, 0, W, H)
+
+    // "AV" text
+    ctx.fillStyle = '#10B981'
+    ctx.font = '900 82px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.shadowColor = 'rgba(16,185,129,0.5)'
+    ctx.shadowBlur = 20
+    ctx.fillText('AV', 90, 88)
+
+    // "TRACK" label
+    ctx.shadowBlur = 0
+    ctx.fillStyle = '#3d4155'
+    ctx.font = '700 18px Arial'
+    ctx.letterSpacing = '4px'
+    ctx.fillText('TRACK', 90, 148)
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.lineTo(x + w - r, y)
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+      ctx.lineTo(x + w, y + h - r)
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+      ctx.lineTo(x + r, y + h)
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+      ctx.lineTo(x, y + r)
+      ctx.quadraticCurveTo(x, y, x + r, y)
+      ctx.closePath()
+    }
+
+    document.getElementById('dl').href = c.toDataURL('image/png')
+  </script>
+</body>
+</html>

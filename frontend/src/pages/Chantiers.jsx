@@ -1,5 +1,5 @@
 import ImportExcel from '../components/ImportExcel'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Layout from '../components/Layout'
@@ -12,42 +12,67 @@ const Icon = ({ d, size = 18, color = 'currentColor' }) => (
 )
 
 const STATUS = {
-  a_faire:    { label: 'A faire',    color: '#6B7280', bg: 'rgba(107,114,128,0.15)' },
-  en_cours:   { label: 'En cours',   color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' },
-  a_terminer: { label: 'A terminer', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' },
-  probleme:   { label: 'Probleme',   color: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
-  termine:    { label: 'Termine',    color: '#10B981', bg: 'rgba(16,185,129,0.15)' },
+  a_faire:    { label: 'A faire',    color: '#7b8096' },
+  en_cours:   { label: 'En cours',   color: '#F59E0B' },
+  a_terminer: { label: 'A terminer', color: '#6366F1' },
+  probleme:   { label: 'Problème',   color: '#EF4444' },
+  termine:    { label: 'Terminé',    color: '#10B981' },
 }
 
 const Badge = ({ statut }) => {
   const cfg = STATUS[statut] || STATUS.a_faire
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, color: cfg.color, background: cfg.bg, border: '1px solid ' + cfg.color + '40' }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.color }} />
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px',
+      borderRadius: 20, fontSize: 11, fontWeight: 600, color: cfg.color,
+      background: cfg.color + '1a', border: '1px solid ' + cfg.color + '40',
+      fontFamily: "'Cousine', monospace", textTransform: 'uppercase', letterSpacing: .5
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
       {cfg.label}
     </span>
   )
 }
 
-const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 14px', color: '#E8EAF0', fontSize: 13, outline: 'none' }
-const labelStyle = { fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6, display: 'block' }
+const inputStyle = {
+  width: '100%', background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10,
+  padding: '10px 14px', color: '#eef0f6', fontSize: 13, outline: 'none'
+}
+const labelStyle = {
+  fontSize: 11, fontWeight: 700, color: '#7b8096', textTransform: 'uppercase',
+  letterSpacing: 1, marginBottom: 6, display: 'block'
+}
 
 export default function Chantiers() {
   const [chantiers, setChantiers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showImportMenu, setShowImportMenu] = useState(false)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const [filterStatut, setFilterStatut] = useState('tous')
   const [form, setForm] = useState({ nom: '', client: '', adresse: '', date_debut: '', date_fin: '', description: '' })
   const [editChantier, setEditChantier] = useState(null)
   const [editForm, setEditForm] = useState({})
   const navigate = useNavigate()
+  const importMenuRef = useRef(null)
 
   useEffect(() => {
     axios.get('/api/chantiers')
       .then(res => setChantiers(res.data))
       .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (importMenuRef.current && !importMenuRef.current.contains(e.target)) {
+        setShowImportMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
   }, [])
 
   const createChantier = async () => {
@@ -57,14 +82,14 @@ export default function Chantiers() {
       const res = await axios.post('/api/chantiers', form)
       navigate('/chantiers/' + res.data.id)
     } catch (err) {
-      alert('Erreur lors de la creation')
+      alert('Erreur lors de la création')
     } finally {
       setSaving(false)
     }
   }
 
   const deleteChantier = async (id, nom) => {
-    if (!confirm('Supprimer le chantier "' + nom + '" ? Cette action est irreversible et supprimera toutes les salles et equipements associes.')) return
+    if (!confirm('Supprimer le chantier "' + nom + '" ? Cette action est irréversible et supprimera toutes les salles et équipements associés.')) return
     try {
       await axios.delete('/api/chantiers/' + id)
       setChantiers(prev => prev.filter(c => c.id !== id))
@@ -76,13 +101,9 @@ export default function Chantiers() {
   const startEdit = (c) => {
     setEditChantier(c)
     setEditForm({
-      nom: c.nom,
-      client: c.client || '',
-      adresse: c.adresse || '',
-      date_debut: c.date_debut?.slice(0,10) || '',
-      date_fin: c.date_fin?.slice(0,10) || '',
-      description: c.description || '',
-      statut: c.statut
+      nom: c.nom, client: c.client || '', adresse: c.adresse || '',
+      date_debut: c.date_debut?.slice(0, 10) || '', date_fin: c.date_fin?.slice(0, 10) || '',
+      description: c.description || '', statut: c.statut
     })
   }
 
@@ -99,62 +120,113 @@ export default function Chantiers() {
     }
   }
 
-const ordre = { en_cours: 0, probleme: 1, a_terminer: 2, a_faire: 3, termine: 4 }
+  const ordre = { en_cours: 0, probleme: 1, a_terminer: 2, a_faire: 3, termine: 4 }
 
   const chantiersFiltres = chantiers
-    .filter(c =>
-      !search ||
-      c.nom.toLowerCase().includes(search.toLowerCase()) ||
-      (c.client || '').toLowerCase().includes(search.toLowerCase()) ||
-      (c.adresse || '').toLowerCase().includes(search.toLowerCase())
-    )
+    .filter(c => {
+      const matchSearch = !search ||
+        c.nom.toLowerCase().includes(search.toLowerCase()) ||
+        (c.client || '').toLowerCase().includes(search.toLowerCase()) ||
+        (c.adresse || '').toLowerCase().includes(search.toLowerCase())
+      const matchStatut = filterStatut === 'tous' || c.statut === filterStatut
+      return matchSearch && matchStatut
+    })
     .sort((a, b) => (ordre[a.statut] ?? 9) - (ordre[b.statut] ?? 9))
 
   return (
     <Layout chantiers={chantiers}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+
+        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Chantiers</h1>
-            <p style={{ color: '#6B7280', fontSize: 14 }}>Tous vos deployements AV</p>
+            <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 900, marginBottom: 4, color: '#eef0f6' }}>Chantiers</h1>
+            <p style={{ color: '#7b8096', fontSize: 14 }}>
+              {loading ? '…' : chantiers.length} chantier{chantiers.length !== 1 ? 's' : ''} au total
+            </p>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={() => setShowImport(true)}
-              style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#10B981', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5" size={14} color="#10B981" /> Import Excel
-            </button>
-           <button onClick={() => navigate('/import-pdf')}
-              style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', color: '#F59E0B', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-              📄 Import BDC PDF
-            </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Import dropdown */}
+            <div ref={importMenuRef} style={{ position: 'relative' }}>
+              <button onClick={() => setShowImportMenu(v => !v)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#eef0f6', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6" size={14} /> Importer ▾
+              </button>
+              {showImportMenu && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#1d2030', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', padding: 6, zIndex: 20, minWidth: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+                  <div onClick={() => { setShowImportMenu(false); setShowImport(true) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#10B981' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(16,185,129,0.08)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5" size={14} color="#10B981" />
+                    Import Excel
+                  </div>
+                  <div onClick={() => { setShowImportMenu(false); navigate('/import-pdf') }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#F59E0B' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,158,11,0.08)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6" size={14} color="#F59E0B" />
+                    Import BDC PDF
+                  </div>
+                  <div onClick={() => { setShowImportMenu(false); navigate('/import-xml') }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#A855F7' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(168,85,247,0.08)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <Icon d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 1 2-2V9M9 21H5a2 2 0 0 0-2-2V9m0 0h18" size={14} color="#A855F7" />
+                    Import Synoptique XML
+                  </div>
+                </div>
+              )}
+            </div>
             <button onClick={() => setShowAdd(true)}
-              style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+              style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 18px rgba(16,185,129,0.40)' }}>
               <Icon d="M12 5v14M5 12h14" size={14} color="#fff" /> Nouveau chantier
             </button>
-	  <button onClick={() => navigate('/import-xml')}
-              style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', color: '#8B5CF6', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-              🔌 Import Synoptique
-            </button>
           </div>
         </div>
 
+        {/* Search + filter chips */}
         <div style={{ marginBottom: 16 }}>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher un chantier (nom, client, adresse)..."
-            style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 16px', color: '#E8EAF0', fontSize: 13, outline: 'none' }}
-          />
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eef0f6" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher un chantier (nom, client, adresse)..."
+              style={{ ...inputStyle, paddingLeft: 34 }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[{ key: 'tous', label: 'Tous' }, ...Object.entries(STATUS).map(([k, v]) => ({ key: k, label: v.label, color: v.color }))].map(f => {
+              const isActive = filterStatut === f.key
+              const col = f.color || '#7b8096'
+              return (
+                <button key={f.key} onClick={() => setFilterStatut(f.key)}
+                  style={{
+                    background: isActive ? col + '18' : 'rgba(255,255,255,0.04)',
+                    border: '1px solid ' + (isActive ? col + '60' : 'rgba(255,255,255,0.1)'),
+                    color: isActive ? col : '#7b8096',
+                    borderRadius: 20, padding: '5px 14px', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 600, transition: 'all .15s'
+                  }}>
+                  {f.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
+        {/* Inline add form */}
         {showAdd && (
-          <div style={{ background: '#13151E', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, marginBottom: 20 }}>Nouveau chantier</div>
+          <div style={{ background: '#181b24', borderRadius: 16, padding: 24, marginBottom: 24, borderTop: '3px solid #10B981', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 800, marginBottom: 20, color: '#eef0f6' }}>Nouveau chantier</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div style={{ gridColumn: '1/-1' }}>
                 <label style={labelStyle}>Nom du chantier *</label>
                 <input value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })}
-                  placeholder="Ex: Siege Social Entreprise X" style={inputStyle} />
+                  placeholder="Ex: Siège Social Entreprise X" style={inputStyle} />
               </div>
               <div>
                 <label style={labelStyle}>Client</label>
@@ -167,7 +239,7 @@ const ordre = { en_cours: 0, probleme: 1, a_terminer: 2, a_faire: 3, termine: 4 
                   placeholder="Adresse du site" style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Date debut</label>
+                <label style={labelStyle}>Date début</label>
                 <input type="date" value={form.date_debut} onChange={e => setForm({ ...form, date_debut: e.target.value })}
                   style={inputStyle} />
               </div>
@@ -185,23 +257,24 @@ const ordre = { en_cours: 0, probleme: 1, a_terminer: 2, a_faire: 3, termine: 4 
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setShowAdd(false)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
                 Annuler
               </button>
               <button onClick={createChantier} disabled={saving}
-                style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
-                {saving ? 'Creation...' : 'Creer le chantier'}
+                style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
+                {saving ? 'Création...' : 'Créer le chantier'}
               </button>
             </div>
           </div>
         )}
 
+        {/* Edit modal */}
         {editChantier && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800 }}>Modifier le chantier</div>
-                <button onClick={() => setEditChantier(null)} style={{ background: 'none', border: 'none', color: '#E8EAF0', cursor: 'pointer', fontSize: 20 }}>✕</button>
+                <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 800, color: '#eef0f6' }}>Modifier le chantier</div>
+                <button onClick={() => setEditChantier(null)} style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', fontSize: 20 }}>✕</button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div style={{ gridColumn: '1/-1' }}>
@@ -217,7 +290,7 @@ const ordre = { en_cours: 0, probleme: 1, a_terminer: 2, a_faire: 3, termine: 4 
                   <input value={editForm.adresse || ''} onChange={e => setEditForm({ ...editForm, adresse: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Date debut</label>
+                  <label style={labelStyle}>Date début</label>
                   <input type="date" value={editForm.date_debut || ''} onChange={e => setEditForm({ ...editForm, date_debut: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
@@ -228,11 +301,7 @@ const ordre = { en_cours: 0, probleme: 1, a_terminer: 2, a_faire: 3, termine: 4 
                   <label style={labelStyle}>Statut</label>
                   <select value={editForm.statut || 'a_faire'} onChange={e => setEditForm({ ...editForm, statut: e.target.value })}
                     style={{ ...inputStyle, cursor: 'pointer' }}>
-                    <option value="a_faire">A faire</option>
-                    <option value="en_cours">En cours</option>
-                    <option value="a_terminer">A terminer</option>
-                    <option value="probleme">Probleme</option>
-                    <option value="termine">Termine</option>
+                    {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
                 <div style={{ gridColumn: '1/-1' }}>
@@ -243,11 +312,11 @@ const ordre = { en_cours: 0, probleme: 1, a_terminer: 2, a_faire: 3, termine: 4 
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button onClick={() => setEditChantier(null)}
-                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
                   Annuler
                 </button>
                 <button onClick={saveEdit} disabled={saving}
-                  style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+                  style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
                   {saving ? 'Sauvegarde...' : 'Sauvegarder'}
                 </button>
               </div>
@@ -255,11 +324,12 @@ const ordre = { en_cours: 0, probleme: 1, a_terminer: 2, a_faire: 3, termine: 4 
           </div>
         )}
 
+        {/* Cards list */}
         {loading ? (
-          <div style={{ textAlign: 'center', color: '#6B7280', padding: '40px 0' }}>Chargement...</div>
+          <div style={{ textAlign: 'center', color: '#7b8096', padding: '40px 0' }}>Chargement...</div>
         ) : chantiersFiltres.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#4B5563', padding: '40px 0', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12 }}>
-            {search ? 'Aucun chantier ne correspond a la recherche' : 'Aucun chantier'}
+          <div style={{ textAlign: 'center', color: '#3d4155', padding: '40px 0', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12 }}>
+            {search || filterStatut !== 'tous' ? 'Aucun chantier ne correspond à la recherche' : 'Aucun chantier'}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
@@ -267,37 +337,63 @@ const ordre = { en_cours: 0, probleme: 1, a_terminer: 2, a_faire: 3, termine: 4 
               const done = parseInt(c.nb_salles_terminees || 0)
               const total = parseInt(c.nb_salles || 0)
               const pct = total ? Math.round((done / total) * 100) : 0
+              const statusColor = STATUS[c.statut]?.color || '#7b8096'
               return (
-                <div key={c.id} onClick={() => navigate('/chantiers/' + c.id)}
-                  style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20, cursor: 'pointer', transition: 'all .25s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.transform = 'none' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                    <div>
-                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, marginBottom: 3 }}>{c.nom}</div>
-                      <div style={{ fontSize: 12, color: '#6B7280' }}>{c.client}</div>
+                <div key={c.id}
+                  style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', cursor: 'pointer', transition: 'all .2s', borderTop: `3px solid ${statusColor}` }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = statusColor + '45'; e.currentTarget.style.background = '#1d2030'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.background = '#181b24'; e.currentTarget.style.transform = 'none' }}>
+
+                  <div style={{ padding: '16px 18px 14px' }} onClick={() => navigate('/chantiers/' + c.id)}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0, marginRight: 10 }}>
+                        <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: 15, marginBottom: 2, color: '#eef0f6' }}>{c.nom}</div>
+                        <div style={{ fontSize: 12, color: '#7b8096' }}>{c.client}</div>
+                      </div>
+                      <Badge statut={c.statut} />
                     </div>
-                    <Badge statut={c.statut} />
+
+                    {c.adresse && (
+                      <div style={{ fontSize: 12, color: '#3d4155', marginBottom: 10 }}>📍 {c.adresse}</div>
+                    )}
+
+                    {(c.date_debut || c.date_fin) && (
+                      <div style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#3d4155', marginBottom: 10 }}>
+                        {c.date_debut?.slice(0, 10)} {c.date_debut && c.date_fin ? '→' : ''} {c.date_fin?.slice(0, 10)}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'rgba(255,255,255,0.03)', borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
+                      {[
+                        { label: 'Salles', val: c.nb_salles || 0 },
+                        { label: 'Équip.', val: c.nb_produits || 0 },
+                        { label: 'Avancement', val: pct + '%' },
+                      ].map(s => (
+                        <div key={s.label} style={{ padding: '8px 10px', textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
+                          <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, fontWeight: 700, color: '#eef0f6' }}>{s.val}</div>
+                          <div style={{ fontSize: 10, color: '#7b8096', marginTop: 2 }}>{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
+                      <div style={{ height: '100%', width: pct + '%', background: `linear-gradient(90deg,${statusColor},${statusColor}bb)`, borderRadius: 99 }} />
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#8B8FA8', marginBottom: 14 }}>
-                    {c.nb_salles} salle(s) · {c.nb_produits} equipement(s)
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, color: '#6B7280' }}>Avancement</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: pct === 100 ? '#10B981' : '#00D4FF' }}>{pct}%</span>
-                  </div>
-                  <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: pct + '%', background: 'linear-gradient(90deg,#00D4FF,#0066CC)', borderRadius: 4 }} />
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}
+
+                  <div style={{ display: 'flex', gap: 6, padding: '0 18px 14px' }}
                     onClick={e => e.stopPropagation()}>
+                    <button onClick={() => navigate('/chantiers/' + c.id)}
+                      style={{ flex: 1, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10B981', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                      Ouvrir
+                    </button>
                     <button onClick={() => startEdit(c)}
-                      style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 12 }}>
-                      ✏️ Modifier
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
+                      ✏️
                     </button>
                     <button onClick={() => deleteChantier(c.id, c.nom)}
-                      style={{ flex: 1, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 12 }}>
-                      🗑️ Supprimer
+                      style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
+                      🗑️
                     </button>
                   </div>
                 </div>

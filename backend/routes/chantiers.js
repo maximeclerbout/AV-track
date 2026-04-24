@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', requireRole('admin', 'chef'), async (req, res) => {
+router.post('/', requireRole('admin', 'chef', 'technicien'), async (req, res) => {
   const { nom, client, adresse, date_debut, date_fin, statut = 'a_faire', description } = req.body;
   if (!nom) return res.status(400).json({ error: 'Le nom du chantier est requis.' });
 
@@ -83,7 +83,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.patch('/:id', requireRole('admin', 'chef'), async (req, res) => {
+router.patch('/:id', requireRole('admin', 'chef', 'technicien'), async (req, res) => {
   const { id } = req.params;
   const allowed = ['nom','client','adresse','date_debut','date_fin','statut','description'];
   const fields = [], vals = [];

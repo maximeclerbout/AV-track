@@ -26,27 +26,52 @@ const Icon = ({ d, size = 18, color = 'currentColor' }) => (
 )
 
 const STATUS = {
-  a_faire:    { label: 'A faire',    color: '#6B7280', bg: 'rgba(107,114,128,0.15)' },
-  en_cours:   { label: 'En cours',   color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' },
-  a_terminer: { label: 'A terminer', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' },
-  probleme:   { label: 'Probleme',   color: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
-  termine:    { label: 'Termine',    color: '#10B981', bg: 'rgba(16,185,129,0.15)' },
+  a_faire:    { label: 'A faire',    color: '#7b8096' },
+  en_cours:   { label: 'En cours',   color: '#F59E0B' },
+  a_terminer: { label: 'A terminer', color: '#6366F1' },
+  probleme:   { label: 'Problème',   color: '#EF4444' },
+  termine:    { label: 'Terminé',    color: '#10B981' },
 }
+
+const TYPE_COLORS = {
+  'TV':              '#60A5FA',
+  'Videoprojecteur': '#A855F7',
+  'Matrice':         '#F97316',
+  'Visio':           '#10B981',
+  'Amplificateur':   '#F59E0B',
+  'Switch AV':       '#06B6D4',
+  'Controleur':      '#EF4444',
+  'Autre':           '#7b8096',
+}
+
+const getTypeColor = (type) => TYPE_COLORS[type] || '#7b8096'
 
 const TYPES_DEFAULT = ['TV','Videoprojecteur','Matrice','Visio','Amplificateur','Switch AV','Controleur','Autre']
 
 const Badge = ({ statut }) => {
   const cfg = STATUS[statut] || STATUS.a_faire
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, color: cfg.color, background: cfg.bg, border: '1px solid ' + cfg.color + '40' }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.color }} />
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px',
+      borderRadius: 20, fontSize: 11, fontWeight: 600, color: cfg.color,
+      background: cfg.color + '1a', border: '1px solid ' + cfg.color + '40',
+      fontFamily: "'Cousine', monospace", textTransform: 'uppercase', letterSpacing: .5
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
       {cfg.label}
     </span>
   )
 }
 
-const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 14px', color: '#E8EAF0', fontSize: 13, outline: 'none' }
-const labelStyle = { fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6, display: 'block' }
+const inputStyle = {
+  width: '100%', background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10,
+  padding: '10px 14px', color: '#eef0f6', fontSize: 13, outline: 'none'
+}
+const labelStyle = {
+  fontSize: 11, fontWeight: 700, color: '#7b8096', textTransform: 'uppercase',
+  letterSpacing: 1, marginBottom: 6, display: 'block'
+}
 
 export default function Salle() {
   const { cid, sid } = useParams()
@@ -114,25 +139,16 @@ export default function Salle() {
     try {
       const formData = new FormData()
       formData.append('photo', file)
-      const res = await axios.post('/api/salles/' + sid + '/photo', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      const res = await axios.post('/api/salles/' + sid + '/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
       setSalle(prev => ({ ...prev, photo_url: res.data.photo_url }))
-    } catch (err) {
-      alert('Erreur upload photo.')
-    } finally {
-      setUploadingPhoto(false)
-    }
+    } catch (err) { alert('Erreur upload photo.') }
+    finally { setUploadingPhoto(false) }
   }
 
   const deletePhoto = async () => {
     if (!confirm('Supprimer la photo ?')) return
-    try {
-      await axios.delete('/api/salles/' + sid + '/photo')
-      setSalle(prev => ({ ...prev, photo_url: null }))
-    } catch (err) {
-      alert('Erreur suppression photo.')
-    }
+    try { await axios.delete('/api/salles/' + sid + '/photo'); setSalle(prev => ({ ...prev, photo_url: null })) }
+    catch (err) { alert('Erreur suppression photo.') }
   }
 
   const addProduit = async () => {
@@ -143,27 +159,19 @@ export default function Salle() {
       setSalle(prev => ({ ...prev, produits: [...(prev.produits || []), res.data] }))
       setNewProduit({ type_equipement: 'TV', reference: '', serial_number: '', description: '', sur_reseau: false, ip: '', masque: salle?.net_masque || '', gateway: salle?.net_gateway || '', dns: salle?.net_dns || '', mdp: '' })
       setShowAddProduit(false)
-    } catch (err) {
-      alert('Erreur ajout.')
-    } finally {
-      setSaving(false)
-    }
+    } catch (err) { alert('Erreur ajout.') }
+    finally { setSaving(false) }
   }
 
   const deleteProduit = async (id) => {
-    if (!confirm('Supprimer cet equipement ?')) return
+    if (!confirm('Supprimer cet équipement ?')) return
     await axios.delete('/api/produits/' + id)
     setSalle(prev => ({ ...prev, produits: prev.produits.filter(p => p.id !== id) }))
   }
 
   const startEditProduit = (p) => {
     setEditProduit(p)
-    setEditProduitForm({
-      type_equipement: p.type_equipement, reference: p.reference,
-      serial_number: p.serial_number || '', description: p.description || '',
-      sur_reseau: p.sur_reseau, ip: p.ip || '', masque: p.masque || '',
-      gateway: p.gateway || '', dns: p.dns || '', mdp: p.mdp || ''
-    })
+    setEditProduitForm({ type_equipement: p.type_equipement, reference: p.reference, serial_number: p.serial_number || '', description: p.description || '', sur_reseau: p.sur_reseau, ip: p.ip || '', masque: p.masque || '', gateway: p.gateway || '', dns: p.dns || '', mdp: p.mdp || '' })
   }
 
   const saveEditProduit = async () => {
@@ -172,11 +180,8 @@ export default function Salle() {
       const res = await axios.patch('/api/produits/' + editProduit.id, editProduitForm)
       setSalle(prev => ({ ...prev, produits: prev.produits.map(p => p.id === editProduit.id ? { ...p, ...res.data } : p) }))
       setEditProduit(null)
-    } catch (err) {
-      alert('Erreur modification.')
-    } finally {
-      setSaving(false)
-    }
+    } catch (err) { alert('Erreur modification.') }
+    finally { setSaving(false) }
   }
 
   const exportSalle = async () => {
@@ -186,12 +191,8 @@ export default function Salle() {
       const link = document.createElement('a')
       link.href = url
       link.setAttribute('download', 'AVTrack_salle_' + sid + '.xlsx')
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-    } catch (err) {
-      alert('Erreur export.')
-    }
+      document.body.appendChild(link); link.click(); link.remove()
+    } catch (err) { alert('Erreur export.') }
   }
 
   const produitsFiltres = (salle?.produits || []).filter(p => {
@@ -206,142 +207,185 @@ export default function Salle() {
     return matchReseau && matchSearch
   })
 
-  if (loading) return <Layout chantiers={chantiers}><div style={{ textAlign: 'center', color: '#6B7280', padding: '60px 0' }}>Chargement...</div></Layout>
+  if (loading) return <Layout chantiers={chantiers}><div style={{ textAlign: 'center', color: '#7b8096', padding: '60px 0' }}>Chargement...</div></Layout>
   if (!salle) return null
+
+  const salleStatusColor = STATUS[salle.statut]?.color || '#7b8096'
+  const newTypeColor = getTypeColor(newProduit.type_equipement)
 
   return (
     <Layout chantiers={chantiers}>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 12, color: '#6B7280', flexWrap: 'wrap' }}>
+        {/* Breadcrumb */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 12, color: '#7b8096', flexWrap: 'wrap' }}>
           <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>Tableau de bord</span>
           <span>›</span>
           <span style={{ cursor: 'pointer' }} onClick={() => navigate('/chantiers/' + cid)}>{chantierNom}</span>
           <span>›</span>
-          <span style={{ color: '#E8EAF0' }}>{salle.nom}</span>
+          <span style={{ color: '#eef0f6' }}>{salle.nom}</span>
         </div>
 
-        <div style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 24, marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 800 }}>{salle.nom}</h1>
-                <Badge statut={salle.statut} />
-              </div>
-              <div style={{ fontSize: 12, color: '#6B7280' }}>{salle.etage} · {chantierNom}</div>
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <select value={salle.statut} onChange={e => updateStatut(e.target.value)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 12px', color: '#E8EAF0', fontSize: 12, cursor: 'pointer' }}>
-                {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-              </select>
-              <button onClick={exportSalle}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Icon d={icons.download} size={14} /> Export
-              </button>
-            </div>
-          </div>
+        {/* Hero card */}
+        <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderTop: `4px solid ${salleStatusColor}` }}>
+          <div style={{ padding: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
 
-          {salle.photo_url ? (
-            <div style={{ marginBottom: 16, borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
-              <img src={salle.photo_url} alt="Photo salle"
-                style={{ width: '100%', maxHeight: 220, objectFit: 'cover', display: 'block', borderRadius: 12 }} />
-              <div style={{ position: 'absolute', bottom: 10, right: 10, display: 'flex', gap: 6 }}>
-                <label style={{ background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Icon d={icons.camera} size={13} color="#fff" /> Changer
-                  <input type="file" accept="image/*" capture="environment" onChange={uploadPhoto} style={{ display: 'none' }} />
-                </label>
-                <button onClick={deletePhoto}
-                  style={{ background: 'rgba(239,68,68,0.7)', border: 'none', color: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
-                  Supprimer
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '20px', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 12, cursor: 'pointer', color: '#6B7280', fontSize: 13 }}>
-                {uploadingPhoto ? <span>Upload en cours...</span> : <><Icon d={icons.camera} size={16} /> Ajouter une photo de la salle</>}
-                <input type="file" accept="image/*" capture="environment" onChange={uploadPhoto} style={{ display: 'none' }} />
-              </label>
-            </div>
-          )}
-
-          <div style={{ marginBottom: 16 }}>
-            <div style={labelStyle}>Commentaire</div>
-            {editComment ? (
+              {/* Left: photo + status */}
               <div>
-                <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3}
-                  style={{ ...inputStyle, resize: 'vertical', minHeight: 80 }} />
-                <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
-                  <button onClick={() => setEditComment(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 12 }}>Annuler</button>
-                  <button onClick={saveComment} style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>Sauvegarder</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                  <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 900, color: '#eef0f6' }}>{salle.nom}</h1>
+                  <Badge statut={salle.statut} />
                 </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <div style={{ fontSize: 13, color: salle.commentaire ? '#E8EAF0' : '#4B5563', flex: 1, fontStyle: !salle.commentaire ? 'italic' : 'normal' }}>
-                  {salle.commentaire || 'Aucun commentaire'}
-                </div>
-                <button onClick={() => setEditComment(true)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 8, padding: '5px 8px', cursor: 'pointer' }}>
-                  <Icon d={icons.edit} size={13} />
-                </button>
-              </div>
-            )}
-          </div>
+                <div style={{ fontSize: 12, color: '#7b8096', marginBottom: 16 }}>{salle.etage} · {chantierNom}</div>
 
-          <div>
-            <button onClick={() => setShowNetworkPanel(!showNetworkPanel)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: '#00D4FF', fontSize: 13, fontWeight: 600, padding: 0 }}>
-              <Icon d={icons.network} size={15} color="#00D4FF" /> Reseau salle
-              <Icon d={icons.chevronDown} size={14} color="#00D4FF" />
-            </button>
-            {showNetworkPanel && (
-              <div style={{ marginTop: 12, padding: 14, background: 'rgba(0,212,255,0.04)', border: '1px solid rgba(0,212,255,0.15)', borderRadius: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 10, marginBottom: 10 }}>
-                  {[['net_masque','Masque'],['net_gateway','Passerelle'],['net_dns','DNS']].map(([key, label]) => (
-                    <div key={key}>
-                      <div style={labelStyle}>{label}</div>
-                      <input defaultValue={salle[key]} style={inputStyle}
-                        onChange={e => setSalle(prev => ({ ...prev, [key]: e.target.value }))}
-                        onBlur={e => axios.patch('/api/salles/' + sid, { [key]: e.target.value })} />
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                  <select value={salle.statut} onChange={e => updateStatut(e.target.value)}
+                    style={{ background: salleStatusColor + '10', border: '1px solid ' + salleStatusColor + '40', borderRadius: 10, padding: '8px 36px 8px 12px', color: salleStatusColor, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                    {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                  <button onClick={exportSalle}
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Icon d={icons.download} size={14} /> Export
+                  </button>
                 </div>
-                <button onClick={applyNetwork}
-                  style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Icon d={icons.wifi} size={13} color="#fff" /> Appliquer a tous les equipements
-                </button>
+
+                {/* Photo zone */}
+                {salle.photo_url ? (
+                  <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', height: 140 }}>
+                    <img src={salle.photo_url} alt="Photo salle"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <div style={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 6 }}>
+                      <label style={{ background: 'rgba(16,185,129,0.85)', color: '#fff', borderRadius: 20, padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                        📷 Changer
+                        <input type="file" accept="image/*" capture="environment" onChange={uploadPhoto} style={{ display: 'none' }} />
+                      </label>
+                      <button onClick={deletePhoto}
+                        style={{ background: 'rgba(239,68,68,0.7)', border: 'none', color: '#fff', borderRadius: 20, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
+                        Supprimer
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, height: 140, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 12, cursor: 'pointer', color: '#7b8096', fontSize: 13, background: 'rgba(255,255,255,0.02)', position: 'relative', transition: 'border .2s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(16,185,129,0.5)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}>
+                    {uploadingPhoto ? <span>Upload en cours...</span> : (
+                      <>
+                        <Icon d={icons.camera} size={22} color="#3d4155" />
+                        <span style={{ fontSize: 12 }}>Ajouter une photo</span>
+                        <span style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10B981', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
+                          📷 Prendre une photo
+                        </span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" capture="environment" onChange={uploadPhoto} style={{ display: 'none' }} />
+                  </label>
+                )}
               </div>
-            )}
+
+              {/* Right: comment + network */}
+              <div>
+                {/* Commentaire */}
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={labelStyle}>Commentaire</div>
+                    {!editComment && (
+                      <button onClick={() => setEditComment(true)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 8, padding: '4px 8px', cursor: 'pointer' }}>
+                        <Icon d={icons.edit} size={12} />
+                      </button>
+                    )}
+                  </div>
+                  {editComment ? (
+                    <div>
+                      <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3}
+                        style={{ ...inputStyle, resize: 'vertical', minHeight: 70 }} />
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+                        <button onClick={() => setEditComment(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>Annuler</button>
+                        <button onClick={saveComment} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>Sauvegarder</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 13, color: salle.commentaire ? '#eef0f6' : '#3d4155', fontStyle: !salle.commentaire ? 'italic' : 'normal', lineHeight: 1.5 }}>
+                      {salle.commentaire || 'Aucun commentaire'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Network panel */}
+                <div style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 12, overflow: 'hidden' }}>
+                  <button onClick={() => setShowNetworkPanel(!showNetworkPanel)}
+                    style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', color: '#06B6D4', fontSize: 13, fontWeight: 600 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Icon d={icons.network} size={15} color="#06B6D4" />
+                      Réseau salle
+                      <span style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#3d4155', background: 'rgba(6,182,212,0.1)', borderRadius: 20, padding: '1px 7px' }}>
+                        {(salle.produits || []).filter(p => p.sur_reseau).length} app.
+                      </span>
+                    </div>
+                    <svg style={{ transform: showNetworkPanel ? 'rotate(180deg)' : 'none', transition: '.2s' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" strokeWidth="2">
+                      <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                  </button>
+                  {showNetworkPanel && (
+                    <div style={{ padding: '0 14px 14px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+                        {[['net_masque','Masque'],['net_gateway','Passerelle'],['net_dns','DNS']].map(([key, label]) => (
+                          <div key={key}>
+                            <div style={labelStyle}>{label}</div>
+                            <input defaultValue={salle[key]} style={inputStyle}
+                              onChange={e => setSalle(prev => ({ ...prev, [key]: e.target.value }))}
+                              onBlur={e => axios.patch('/api/salles/' + sid, { [key]: e.target.value })} />
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={applyNetwork}
+                        style={{ background: 'linear-gradient(135deg,#06B6D4,#0891B2)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 3px 10px rgba(6,182,212,0.35)' }}>
+                        <Icon d={icons.wifi} size={13} color="#fff" /> Appliquer à tous les équipements
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Equipment section */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Icon d={icons.monitor} size={18} color="#00D4FF" />
-            Equipements ({produitsFiltres.length}/{salle.produits?.length || 0})
+          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 900, color: '#eef0f6', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon d={icons.monitor} size={18} color="#10B981" />
+            Équipements
+            <span style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#7b8096', fontWeight: 400 }}>({produitsFiltres.length}/{salle.produits?.length || 0})</span>
           </h2>
           <button onClick={() => setShowAddProduit(!showAddProduit)}
-            style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+            style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
             <Icon d={icons.plus} size={14} color="#fff" /> Ajouter
           </button>
         </div>
 
+        {/* Search + filter */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-          <input value={searchProduit} onChange={e => setSearchProduit(e.target.value)}
-            placeholder="Rechercher un equipement..."
-            style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 14px', color: '#E8EAF0', fontSize: 13, outline: 'none', minWidth: 180 }} />
+          <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
+            <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef0f6" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input value={searchProduit} onChange={e => setSearchProduit(e.target.value)}
+              placeholder="Rechercher un équipement..."
+              style={{ ...inputStyle, paddingLeft: 30 }} />
+          </div>
           {['tous','reseau','hors_reseau'].map(f => (
             <button key={f} onClick={() => setFiltreReseau(f)}
-              style={{ background: filtreReseau === f ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.05)', border: '1px solid ' + (filtreReseau === f ? 'rgba(0,212,255,0.4)' : 'rgba(255,255,255,0.1)'), color: filtreReseau === f ? '#00D4FF' : '#8B8FA8', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-              {f === 'tous' ? 'Tous' : f === 'reseau' ? 'Sur reseau' : 'Hors reseau'}
+              style={{ background: filtreReseau === f ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (filtreReseau === f ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.1)'), color: filtreReseau === f ? '#10B981' : '#7b8096', borderRadius: 20, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+              {f === 'tous' ? 'Tous' : f === 'reseau' ? 'Sur réseau' : 'Hors réseau'}
             </button>
           ))}
         </div>
 
+        {/* Add produit form */}
         {showAddProduit && (
-          <div style={{ background: '#13151E', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 14, fontSize: 14 }}>Nouvel equipement</div>
+          <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20, marginBottom: 16, borderTop: `3px solid ${newTypeColor}` }}>
+            <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, marginBottom: 14, fontSize: 15, color: '#eef0f6' }}>Nouvel équipement</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <label style={labelStyle}>Type</label>
@@ -350,16 +394,16 @@ export default function Salle() {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Reference *</label>
+                <label style={labelStyle}>Référence *</label>
                 <input value={newProduit.reference} onChange={e => setNewProduit({ ...newProduit, reference: e.target.value })} placeholder="Ex: Samsung QM65B" style={inputStyle} />
               </div>
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={labelStyle}>Numero de serie</label>
+              <label style={labelStyle}>Numéro de série</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input value={newProduit.serial_number} onChange={e => setNewProduit({ ...newProduit, serial_number: e.target.value })} placeholder="S/N" style={{ ...inputStyle, flex: 1 }} />
-                <button title="Scanner" onClick={() => setShowScanner(true)} style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.25)', borderRadius: 10, padding: '8px 12px', cursor: 'pointer' }}>
-                  <Icon d={icons.barcode} size={16} color="#00D4FF" />
+                <button title="Scanner" onClick={() => setShowScanner(true)} style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: 10, padding: '0 12px', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon d={icons.barcode} size={16} color="#06B6D4" />
                 </button>
               </div>
             </div>
@@ -368,21 +412,21 @@ export default function Salle() {
               <textarea value={newProduit.description} onChange={e => setNewProduit({ ...newProduit, description: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical', minHeight: 60 }} />
             </div>
             <div style={{ marginBottom: newProduit.sur_reseau ? 10 : 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}
                 onClick={() => setNewProduit({ ...newProduit, sur_reseau: !newProduit.sur_reseau, masque: salle?.net_masque || '', gateway: salle?.net_gateway || '', dns: salle?.net_dns || '' })}>
-                <div style={{ width: 36, height: 20, borderRadius: 10, background: newProduit.sur_reseau ? '#00D4FF' : 'rgba(255,255,255,0.1)', position: 'relative', transition: '.2s', flexShrink: 0 }}>
-                  <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: newProduit.sur_reseau ? 18 : 2, transition: '.2s' }} />
+                <div style={{ width: 40, height: 22, borderRadius: 11, background: newProduit.sur_reseau ? '#10B981' : 'rgba(255,255,255,0.1)', position: 'relative', transition: '.2s', flexShrink: 0 }}>
+                  <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: newProduit.sur_reseau ? 21 : 3, transition: 'left .2s' }} />
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>Appareil sur le reseau</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#eef0f6' }}>Appareil sur le réseau</span>
               </div>
             </div>
             {newProduit.sur_reseau && (
-              <div style={{ background: 'rgba(0,212,255,0.04)', border: '1px solid rgba(0,212,255,0.12)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
+              <div style={{ background: 'rgba(6,182,212,0.05)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {[['ip','Adresse IP','192.168.1.x'],['masque','Masque','255.255.255.0'],['gateway','Passerelle','192.168.1.1'],['dns','DNS','8.8.8.8']].map(([key, label, ph]) => (
                     <div key={key}>
-                      <label style={labelStyle}>{label}</label>
-                      <input value={newProduit[key]} onChange={e => setNewProduit({ ...newProduit, [key]: e.target.value })} placeholder={ph} style={inputStyle} />
+                      <label style={{ ...labelStyle, color: '#06B6D4' }}>{label}</label>
+                      <input value={newProduit[key]} onChange={e => setNewProduit({ ...newProduit, [key]: e.target.value })} placeholder={ph} style={{ ...inputStyle, fontFamily: "'Cousine', monospace" }} />
                     </div>
                   ))}
                   <div style={{ gridColumn: '1/-1' }}>
@@ -393,20 +437,21 @@ export default function Salle() {
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowAddProduit(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
-              <button onClick={addProduit} disabled={saving} style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
-                {saving ? 'Ajout...' : "Ajouter l'equipement"}
+              <button onClick={() => setShowAddProduit(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+              <button onClick={addProduit} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                {saving ? 'Ajout...' : "Ajouter l'équipement"}
               </button>
             </div>
           </div>
         )}
 
+        {/* Edit produit modal */}
         {editProduit && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800 }}>Modifier</div>
-                <button onClick={() => setEditProduit(null)} style={{ background: 'none', border: 'none', color: '#E8EAF0', cursor: 'pointer', fontSize: 20 }}>x</button>
+                <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 800, color: '#eef0f6' }}>Modifier l'équipement</div>
+                <button onClick={() => setEditProduit(null)} style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', fontSize: 20 }}>✕</button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div>
@@ -416,11 +461,11 @@ export default function Salle() {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Reference *</label>
+                  <label style={labelStyle}>Référence *</label>
                   <input value={editProduitForm.reference || ''} onChange={e => setEditProduitForm({ ...editProduitForm, reference: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Numero de serie</label>
+                  <label style={labelStyle}>Numéro de série</label>
                   <input value={editProduitForm.serial_number || ''} onChange={e => setEditProduitForm({ ...editProduitForm, serial_number: e.target.value })} style={inputStyle} />
                 </div>
                 <div style={{ gridColumn: '1/-1' }}>
@@ -429,21 +474,21 @@ export default function Salle() {
                 </div>
               </div>
               <div style={{ marginBottom: editProduitForm.sur_reseau ? 12 : 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}
                   onClick={() => setEditProduitForm({ ...editProduitForm, sur_reseau: !editProduitForm.sur_reseau })}>
-                  <div style={{ width: 36, height: 20, borderRadius: 10, background: editProduitForm.sur_reseau ? '#00D4FF' : 'rgba(255,255,255,0.1)', position: 'relative', transition: '.2s', flexShrink: 0 }}>
-                    <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: editProduitForm.sur_reseau ? 18 : 2, transition: '.2s' }} />
+                  <div style={{ width: 40, height: 22, borderRadius: 11, background: editProduitForm.sur_reseau ? '#10B981' : 'rgba(255,255,255,0.1)', position: 'relative', transition: '.2s', flexShrink: 0 }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: editProduitForm.sur_reseau ? 21 : 3, transition: 'left .2s' }} />
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>Appareil sur le reseau</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#eef0f6' }}>Appareil sur le réseau</span>
                 </div>
               </div>
               {editProduitForm.sur_reseau && (
-                <div style={{ background: 'rgba(0,212,255,0.04)', border: '1px solid rgba(0,212,255,0.12)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                <div style={{ background: 'rgba(6,182,212,0.05)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {[['ip','Adresse IP'],['masque','Masque'],['gateway','Passerelle'],['dns','DNS']].map(([key, label]) => (
                       <div key={key}>
-                        <label style={labelStyle}>{label}</label>
-                        <input value={editProduitForm[key] || ''} onChange={e => setEditProduitForm({ ...editProduitForm, [key]: e.target.value })} style={inputStyle} />
+                        <label style={{ ...labelStyle, color: '#06B6D4' }}>{label}</label>
+                        <input value={editProduitForm[key] || ''} onChange={e => setEditProduitForm({ ...editProduitForm, [key]: e.target.value })} style={{ ...inputStyle, fontFamily: "'Cousine', monospace" }} />
                       </div>
                     ))}
                     <div style={{ gridColumn: '1/-1' }}>
@@ -454,8 +499,8 @@ export default function Salle() {
                 </div>
               )}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button onClick={() => setEditProduit(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
-                <button onClick={saveEditProduit} disabled={saving} style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+                <button onClick={() => setEditProduit(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+                <button onClick={saveEditProduit} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
                   {saving ? 'Sauvegarde...' : 'Sauvegarder'}
                 </button>
               </div>
@@ -464,68 +509,80 @@ export default function Salle() {
         )}
 
         {produitsFiltres.length === 0 && !showAddProduit && (
-          <div style={{ textAlign: 'center', color: '#4B5563', padding: '40px 0', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12 }}>
-            {searchProduit || filtreReseau !== 'tous' ? 'Aucun equipement ne correspond au filtre' : 'Aucun equipement dans cette salle'}
+          <div style={{ textAlign: 'center', color: '#3d4155', padding: '40px 0', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12 }}>
+            {searchProduit || filtreReseau !== 'tous' ? 'Aucun équipement ne correspond au filtre' : 'Aucun équipement dans cette salle'}
           </div>
         )}
 
+        {/* Equipment accordion list */}
         {produitsFiltres.map(produit => {
           const isExpanded = expandedProduit === produit.id
+          const typeColor = getTypeColor(produit.type_equipement)
           return (
-            <div key={produit.id} style={{ marginBottom: 10, background: '#13151E', border: '1px solid ' + (isExpanded ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.07)'), borderRadius: 14, overflow: 'hidden', transition: '.2s' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', cursor: 'pointer' }}
+            <div key={produit.id} style={{ marginBottom: 8, background: '#181b24', border: '1px solid ' + (isExpanded ? typeColor + '40' : 'rgba(255,255,255,0.07)'), borderRadius: 14, overflow: 'hidden', transition: 'all .2s', position: 'relative' }}>
+              {/* Type color bar */}
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: typeColor }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 12px 20px', cursor: 'pointer' }}
                 onClick={() => setExpandedProduit(isExpanded ? null : produit.id)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,212,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Icon d={icons.monitor} size={15} color="#00D4FF" />
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: typeColor + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon d={icons.monitor} size={15} color={typeColor} />
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>{produit.reference}</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: 'rgba(0,212,255,0.1)', color: '#00D4FF', border: '1px solid rgba(0,212,255,0.2)' }}>
+                      <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 14, fontWeight: 700, color: '#eef0f6' }}>{produit.reference}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: typeColor + '18', color: typeColor, border: '1px solid ' + typeColor + '35', fontFamily: "'Cousine', monospace" }}>
                         {produit.type_equipement}
                       </span>
                     </div>
-                    <div style={{ fontSize: 11, color: '#6B7280', fontFamily: 'monospace' }}>S/N: {produit.serial_number || '—'}</div>
+                    <div style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#3d4155' }}>S/N: {produit.serial_number || '—'}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {produit.sur_reseau ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 20, fontSize: 11, background: 'rgba(16,185,129,0.12)', color: '#10B981', border: '1px solid rgba(16,185,129,0.2)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 20, fontSize: 11, background: 'rgba(16,185,129,0.12)', color: '#10B981', border: '1px solid rgba(16,185,129,0.2)', fontFamily: "'Cousine', monospace" }}>
                       <Icon d={icons.wifi} size={11} color="#10B981" /> {produit.ip}
                     </span>
                   ) : (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 20, fontSize: 11, background: 'rgba(107,114,128,0.12)', color: '#6B7280', border: '1px solid rgba(107,114,128,0.2)' }}>
-                      Hors reseau
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 20, fontSize: 11, background: 'rgba(107,114,128,0.12)', color: '#7b8096', border: '1px solid rgba(107,114,128,0.2)', fontFamily: "'Cousine', monospace" }}>
+                      Hors réseau
                     </span>
                   )}
-                  <Icon d={icons.chevronDown} size={14} color="#6B7280" />
+                  <svg style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: '.2s' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7b8096" strokeWidth="2">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
                 </div>
               </div>
+
               {isExpanded && (
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '14px 16px' }}>
-                  {produit.description && <div style={{ fontSize: 13, color: '#8B8FA8', marginBottom: 12 }}>{produit.description}</div>}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.12)', padding: '14px 20px' }}>
+                  {produit.description && (
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#7b8096', marginBottom: 12, lineHeight: 1.5 }}>
+                      {produit.description}
+                    </div>
+                  )}
                   {produit.sur_reseau && (
-                    <div style={{ background: 'rgba(0,212,255,0.04)', border: '1px solid rgba(0,212,255,0.1)', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#00D4FF', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .8 }}>Reseau</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(120px,1fr))', gap: 8 }}>
+                    <div style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.18)', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#06B6D4', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .8 }}>Configuration réseau</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
                         {[['IP', produit.ip],['Masque', produit.masque],['Passerelle', produit.gateway],['DNS', produit.dns]].map(([lbl, val]) => (
                           <div key={lbl}>
-                            <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 2 }}>{lbl}</div>
-                            <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#E8EAF0' }}>{val || '—'}</div>
+                            <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>{lbl}</div>
+                            <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#eef0f6' }}>{val || '—'}</div>
                           </div>
                         ))}
                         {produit.mdp && (
                           <div>
-                            <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 2 }}>Mot de passe</div>
-                            <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#E8EAF0' }}>{'•'.repeat(8)}</div>
+                            <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>Mot de passe</div>
+                            <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#eef0f6' }}>{'•'.repeat(10)}</div>
                           </div>
                         )}
                       </div>
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                    <button onClick={() => startEditProduit(produit)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button onClick={() => startEditProduit(produit)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Icon d={icons.edit} size={13} /> Modifier
                     </button>
                     <button onClick={() => deleteProduit(produit.id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -538,6 +595,7 @@ export default function Salle() {
           )
         })}
       </div>
+
       {showScanner && (
         <Scanner
           onResult={val => { setNewProduit(prev => ({ ...prev, serial_number: val })); setShowScanner(false) }}
