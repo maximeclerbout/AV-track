@@ -154,7 +154,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stat cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 14, marginBottom: 28 }}>
+        <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 14, marginBottom: 28 }}>
           {stats.map(stat => (
             <div key={stat.label}
               style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '20px 22px', position: 'relative', overflow: 'hidden', transition: 'all .2s', cursor: 'default' }}
@@ -180,7 +180,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tabs + action */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <div className="tabs-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
           <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
             <button onClick={() => setTab('actifs')} style={tabStyle('actifs', '#F59E0B')}>
               <Icon d={icons.building} size={14} color={tab === 'actifs' ? '#F59E0B' : '#7b8096'} />

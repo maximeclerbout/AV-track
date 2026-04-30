@@ -76,6 +76,22 @@ router.post('/', upload.single('fichier'), async (req, res) => {
   }
 });
 
+// GET affichage inline (iframe mobile) — token accepté en query param via auth middleware
+router.get('/:id/inline', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
+    if (!result.rows.length) return res.status(404).send('Introuvable');
+    const doc = result.rows[0];
+    const filePath = doc.chemin.startsWith('/uploads/')
+      ? path.join('/opt/avtrack/backend', doc.chemin)
+      : path.join('/opt/avtrack/backend', 'uploads/' + path.basename(doc.chemin));
+    if (!fs.existsSync(filePath)) return res.status(404).send('Fichier introuvable');
+    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.nom_original)}"`);
+    res.sendFile(filePath);
+  } catch (err) { res.status(500).send('Erreur serveur'); }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const result = await query('SELECT * FROM documents WHERE id = $1', [req.params.id]);

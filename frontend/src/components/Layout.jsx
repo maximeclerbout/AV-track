@@ -9,6 +9,8 @@ const icons = {
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
   menu: "M3 12h18M3 6h18M3 18h18",
   xmark: "M18 6L6 18M6 6l12 12",
+  save: "M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8",
+  key: "M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4",
 }
 
 const STATUS_COLORS = {
@@ -35,6 +37,9 @@ function SidebarLinks({ chantiers, user, logout, navigate, location, setMenuOpen
   ]
   if (user?.role === 'admin') {
     navLinks.push({ path: '/utilisateurs', icon: icons.users, label: 'Utilisateurs' })
+  }
+  if (user?.role === 'admin' || user?.role === 'chef') {
+    navLinks.push({ path: '/backup', icon: icons.save, label: 'Sauvegardes' })
   }
 
   return (
@@ -115,6 +120,10 @@ function SidebarLinks({ chantiers, user, logout, navigate, location, setMenuOpen
             <div style={{ fontSize: 12, fontWeight: 600, color: '#eef0f6' }}>{user?.prenom} {user?.nom}</div>
             <div style={{ fontSize: 10, color: '#7b8096', textTransform: 'uppercase', letterSpacing: .5 }}>{user?.role}</div>
           </div>
+        </div>
+        <div onClick={() => { navigate('/change-password'); setMenuOpen(false) }}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12, color: '#7b8096', marginBottom: 6 }}>
+          <Icon d={icons.key} size={14} color="#7b8096" /> Changer mon mot de passe
         </div>
         <div onClick={() => { logout(); navigate('/login') }}
           style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12, color: '#EF4444', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>

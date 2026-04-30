@@ -53,7 +53,7 @@ export default function Chantiers() {
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [filterStatut, setFilterStatut] = useState('tous')
-  const [form, setForm] = useState({ nom: '', client: '', adresse: '', date_debut: '', date_fin: '', description: '' })
+  const [form, setForm] = useState({ nom: '', client: '', adresse: '', telephone: '', nom_contact: '', date_debut: '', date_fin: '', description: '' })
   const [editChantier, setEditChantier] = useState(null)
   const [editForm, setEditForm] = useState({})
   const navigate = useNavigate()
@@ -102,6 +102,7 @@ export default function Chantiers() {
     setEditChantier(c)
     setEditForm({
       nom: c.nom, client: c.client || '', adresse: c.adresse || '',
+      telephone: c.telephone || '', nom_contact: c.nom_contact || '',
       date_debut: c.date_debut?.slice(0, 10) || '', date_fin: c.date_fin?.slice(0, 10) || '',
       description: c.description || '', statut: c.statut
     })
@@ -138,14 +139,14 @@ export default function Chantiers() {
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 900, marginBottom: 4, color: '#eef0f6' }}>Chantiers</h1>
             <p style={{ color: '#7b8096', fontSize: 14 }}>
               {loading ? '…' : chantiers.length} chantier{chantiers.length !== 1 ? 's' : ''} au total
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="header-btns" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {/* Import dropdown */}
             <div ref={importMenuRef} style={{ position: 'relative' }}>
               <button onClick={() => setShowImportMenu(v => !v)}
@@ -153,7 +154,7 @@ export default function Chantiers() {
                 <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6" size={14} /> Importer ▾
               </button>
               {showImportMenu && (
-                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#1d2030', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', padding: 6, zIndex: 20, minWidth: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+                <div className="import-dropdown" style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#1d2030', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', padding: 6, zIndex: 20, minWidth: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
                   <div onClick={() => { setShowImportMenu(false); setShowImport(true) }}
                     style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#10B981' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(16,185,129,0.08)'}
@@ -198,7 +199,7 @@ export default function Chantiers() {
               style={{ ...inputStyle, paddingLeft: 34 }}
             />
           </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="filter-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {[{ key: 'tous', label: 'Tous' }, ...Object.entries(STATUS).map(([k, v]) => ({ key: k, label: v.label, color: v.color }))].map(f => {
               const isActive = filterStatut === f.key
               const col = f.color || '#7b8096'
@@ -237,6 +238,16 @@ export default function Chantiers() {
                 <label style={labelStyle}>Adresse</label>
                 <input value={form.adresse} onChange={e => setForm({ ...form, adresse: e.target.value })}
                   placeholder="Adresse du site" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Nom du contact</label>
+                <input value={form.nom_contact} onChange={e => setForm({ ...form, nom_contact: e.target.value })}
+                  placeholder="Ex: Jean Dupont" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Téléphone contact</label>
+                <input value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })}
+                  placeholder="Ex: 06 12 34 56 78" style={inputStyle} />
               </div>
               <div>
                 <label style={labelStyle}>Date début</label>
@@ -290,6 +301,14 @@ export default function Chantiers() {
                   <input value={editForm.adresse || ''} onChange={e => setEditForm({ ...editForm, adresse: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
+                  <label style={labelStyle}>Nom du contact</label>
+                  <input value={editForm.nom_contact || ''} onChange={e => setEditForm({ ...editForm, nom_contact: e.target.value })} placeholder="Ex: Jean Dupont" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Téléphone contact</label>
+                  <input value={editForm.telephone || ''} onChange={e => setEditForm({ ...editForm, telephone: e.target.value })} placeholder="Ex: 06 12 34 56 78" style={inputStyle} />
+                </div>
+                <div>
                   <label style={labelStyle}>Date début</label>
                   <input type="date" value={editForm.date_debut || ''} onChange={e => setEditForm({ ...editForm, date_debut: e.target.value })} style={inputStyle} />
                 </div>
@@ -332,7 +351,7 @@ export default function Chantiers() {
             {search || filterStatut !== 'tous' ? 'Aucun chantier ne correspond à la recherche' : 'Aucun chantier'}
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
+          <div className="cards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
             {chantiersFiltres.map(c => {
               const done = parseInt(c.nb_salles_terminees || 0)
               const total = parseInt(c.nb_salles || 0)

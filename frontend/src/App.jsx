@@ -1,6 +1,6 @@
 import ImportXML from './pages/ImportXML'
 import ImportPDF from './pages/ImportPDF'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -9,9 +9,12 @@ import Chantier from './pages/Chantier'
 import Salle from './pages/Salle'
 import Utilisateurs from './pages/Utilisateurs'
 import Categories from './pages/Categories'
+import Backup from './pages/Backup'
+import ChangePassword from './pages/ChangePassword'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
+  const location = useLocation()
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0C0E14' }}>
       <div style={{ textAlign: 'center' }}>
@@ -23,7 +26,11 @@ function PrivateRoute({ children }) {
       </div>
     </div>
   )
-  return user ? children : <Navigate to="/login" />
+  if (!user) return <Navigate to="/login" />
+  if (user.must_change_password && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />
+  }
+  return children
 }
 
 export default function App() {
@@ -39,6 +46,8 @@ export default function App() {
       <Route path="*" element={<Navigate to="/" />} />
       <Route path="/import-pdf" element={<PrivateRoute><ImportPDF /></PrivateRoute>} />
       <Route path="/import-xml" element={<PrivateRoute><ImportXML /></PrivateRoute>} />
+      <Route path="/backup" element={<PrivateRoute><Backup /></PrivateRoute>} />
+      <Route path="/change-password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
     </Routes>
   )
 }

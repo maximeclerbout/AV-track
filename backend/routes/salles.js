@@ -147,7 +147,14 @@ router.get('/salles/:id/export', async (req, res) => {
     const salleResult = await query('SELECT * FROM salles WHERE id = $1', [req.params.id]);
     if (salleResult.rows.length === 0) return res.status(404).json({ error: 'Salle introuvable.' });
     const salle = salleResult.rows[0];
-    const produitsResult = await query('SELECT * FROM produits WHERE salle_id = $1 ORDER BY type_equipement', [req.params.id]);
+    const produitsResult = await query(
+      `SELECT * FROM produits WHERE salle_id = $1
+       ORDER BY
+         CASE WHEN sur_reseau THEN 0 ELSE 1 END,
+         CASE WHEN type_equipement = 'Autre' THEN 1 ELSE 0 END,
+         type_equipement`,
+      [req.params.id]
+    );
     const ExcelJS = require('exceljs');
     const workbook = new ExcelJS.Workbook();
     const ws = workbook.addWorksheet(salle.nom.substring(0, 28));

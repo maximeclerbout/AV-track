@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
 
 const Icon = ({ d, size = 18, color = 'currentColor' }) => (
@@ -17,8 +17,7 @@ const icons = {
   image: "M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21",
   excel: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h2m4 0h2M8 17h2m4 0h2",
   word: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5",
-  xmark: "M18 6L6 18M6 6l12 12",
-  plus: "M12 5v14M5 12h14",
+  eye: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 12m-3 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0",
 }
 
 const FILE_ICONS = {
@@ -35,16 +34,107 @@ const FILE_ICONS = {
 
 const getFileIcon = (mimeType) => FILE_ICONS[mimeType] || { icon: icons.file, color: '#6B7280' }
 
+const isViewable = (mimeType) =>
+  mimeType === 'application/pdf' || (mimeType || '').startsWith('image/')
+
 const formatSize = (bytes) => {
   if (!bytes) return ''
   if (bytes > 1048576) return (bytes / 1048576).toFixed(1) + ' Mo'
   return Math.round(bytes / 1024) + ' Ko'
 }
 
+function DocViewer({ doc, url, onDownload, onClose }) {
+  const [pageImages, setPageImages] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const isPdfDoc = doc.mime_type === 'application/pdf'
+  const isImageDoc = (doc.mime_type || '').startsWith('image/')
+
+  useEffect(() => {
+    if (!isPdfDoc) { setLoading(false); return }
+    let cancelled = false
+    const init = async () => {
+      try {
+        if (!window.pdfjsLib) {
+          await new Promise((res, rej) => {
+            const s = document.createElement('script')
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+            s.onload = res; s.onerror = rej
+            document.head.appendChild(s)
+          })
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+        }
+        const pdf = await window.pdfjsLib.getDocument({ url }).promise
+        const images = []
+        for (let i = 1; i <= pdf.numPages; i++) {
+          if (cancelled) return
+          const page = await pdf.getPage(i)
+          const scale = window.devicePixelRatio >= 2 ? 2 : 1.5
+          const vp = page.getViewport({ scale })
+          const canvas = document.createElement('canvas')
+          canvas.width = vp.width; canvas.height = vp.height
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
+          images.push(canvas.toDataURL())
+        }
+        if (!cancelled) { setPageImages(images); setLoading(false) }
+      } catch (e) {
+        if (!cancelled) { setError('Impossible de charger le PDF.'); setLoading(false) }
+      }
+    }
+    init()
+    return () => { cancelled = true }
+  }, [url, isPdfDoc])
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#0d0f14', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#181b24', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0, gap: 8 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#eef0f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+          📄 {doc.nom_original}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button onClick={onDownload}
+            style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)', color: '#00D4FF', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+            <Icon d={icons.download} size={13} color="#00D4FF" /> Télécharger
+          </button>
+          <button onClick={onClose}
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' }}>
+            ✕ Fermer
+          </button>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: isImageDoc ? 20 : '12px 8px', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', justifyContent: isImageDoc ? 'center' : 'flex-start', background: '#1a1d27' }}>
+        {isImageDoc && (
+          <img src={url} alt={doc.nom_original}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8 }} />
+        )}
+        {isPdfDoc && loading && (
+          <div style={{ color: '#7b8096', fontSize: 14, paddingTop: 60, textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>
+            Chargement du PDF...
+          </div>
+        )}
+        {isPdfDoc && error && (
+          <div style={{ color: '#EF4444', fontSize: 14, paddingTop: 60, textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>❌</div>
+            {error}
+          </div>
+        )}
+        {isPdfDoc && pageImages.map((src, i) => (
+          <img key={i} src={src} alt={`Page ${i + 1}`}
+            style={{ maxWidth: '100%', borderRadius: 4, boxShadow: '0 4px 16px rgba(0,0,0,0.6)' }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Documents({ chantierId, salleId = null, documents = [], onDocumentsChange }) {
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState('')
+  const [viewingDoc, setViewingDoc] = useState(null)
+  const [viewObjectUrl, setViewObjectUrl] = useState(null)
   const fileInputRef = useRef(null)
 
   const uploadFile = async (file) => {
@@ -78,6 +168,9 @@ export default function Documents({ chantierId, salleId = null, documents = [], 
     handleFiles(e.dataTransfer.files)
   }
 
+  const isImage = (mimeType) => (mimeType || '').startsWith('image/')
+  const isPdf = (mimeType) => mimeType === 'application/pdf'
+
   const downloadDoc = async (doc) => {
     try {
       const res = await axios.get('/api/documents/' + doc.id, { responseType: 'blob' })
@@ -89,8 +182,19 @@ export default function Documents({ chantierId, salleId = null, documents = [], 
       link.click()
       link.remove()
     } catch (err) {
-      alert('Erreur lors du telechargement.')
+      alert('Erreur lors du téléchargement.')
     }
+  }
+
+  const viewDoc = (doc) => {
+    const token = localStorage.getItem('avtrack_token')
+    setViewObjectUrl('/api/documents/' + doc.id + '/inline?token=' + token)
+    setViewingDoc(doc)
+  }
+
+  const closeViewer = () => {
+    setViewingDoc(null)
+    setViewObjectUrl(null)
   }
 
   const deleteDoc = async (docId) => {
@@ -161,6 +265,12 @@ export default function Documents({ chantierId, salleId = null, documents = [], 
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  {isViewable(doc.mime_type) && (
+                    <button onClick={() => viewDoc(doc)}
+                      style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)', color: '#8B5CF6', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                      <Icon d={icons.eye} size={13} color="#8B5CF6" />
+                    </button>
+                  )}
                   <button onClick={() => downloadDoc(doc)}
                     style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)', color: '#00D4FF', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
                     <Icon d={icons.download} size={13} color="#00D4FF" />
@@ -174,6 +284,15 @@ export default function Documents({ chantierId, salleId = null, documents = [], 
             )
           })}
         </div>
+      )}
+
+      {viewingDoc && viewObjectUrl && (
+        <DocViewer
+          doc={viewingDoc}
+          url={viewObjectUrl}
+          onDownload={() => downloadDoc(viewingDoc)}
+          onClose={closeViewer}
+        />
       )}
     </div>
   )

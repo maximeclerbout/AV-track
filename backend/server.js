@@ -40,9 +40,12 @@ app.use('/api/auth/login', loginLimiter);
 app.use('/api/', apiLimiter);
 app.use('/uploads', express.static(path.resolve(uploadDir)));
 
+const { query: dbQuery } = require('./db/pool');
+
 const authRoutes       = require('./routes/auth');
 const usersRoutes      = require('./routes/users');
 const chantiersRoutes  = require('./routes/chantiers');
+const { router: backupRoutes, autoBackup } = require('./routes/backup');
 const sallesRoutes     = require('./routes/salles');
 const produitsRoutes   = require('./routes/produits');
 const documentsRoutes  = require('./routes/documents');
@@ -68,6 +71,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/import-pdf', importPdfRoutes);
 app.use('/api/import-xml', importXmlRoutes);
 app.use('/api/bons-livraison', blRoutes);
+app.use('/api/backup', backupRoutes);
 
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'Route introuvable: ' + req.method + ' ' + req.path });
@@ -92,6 +96,21 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('║  Env     : ' + process.env.NODE_ENV + '              ║');
   console.log('╚════════════════════════════════════════╝');
   console.log('');
+
+  // Migrations automatiques
+  dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS telephone VARCHAR(30)`).catch(() => {});
+  dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS nom_contact VARCHAR(100)`).catch(() => {});
+
+  // Sauvegarde quotidienne automatique à 2h du matin
+  autoBackup();
+  const now = new Date();
+  const next2am = new Date(now);
+  next2am.setHours(2, 0, 0, 0);
+  if (next2am <= now) next2am.setDate(next2am.getDate() + 1);
+  setTimeout(function tick() {
+    autoBackup();
+    setTimeout(tick, 24 * 60 * 60 * 1000);
+  }, next2am - now);
 });
 
 module.exports = app;

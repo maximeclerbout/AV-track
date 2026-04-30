@@ -85,7 +85,7 @@ export default function Salle() {
   const [loading, setLoading] = useState(true)
   const [expandedProduit, setExpandedProduit] = useState(null)
   const [showAddProduit, setShowAddProduit] = useState(false)
-  const [showScanner, setShowScanner] = useState(false)
+  const [scannerTarget, setScannerTarget] = useState(null)
   const [showNetworkPanel, setShowNetworkPanel] = useState(false)
   const [editComment, setEditComment] = useState(false)
   const [comment, setComment] = useState('')
@@ -205,6 +205,12 @@ export default function Salle() {
       (p.type_equipement || '').toLowerCase().includes(searchProduit.toLowerCase()) ||
       (p.description || '').toLowerCase().includes(searchProduit.toLowerCase())
     return matchReseau && matchSearch
+  }).sort((a, b) => {
+    if (b.sur_reseau !== a.sur_reseau) return b.sur_reseau ? 1 : -1
+    const aAutre = (a.type_equipement || '').toLowerCase() === 'autre'
+    const bAutre = (b.type_equipement || '').toLowerCase() === 'autre'
+    if (aAutre !== bAutre) return aAutre ? 1 : -1
+    return (a.type_equipement || '').localeCompare(b.type_equipement || '')
   })
 
   if (loading) return <Layout chantiers={chantiers}><div style={{ textAlign: 'center', color: '#7b8096', padding: '60px 0' }}>Chargement...</div></Layout>
@@ -229,7 +235,7 @@ export default function Salle() {
         {/* Hero card */}
         <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderTop: `4px solid ${salleStatusColor}` }}>
           <div style={{ padding: 24 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+            <div className="salle-hero-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
 
               {/* Left: photo + status */}
               <div>
@@ -365,7 +371,7 @@ export default function Salle() {
         </div>
 
         {/* Search + filter */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div className="filter-row" style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
             <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef0f6" strokeWidth="2">
               <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
@@ -386,7 +392,7 @@ export default function Salle() {
         {showAddProduit && (
           <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20, marginBottom: 16, borderTop: `3px solid ${newTypeColor}` }}>
             <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, marginBottom: 14, fontSize: 15, color: '#eef0f6' }}>Nouvel équipement</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div className="add-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <label style={labelStyle}>Type</label>
                 <select value={newProduit.type_equipement} onChange={e => setNewProduit({ ...newProduit, type_equipement: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
@@ -402,7 +408,7 @@ export default function Salle() {
               <label style={labelStyle}>Numéro de série</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input value={newProduit.serial_number} onChange={e => setNewProduit({ ...newProduit, serial_number: e.target.value })} placeholder="S/N" style={{ ...inputStyle, flex: 1 }} />
-                <button title="Scanner" onClick={() => setShowScanner(true)} style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: 10, padding: '0 12px', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <button title="Scanner" onClick={() => setScannerTarget('new')} style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: 10, padding: '0 12px', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon d={icons.barcode} size={16} color="#06B6D4" />
                 </button>
               </div>
@@ -466,7 +472,12 @@ export default function Salle() {
                 </div>
                 <div>
                   <label style={labelStyle}>Numéro de série</label>
-                  <input value={editProduitForm.serial_number || ''} onChange={e => setEditProduitForm({ ...editProduitForm, serial_number: e.target.value })} style={inputStyle} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input value={editProduitForm.serial_number || ''} onChange={e => setEditProduitForm({ ...editProduitForm, serial_number: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+                    <button title="Scanner" onClick={() => setScannerTarget('edit')} style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: 10, padding: '0 12px', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon d={icons.barcode} size={16} color="#06B6D4" />
+                    </button>
+                  </div>
                 </div>
                 <div style={{ gridColumn: '1/-1' }}>
                   <label style={labelStyle}>Description</label>
@@ -565,7 +576,7 @@ export default function Salle() {
                   {produit.sur_reseau && (
                     <div style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.18)', borderRadius: 10, padding: 12, marginBottom: 12 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#06B6D4', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .8 }}>Configuration réseau</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+                      <div className="equip-net-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
                         {[['IP', produit.ip],['Masque', produit.masque],['Passerelle', produit.gateway],['DNS', produit.dns]].map(([lbl, val]) => (
                           <div key={lbl}>
                             <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>{lbl}</div>
@@ -596,10 +607,14 @@ export default function Salle() {
         })}
       </div>
 
-      {showScanner && (
+      {scannerTarget && (
         <Scanner
-          onResult={val => { setNewProduit(prev => ({ ...prev, serial_number: val })); setShowScanner(false) }}
-          onClose={() => setShowScanner(false)}
+          onResult={val => {
+            if (scannerTarget === 'new') setNewProduit(prev => ({ ...prev, serial_number: val }))
+            else setEditProduitForm(prev => ({ ...prev, serial_number: val }))
+            setScannerTarget(null)
+          }}
+          onClose={() => setScannerTarget(null)}
         />
       )}
     </Layout>

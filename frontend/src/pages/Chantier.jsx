@@ -47,6 +47,86 @@ const Badge = ({ statut }) => {
   )
 }
 
+function PDFViewer({ url, title, canSign, onSign, onClose }) {
+  const [pageImages, setPageImages] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    const init = async () => {
+      try {
+        if (!window.pdfjsLib) {
+          await new Promise((res, rej) => {
+            const s = document.createElement('script')
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+            s.onload = res; s.onerror = rej
+            document.head.appendChild(s)
+          })
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+        }
+        const pdf = await window.pdfjsLib.getDocument({ url }).promise
+        const images = []
+        for (let i = 1; i <= pdf.numPages; i++) {
+          if (cancelled) return
+          const page = await pdf.getPage(i)
+          const scale = window.devicePixelRatio >= 2 ? 2 : 1.5
+          const vp = page.getViewport({ scale })
+          const canvas = document.createElement('canvas')
+          canvas.width = vp.width
+          canvas.height = vp.height
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
+          images.push(canvas.toDataURL())
+        }
+        if (!cancelled) { setPageImages(images); setLoading(false) }
+      } catch (e) {
+        if (!cancelled) { setError('Impossible de charger le PDF.'); setLoading(false) }
+      }
+    }
+    init()
+    return () => { cancelled = true }
+  }, [url])
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#0d0f14', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#181b24', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0, gap: 8 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#eef0f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+          📄 {title}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          {canSign && (
+            <button onClick={onSign} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>
+              ✍️ Signer
+            </button>
+          )}
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' }}>
+            ✕ Fermer
+          </button>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', background: '#1a1d27' }}>
+        {loading && (
+          <div style={{ color: '#7b8096', fontSize: 14, paddingTop: 60, textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>
+            Chargement du PDF...
+          </div>
+        )}
+        {error && (
+          <div style={{ color: '#EF4444', fontSize: 14, paddingTop: 60, textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>❌</div>
+            {error}
+          </div>
+        )}
+        {pageImages.map((src, i) => (
+          <img key={i} src={src} alt={`Page ${i + 1}`}
+            style={{ maxWidth: '100%', borderRadius: 4, boxShadow: '0 4px 16px rgba(0,0,0,0.6)' }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function BLSignatureModal({ bl, onClose, onSigned }) {
   const canvasRef = useRef(null)
   const [nomSignataire, setNomSignataire] = useState('')
@@ -179,6 +259,9 @@ export default function Chantier() {
   const [signingBL, setSigningBL] = useState(null)
   const [viewingBL, setViewingBL] = useState(null)
   const [blObjectUrl, setBlObjectUrl] = useState(null)
+  const [showMapsMenu, setShowMapsMenu] = useState(false)
+  const [editInfo, setEditInfo] = useState(false)
+  const [editInfoForm, setEditInfoForm] = useState({})
 
   useEffect(() => {
     axios.get('/api/chantiers').then(res => setChantiers(res.data))
@@ -195,6 +278,30 @@ export default function Chantier() {
   const updateStatut = async (statut) => {
     await axios.patch('/api/chantiers/' + id, { statut })
     setChantier(prev => ({ ...prev, statut }))
+  }
+
+  const openEditInfo = () => {
+    setEditInfoForm({
+      nom: chantier.nom || '',
+      client: chantier.client || '',
+      adresse: chantier.adresse || '',
+      nom_contact: chantier.nom_contact || '',
+      telephone: chantier.telephone || '',
+      date_debut: chantier.date_debut?.slice(0, 10) || '',
+      date_fin: chantier.date_fin?.slice(0, 10) || '',
+      description: chantier.description || '',
+    })
+    setEditInfo(true)
+  }
+
+  const saveEditInfo = async () => {
+    setSaving(true)
+    try {
+      const res = await axios.patch('/api/chantiers/' + id, editInfoForm)
+      setChantier(prev => ({ ...prev, ...res.data }))
+      setEditInfo(false)
+    } catch (err) { alert('Erreur lors de la modification.') }
+    finally { setSaving(false) }
   }
 
   const addSalle = async () => {
@@ -269,12 +376,10 @@ export default function Chantier() {
     } catch (err) { alert('Erreur lors du téléchargement.') }
   }
 
-  const viewBL = async (bl) => {
-    try {
-      const res = await axios.get('/api/bons-livraison/' + bl.id + '/download', { responseType: 'blob' })
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
-      setBlObjectUrl(url); setViewingBL(bl)
-    } catch (err) { alert('Erreur lors de la lecture du BL.') }
+  const viewBL = (bl) => {
+    const token = localStorage.getItem('avtrack_token')
+    setBlObjectUrl('/api/bons-livraison/' + bl.id + '/inline?token=' + token)
+    setViewingBL(bl)
   }
 
   const deleteBL = async (bl) => {
@@ -331,16 +436,53 @@ export default function Chantier() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
                   <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 26, fontWeight: 900, color: '#eef0f6' }}>{chantier.nom}</h1>
                   <Badge statut={chantier.statut} />
+                  <button onClick={openEditInfo} title="Modifier les informations"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: '#7b8096', display: 'flex', alignItems: 'center' }}>
+                    <Icon d={icons.pen} size={13} color="#7b8096" />
+                  </button>
                 </div>
                 {chantier.client && <div style={{ fontSize: 13, color: '#7b8096', marginBottom: 4 }}>{chantier.client}</div>}
-                {chantier.adresse && <div style={{ fontSize: 12, color: '#3d4155', marginBottom: 4 }}>📍 {chantier.adresse}</div>}
+                {(chantier.nom_contact || chantier.telephone) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
+                    {chantier.nom_contact && <span style={{ fontSize: 12, color: '#7b8096' }}>👤 {chantier.nom_contact}</span>}
+                    {chantier.telephone && (
+                      <a href={'tel:' + chantier.telephone} style={{ fontSize: 12, color: '#10B981', textDecoration: 'none' }}>
+                        📞 {chantier.telephone}
+                      </a>
+                    )}
+                  </div>
+                )}
+                {chantier.adresse && (
+                  <div style={{ position: 'relative', marginBottom: 4 }}>
+                    <div onClick={() => setShowMapsMenu(v => !v)}
+                      style={{ fontSize: 12, color: '#3d4155', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      📍 {chantier.adresse}
+                    </div>
+                    {showMapsMenu && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 30, background: '#181b24', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: 8, display: 'flex', gap: 6, marginTop: 4, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>
+                        <a href={'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(chantier.adresse)}
+                          target="_blank" rel="noopener noreferrer"
+                          onClick={() => setShowMapsMenu(false)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: '#eef0f6', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>
+                          🗺️ Google Maps
+                        </a>
+                        <a href={'https://waze.com/ul?q=' + encodeURIComponent(chantier.adresse)}
+                          target="_blank" rel="noopener noreferrer"
+                          onClick={() => setShowMapsMenu(false)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: 'rgba(51,204,255,0.1)', color: '#33CCFF', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>
+                          🚗 Waze
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {(chantier.date_debut || chantier.date_fin) && (
                   <div style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#3d4155' }}>
                     {chantier.date_debut?.slice(0, 10)} {chantier.date_debut && chantier.date_fin ? '→' : ''} {chantier.date_fin?.slice(0, 10)}
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="hero-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <select value={chantier.statut} onChange={e => updateStatut(e.target.value)}
                   style={{ background: statusColor + '10', border: '1px solid ' + statusColor + '40', borderRadius: 10, padding: '8px 36px 8px 12px', color: statusColor, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
                   {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -353,7 +495,7 @@ export default function Chantier() {
             </div>
 
             {/* Stats mini grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'rgba(255,255,255,0.03)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+            <div className="chantier-stats" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'rgba(255,255,255,0.03)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
               {[
                 { label: 'Salles', val: total },
                 { label: 'Équipements', val: chantier.salles?.reduce((a, s) => a + (s.produits?.length || 0), 0) || '—' },
@@ -378,7 +520,7 @@ export default function Chantier() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.07)', flexWrap: 'wrap' }}>
+        <div className="tabs-bar" style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.07)', flexWrap: 'wrap' }}>
           <button onClick={() => setTab('salles')} style={tabStyle('salles')}>
             <Icon d={icons.layers} size={14} color={tab === 'salles' ? '#10B981' : '#7b8096'} /> Salles
             <span style={{ fontFamily: "'Cousine', monospace", fontSize: 10, background: tab === 'salles' ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.08)', color: tab === 'salles' ? '#10B981' : '#7b8096', borderRadius: 20, padding: '1px 7px', fontWeight: 700 }}>
@@ -463,7 +605,7 @@ export default function Chantier() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 12 }}>
+            <div className="salles-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 12 }}>
               {chantier.salles && chantier.salles.map(salle => {
                 const sc = STATUS[salle.statut]?.color || '#7b8096'
                 return (
@@ -600,6 +742,35 @@ export default function Chantier() {
 
       </div>
 
+      {editInfo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 800, color: '#eef0f6' }}>Modifier le chantier</div>
+              <button onClick={() => setEditInfo(false)} style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', fontSize: 20 }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div><label style={labelStyle}>Nom du chantier *</label><input value={editInfoForm.nom} onChange={e => setEditInfoForm(f => ({ ...f, nom: e.target.value }))} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Client</label><input value={editInfoForm.client} onChange={e => setEditInfoForm(f => ({ ...f, client: e.target.value }))} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Adresse</label><input value={editInfoForm.adresse} onChange={e => setEditInfoForm(f => ({ ...f, adresse: e.target.value }))} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Nom du contact</label><input value={editInfoForm.nom_contact} onChange={e => setEditInfoForm(f => ({ ...f, nom_contact: e.target.value }))} placeholder="Ex: Jean Dupont" style={inputStyle} /></div>
+              <div><label style={labelStyle}>Téléphone contact</label><input value={editInfoForm.telephone} onChange={e => setEditInfoForm(f => ({ ...f, telephone: e.target.value }))} placeholder="Ex: 06 12 34 56 78" style={inputStyle} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div><label style={labelStyle}>Date début</label><input type="date" value={editInfoForm.date_debut} onChange={e => setEditInfoForm(f => ({ ...f, date_debut: e.target.value }))} style={inputStyle} /></div>
+                <div><label style={labelStyle}>Date fin</label><input type="date" value={editInfoForm.date_fin} onChange={e => setEditInfoForm(f => ({ ...f, date_fin: e.target.value }))} style={inputStyle} /></div>
+              </div>
+              <div><label style={labelStyle}>Description</label><textarea value={editInfoForm.description} onChange={e => setEditInfoForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...inputStyle, resize: 'vertical' }} /></div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setEditInfo(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+              <button onClick={saveEditInfo} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {signingBL && (
         <BLSignatureModal
           bl={signingBL}
@@ -612,32 +783,13 @@ export default function Chantier() {
       )}
 
       {viewingBL && blObjectUrl && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 300, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: '#181b24', borderBottom: '1px solid rgba(255,255,255,0.1)', flexWrap: 'wrap', gap: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#eef0f6' }}>📄 {viewingBL.nom_original}</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {viewingBL.statut === 'en_attente' && (
-                <button onClick={() => { const bl = viewingBL; setViewingBL(null); setBlObjectUrl(null); setTimeout(() => setSigningBL(bl), 50) }}
-                  style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  ✍️ Signer ce BL
-                </button>
-              )}
-              <button onClick={() => { setViewingBL(null); setBlObjectUrl(null) }}
-                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontSize: 13 }}>
-                ✕ Fermer
-              </button>
-            </div>
-          </div>
-          <object data={blObjectUrl} type="application/pdf" style={{ flex: 1, width: '100%', minHeight: '80vh' }}>
-            <div style={{ padding: 20, textAlign: 'center' }}>
-              <p style={{ color: '#7b8096', marginBottom: 16 }}>Le PDF ne peut pas être affiché directement sur mobile.</p>
-              <a href={blObjectUrl} download={viewingBL.nom_original}
-                style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', borderRadius: 10, padding: '10px 20px', textDecoration: 'none', fontWeight: 700 }}>
-                Télécharger le BL
-              </a>
-            </div>
-          </object>
-        </div>
+        <PDFViewer
+          url={blObjectUrl}
+          title={viewingBL.nom_original}
+          canSign={viewingBL.statut === 'en_attente'}
+          onSign={() => { const bl = viewingBL; setViewingBL(null); setBlObjectUrl(null); setTimeout(() => setSigningBL(bl), 50) }}
+          onClose={() => { setViewingBL(null); setBlObjectUrl(null) }}
+        />
       )}
 
     </Layout>

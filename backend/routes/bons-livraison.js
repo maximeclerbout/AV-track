@@ -71,6 +71,20 @@ router.post('/chantier/:cid', upload.single('fichier'), async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }) }
 })
 
+// GET affichage inline (iframe mobile) — token accepté en query param via auth middleware
+router.get('/:id/inline', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM bons_livraison WHERE id = $1', [req.params.id])
+    if (!result.rows.length) return res.status(404).send('Introuvable')
+    const bl = result.rows[0]
+    const filePath = path.join('/opt/avtrack/backend', bl.chemin)
+    if (!fs.existsSync(filePath)) return res.status(404).send('Fichier introuvable')
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(bl.nom_original)}"`)
+    res.sendFile(filePath)
+  } catch (err) { res.status(500).send('Erreur serveur') }
+})
+
 // GET télécharger un BL
 router.get('/:id/download', async (req, res) => {
   try {

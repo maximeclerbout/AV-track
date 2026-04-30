@@ -59,7 +59,7 @@ const token = jwt.sign(
 router.get('/me', auth, async (req, res) => {
   try {
     const result = await query(
-      'SELECT id, nom, prenom, email, role, last_login, created_at FROM users WHERE id = $1',
+      'SELECT id, nom, prenom, email, role, last_login, created_at, must_change_password FROM users WHERE id = $1',
       [req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable.' });

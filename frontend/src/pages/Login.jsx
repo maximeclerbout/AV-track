@@ -89,7 +89,7 @@ export default function Login() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div className="login-wrap" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <style>{`
         @media (max-width: 768px) { .login-left { display: none !important; } .login-right { width: 100% !important; padding: 32px 24px !important; } }
       `}</style>

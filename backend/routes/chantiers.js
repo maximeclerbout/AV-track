@@ -30,14 +30,14 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', requireRole('admin', 'chef', 'technicien'), async (req, res) => {
-  const { nom, client, adresse, date_debut, date_fin, statut = 'a_faire', description } = req.body;
+  const { nom, client, adresse, telephone, nom_contact, date_debut, date_fin, statut = 'a_faire', description } = req.body;
   if (!nom) return res.status(400).json({ error: 'Le nom du chantier est requis.' });
 
   try {
     const result = await query(
-      `INSERT INTO chantiers (nom, client, adresse, date_debut, date_fin, statut, description, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [nom, client, adresse, date_debut || null, date_fin || null, statut, description, req.user.id]
+      `INSERT INTO chantiers (nom, client, adresse, telephone, nom_contact, date_debut, date_fin, statut, description, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [nom, client, adresse, telephone || null, nom_contact || null, date_debut || null, date_fin || null, statut, description, req.user.id]
     );
     const chantier = result.rows[0];
     await audit(chantier.id, req.user, `Chantier "${nom}" créé`, 'chantier', chantier.id);
@@ -85,7 +85,7 @@ router.get('/:id', async (req, res) => {
 
 router.patch('/:id', requireRole('admin', 'chef', 'technicien'), async (req, res) => {
   const { id } = req.params;
-  const allowed = ['nom','client','adresse','date_debut','date_fin','statut','description'];
+  const allowed = ['nom','client','adresse','telephone','nom_contact','date_debut','date_fin','statut','description'];
   const fields = [], vals = [];
 
 allowed.forEach(f => {
