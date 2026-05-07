@@ -91,51 +91,46 @@ const tmpPath = path.join('/opt/avtrack/backend/uploads', tmpName)
 for (let i = 0; i < lignes.length; i++) {
       const l = lignes[i]
       const lLow = l.toLowerCase()
-if (lLow.includes('adresse de facturation') || lLow.includes('aaddrreessssee') || lLow.includes('aaddrr')) {
-        // Cas 1 : client sur la même ligne après "::"
-        const apresDouble = l.split('::')[1] || l.split(':')[1] || ''
-        const clientSurLigne = apresDouble.trim().replace(/\s{2,}.*/, '').trim()
-        if (clientSurLigne.length > 2 && !clientSurLigne.includes('Page') && !clientSurLigne.includes('Break')) {
-          client = normaliserTexte(clientSurLigne).replace(/,\s*(Facturation|facturation).*$/, '').trim()
-// Adresse = cherche ZI, rue, avenue, CS dans les lignes suivantes AVANT "France" ou "TVA"
-          for (let j = i + 1; j < Math.min(i + 8, lignes.length); j++) {
-            const next = normaliserTexte(lignes[j].trim())
-            if (next.match(/^France$/i) || next.match(/^TVA/) || next.includes('Break') || next.includes('Page')) break
-            if (next.length > 3 &&
-                !next.match(/^\d{5}\s/) &&
-                !next.toLowerCase().includes('alexandre') &&
-                !next.toLowerCase().includes('audio') &&
-                !next.toLowerCase().includes('vaulx')) {
-              adresse = next
-              break
-            }
-          }          break
+      if (lLow.includes('adresse de facturation') || lLow.includes('aaddrreessssee') || lLow.includes('aaddrr')) {
+        let nomTrouve = ''
+        let rueTrouvee = ''
+        let cpTrouve = ''
+
+        const estLigneRue = (s) =>
+          /^(\d+\s+)?(rue|avenue|boulevard|impasse|allée|chemin|place|route|voie|zone)\s/i.test(s) ||
+          /^CS\s+\d/i.test(s) || /^ZI\s/i.test(s)
+        const estCP = (s) => /^\d{5}\s+\S/.test(s)
+        const estExclu = (s) => {
+          if (!s || s.length < 2) return true
+          const sl = s.toLowerCase()
+          return /^\+\d/.test(s) ||
+            /^France\s/i.test(s) || /^France$/i.test(s) ||
+            /^TVA/i.test(s) ||
+            sl.includes('facturation') || sl.includes('expedition') ||
+            sl.includes('alexandre') || sl.includes('vaulx') ||
+            sl.includes('audio') || sl.includes('integration') ||
+            sl.includes('siret') || sl.includes('tva') ||
+            sl.includes('contrat') || sl.includes('maintenance') ||
+            s.includes('Break') || s.includes('Page')
         }
-        // Cas 2 : client sur la ligne suivante
-        for (let j = i + 1; j < Math.min(i + 8, lignes.length); j++) {
-          const next = lignes[j].trim()
-          const nextNorm = normaliserTexte(next)
-          if (nextNorm.length > 2 &&
-              !nextNorm.match(/^France$/i) &&
-              !nextNorm.match(/^TVA/) &&
-              !nextNorm.match(/^\+\d/) &&
-              !nextNorm.match(/^\d{5}/) &&
-              !nextNorm.match(/^CS\s/i) &&
-              !nextNorm.match(/^ZI\s/i) &&
-              !nextNorm.toLowerCase().includes('facturation') &&
-              !nextNorm.toLowerCase().includes('expedition') &&
-              !nextNorm.toLowerCase().includes('alexandre') &&
-              !nextNorm.toLowerCase().includes('vaulx') &&
-              !nextNorm.toLowerCase().includes('audio') &&
-              !nextNorm.toLowerCase().includes('integration') &&
-              !nextNorm.includes('Break') &&
-              !nextNorm.includes('Page')) {
-            client = nextNorm.replace(/,\s*(Facturation|facturation).*$/, '').trim()
-            const adresseLigne = normaliserTexte(lignes[j + 1]?.trim() || '')
-            adresse = adresseLigne.match(/^(CS|ZI)\s/i) ? normaliserTexte(lignes[j + 2]?.trim() || '') : adresseLigne
-            break
+
+        for (let j = i + 1; j < Math.min(i + 14, lignes.length); j++) {
+          // Split on 3+ spaces to handle two-column merges ("IESEG   IESEG" → "IESEG")
+          const col1 = lignes[j].trim().split(/\s{3,}/)[0].trim()
+          const norm = normaliserTexte(col1)
+          // Strip billing label suffix BEFORE exclusion check so "MC CAIN, Facturation" → "MC CAIN"
+          const normClean = norm.replace(/,\s*(Facturation|facturation|Expédition|expedition).*$/, '').trim()
+
+          if (estExclu(normClean)) continue
+          if (estCP(normClean) && !cpTrouve) { cpTrouve = normClean; continue }
+          if (estLigneRue(normClean) && !rueTrouvee) { rueTrouvee = normClean; continue }
+          if (!estCP(normClean) && !estLigneRue(normClean) && !nomTrouve && /[a-zA-ZÀ-ÿ]{2,}/.test(normClean)) {
+            nomTrouve = normClean
           }
         }
+
+        if (nomTrouve) client = nomTrouve
+        if (rueTrouvee || cpTrouve) adresse = [rueTrouvee, cpTrouve].filter(Boolean).join(', ')
         break
       }
     }
@@ -195,13 +190,78 @@ const ligneNorm = normaliserTexte(ligne)
       }
     }
 
+    // Fallback : format BDC AVI — pdf2json extrait à l'envers
+    // Après "Commande #" : France → CP+Ville → Rue → NomClient → (infos AVI)
+    if (!client) {
+      const aviExclus = ['69120', 'vaulx', 'alexandre dumas', '105 rue', 'tva fr', 'siret', 'audio vid', 'avi (']
+      const estAvi = (s) => aviExclus.some(m => s.toLowerCase().includes(m))
+
+      const cmdIdx = lignes.findIndex(l => /commande\s*#/i.test(l))
+      if (cmdIdx >= 0) {
+        for (let i = cmdIdx + 1; i < Math.min(cmdIdx + 15, lignes.length); i++) {
+          const l = normaliserTexte(lignes[i])
+          // Trouver le code postal client (5 chiffres + ville, pas AVI)
+          if (/^\d{5}\s+\S/.test(l) && !estAvi(l)) {
+            const cp = l
+            const rue = normaliserTexte(lignes[i + 1] || '')
+            const nomCandidat = normaliserTexte(lignes[i + 2] || '')
+
+            adresse = (rue.length > 2 ? rue + ', ' : '') + cp
+            if (nomCandidat.length > 1 && !estAvi(nomCandidat) &&
+                !/^France$/i.test(nomCandidat) &&
+                !/^(TVA|SIRET|Page)/i.test(nomCandidat)) {
+              client = nomCandidat
+            }
+            break
+          }
+        }
+      }
+    }
+
+    // Apprentissage automatique des types depuis les produits existants
+    const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length >= 2)
+    const jaccard = (a, b) => {
+      const wa = new Set(normalize(a))
+      const wb = new Set(normalize(b))
+      if (!wa.size || !wb.size) return 0
+      let common = 0
+      wa.forEach(w => { if (wb.has(w)) common++ })
+      return common / (wa.size + wb.size - common)
+    }
+
+    let articlesFinaux = articles
+    try {
+      const prodRefs = await query(
+        `SELECT DISTINCT ON (reference) reference, type_equipement
+         FROM produits
+         WHERE reference IS NOT NULL AND reference != '' AND type_equipement IS NOT NULL
+         ORDER BY reference, id DESC`
+      )
+      if (prodRefs.rows.length > 0) {
+        articlesFinaux = articles.map(art => {
+          let bestSim = 0
+          let bestType = null
+          for (const prod of prodRefs.rows) {
+            const sim = jaccard(art.reference, prod.reference)
+            if (sim > bestSim) { bestSim = sim; bestType = prod.type_equipement }
+          }
+          if (bestSim >= 0.8 && bestType) {
+            return { ...art, type_equipement: bestType, type_auto: true, type_sim: Math.round(bestSim * 100) }
+          }
+          return art
+        })
+      }
+    } catch (e) {
+      // Si la requête échoue, on continue sans apprentissage
+    }
+
     res.json({
       client: client.trim(),
       adresse: adresse.trim(),
       titre: titre.trim(),
       sections,
       tmpFile: tmpInfo,
-      articles
+      articles: articlesFinaux
     })
   } catch (err) {
     console.error('Erreur parse PDF:', err)
@@ -210,16 +270,16 @@ const ligneNorm = normaliserTexte(ligne)
 })
 
 router.post('/create', async (req, res) => {
-  const { nom_chantier, client, adresse, salles_config, articles } = req.body
- const { tmpFile } = req.body 
- if (!nom_chantier || !articles?.length) {
+  const { nom_chantier, client, adresse, nom_contact, telephone, salles_config, articles } = req.body
+  const { tmpFile } = req.body
+  if (!nom_chantier || !articles?.length) {
     return res.status(400).json({ error: 'Donnees incompletes.' })
   }
   try {
     const chRes = await query(
-      `INSERT INTO chantiers (nom, client, adresse, statut, description, created_by)
-       VALUES ($1, $2, $3, 'a_faire', 'Importe depuis BDC PDF', $4) RETURNING *`,
-      [nom_chantier, client, adresse, req.user.id]
+      `INSERT INTO chantiers (nom, client, adresse, nom_contact, telephone, statut, description, created_by)
+       VALUES ($1, $2, $3, $4, $5, 'a_faire', 'Importe depuis BDC PDF', $6) RETURNING *`,
+      [nom_chantier, client, adresse, nom_contact || null, telephone || null, req.user.id]
     )
     const chantier = chRes.rows[0]
 

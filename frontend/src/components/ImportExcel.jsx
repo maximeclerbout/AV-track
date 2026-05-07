@@ -155,8 +155,15 @@ export default function ImportExcel({ onClose }) {
               </div>
             )}
 
-            <div style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.1)', borderRadius: 12, padding: 12, marginBottom: 16, fontSize: 12, color: '#6B7280', lineHeight: 1.6 }}>
-              <strong style={{ color: '#00D4FF' }}>Format attendu :</strong> Colonnes Site, Salle, Nom Equipement, Etat, Marque, Modèle, S/N, Réseau, IP, Masque, Passerelle, DNS, MDP
+            <div style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.1)', borderRadius: 12, padding: 12, marginBottom: 16, fontSize: 12, color: '#6B7280', lineHeight: 1.6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <div>
+                <strong style={{ color: '#00D4FF' }}>Colonnes :</strong> Site, Salle, Étage, Nom Equipement, Type, Marque, Modèle, S/N, Etat, Réseau, Label NIC 1, IP, Masque, Passerelle, DNS, MDP, Label NIC 2, IP 2, Masque 2, Passerelle 2, DNS 2, MDP 2, Commentaire
+              </div>
+              <a href={'/api/import/excel/template?token=' + localStorage.getItem('avtrack_token')}
+                download="AVTrack_modele_import.xlsx"
+                style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', borderRadius: 8, padding: '7px 12px', textDecoration: 'none', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                ⬇ Télécharger le modèle
+              </a>
             </div>
 
             {error && (

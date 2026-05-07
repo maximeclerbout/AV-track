@@ -1,11 +1,20 @@
 const express = require('express');
 const ExcelJS = require('exceljs');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { query } = require('../db/pool');
 const { auth, requireRole } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
 
 const router = express.Router();
 router.use(auth);
+
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, process.env.UPLOAD_DIR || './uploads'),
+  filename: (req, file, cb) => cb(null, `chantier_${req.params.id}_${Date.now()}${path.extname(file.originalname)}`)
+});
+const uploadPhoto = multer({ storage: photoStorage, limits: { fileSize: 15 * 1024 * 1024 }, fileFilter: (req, file, cb) => file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Image uniquement.')) });
 
 router.get('/', async (req, res) => {
   try {
@@ -29,18 +38,25 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', requireRole('admin', 'chef'), async (req, res) => {
-  const { nom, client, adresse, date_debut, date_fin, statut = 'a_faire', description } = req.body;
+router.post('/', requireRole('admin', 'chef', 'technicien'), async (req, res) => {
+  const { nom, client, adresse, telephone, nom_contact, date_debut, date_fin, statut = 'a_faire', description, salles = [] } = req.body;
   if (!nom) return res.status(400).json({ error: 'Le nom du chantier est requis.' });
 
   try {
     const result = await query(
-      `INSERT INTO chantiers (nom, client, adresse, date_debut, date_fin, statut, description, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [nom, client, adresse, date_debut || null, date_fin || null, statut, description, req.user.id]
+      `INSERT INTO chantiers (nom, client, adresse, telephone, nom_contact, date_debut, date_fin, statut, description, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [nom, client, adresse, telephone || null, nom_contact || null, date_debut || null, date_fin || null, statut, description, req.user.id]
     );
     const chantier = result.rows[0];
-    await audit(chantier.id, req.user, `Chantier "${nom}" créé`, 'chantier', chantier.id);
+    const sallesACreer = salles.filter(s => s && s.trim());
+    for (const nomSalle of sallesACreer) {
+      await query(
+        `INSERT INTO salles (chantier_id, nom, statut) VALUES ($1, $2, 'a_faire')`,
+        [chantier.id, nomSalle.trim()]
+      );
+    }
+    await audit(chantier.id, req.user, `Chantier "${nom}" créé${sallesACreer.length ? ` avec ${sallesACreer.length} salle(s)` : ''}`, 'chantier', chantier.id);
     res.status(201).json(chantier);
   } catch (err) {
     console.error(err);
@@ -83,9 +99,9 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.patch('/:id', requireRole('admin', 'chef'), async (req, res) => {
+router.patch('/:id', requireRole('admin', 'chef', 'technicien'), async (req, res) => {
   const { id } = req.params;
-  const allowed = ['nom','client','adresse','date_debut','date_fin','statut','description'];
+  const allowed = ['nom','client','adresse','telephone','nom_contact','date_debut','date_fin','statut','description'];
   const fields = [], vals = [];
 
 allowed.forEach(f => {
@@ -104,6 +120,9 @@ allowed.forEach(f => {
       vals
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Chantier introuvable.' });
+    if (req.body.statut === 'termine') {
+      await query(`UPDATE salles SET statut = 'termine' WHERE chantier_id = $1 AND statut != 'termine'`, [id]);
+    }
     await audit(parseInt(id), req.user, `Chantier modifié`, 'chantier', parseInt(id), req.body);
     res.json(result.rows[0]);
   } catch (err) {
@@ -199,6 +218,37 @@ router.get('/:id/export', async (req, res) => {
     console.error('Erreur export Excel:', err);
     res.status(500).json({ error: 'Erreur génération Excel.' });
   }
+});
+
+router.post('/:id/photo', uploadPhoto.single('photo'), async (req, res) => {
+  console.log('[Photo Chantier] POST reçu, id=' + req.params.id + ', file=' + (req.file?.filename || 'AUCUN'));
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier recu.' });
+  try {
+    const url = `/uploads/${req.file.filename}`;
+    const old = await query('SELECT photo_url FROM chantiers WHERE id = $1', [req.params.id]);
+    if (old.rows[0]?.photo_url) {
+      const fp = path.join('/opt/avtrack/backend', old.rows[0].photo_url);
+      if (fs.existsSync(fp)) fs.unlink(fp, () => {});
+    }
+    await query('UPDATE chantiers SET photo_url = $1 WHERE id = $2', [url, req.params.id]);
+    console.log('[Photo Chantier] Sauvegardée : ' + url);
+    res.json({ photo_url: url });
+  } catch (err) {
+    console.error('[Photo Chantier] ERREUR:', err.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+router.delete('/:id/photo', async (req, res) => {
+  try {
+    const result = await query('SELECT photo_url FROM chantiers WHERE id = $1', [req.params.id]);
+    if (result.rows[0]?.photo_url) {
+      const fp = path.join('/opt/avtrack/backend', result.rows[0].photo_url);
+      if (fs.existsSync(fp)) fs.unlink(fp, () => {});
+    }
+    await query('UPDATE chantiers SET photo_url = NULL WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Photo supprimée.' });
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
 });
 
 module.exports = router;

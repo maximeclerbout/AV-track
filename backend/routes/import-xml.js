@@ -202,13 +202,50 @@ const tmpPath = path.join('/opt/avtrack/backend/uploads', tmpName)
       section: e.section,
     }))
 
+    // Apprentissage automatique des types depuis les produits existants
+    const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length >= 2)
+    const jaccard = (a, b) => {
+      const wa = new Set(normalize(a))
+      const wb = new Set(normalize(b))
+      if (!wa.size || !wb.size) return 0
+      let common = 0
+      wa.forEach(w => { if (wb.has(w)) common++ })
+      return common / (wa.size + wb.size - common)
+    }
+
+    let articlesFinaux = articles
+    try {
+      const prodRefs = await query(
+        `SELECT DISTINCT ON (reference) reference, type_equipement
+         FROM produits
+         WHERE reference IS NOT NULL AND reference != '' AND type_equipement IS NOT NULL
+         ORDER BY reference, id DESC`
+      )
+      if (prodRefs.rows.length > 0) {
+        articlesFinaux = articles.map(art => {
+          let bestSim = 0
+          let bestType = null
+          for (const prod of prodRefs.rows) {
+            const sim = jaccard(art.reference, prod.reference)
+            if (sim > bestSim) { bestSim = sim; bestType = prod.type_equipement }
+          }
+          if (bestSim >= 0.8 && bestType) {
+            return { ...art, type_equipement: bestType, type_auto: true, type_sim: Math.round(bestSim * 100) }
+          }
+          return art
+        })
+      }
+    } catch (e) {
+      // Si la requête échoue, on continue sans apprentissage
+    }
+
     res.json({
-      tmpFile: tmpInfo,	
+      tmpFile: tmpInfo,
       client: '',
       adresse: '',
       titre: nomChantier,
       sections,
-      articles
+      articles: articlesFinaux
     })
   } catch (err) {
     console.error('Erreur parse XML:', err)
@@ -217,16 +254,16 @@ const tmpPath = path.join('/opt/avtrack/backend/uploads', tmpName)
 })
 
 router.post('/create', async (req, res) => {
-  const { nom_chantier, client, adresse, salles_config, articles } = req.body
-const { tmpFile } = req.body  
-if (!nom_chantier || !articles?.length) {
+  const { nom_chantier, client, adresse, nom_contact, telephone, salles_config, articles } = req.body
+  const { tmpFile } = req.body
+  if (!nom_chantier || !articles?.length) {
     return res.status(400).json({ error: 'Donnees incompletes.' })
   }
   try {
     const chRes = await query(
-      `INSERT INTO chantiers (nom, client, adresse, statut, description, created_by)
-       VALUES ($1, $2, $3, 'a_faire', 'Importe depuis synoptique XML', $4) RETURNING *`,
-      [nom_chantier, client, adresse, req.user.id]
+      `INSERT INTO chantiers (nom, client, adresse, nom_contact, telephone, statut, description, created_by)
+       VALUES ($1, $2, $3, $4, $5, 'a_faire', 'Importe depuis synoptique XML', $6) RETURNING *`,
+      [nom_chantier, client, adresse, nom_contact || null, telephone || null, req.user.id]
     )
     const chantier = chRes.rows[0]
 

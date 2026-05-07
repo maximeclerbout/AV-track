@@ -12,6 +12,8 @@ const PORT = process.env.PORT || 3001;
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
+app.set('trust proxy', 1);
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
@@ -28,21 +30,27 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' }
+  max: 20,
+  message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
+  validate: { xForwardedForHeader: false }
 });
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 200
+  max: 200,
+  validate: { xForwardedForHeader: false }
 });
 
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/', apiLimiter);
 app.use('/uploads', express.static(path.resolve(uploadDir)));
 
+const { query: dbQuery } = require('./db/pool');
+
 const authRoutes       = require('./routes/auth');
+const settingsRoutes   = require('./routes/settings');
 const usersRoutes      = require('./routes/users');
 const chantiersRoutes  = require('./routes/chantiers');
+const { router: backupRoutes, autoBackup } = require('./routes/backup');
 const sallesRoutes     = require('./routes/salles');
 const produitsRoutes   = require('./routes/produits');
 const documentsRoutes  = require('./routes/documents');
@@ -57,17 +65,19 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth',       authRoutes);
+app.use('/api/settings',   settingsRoutes);
 app.use('/api/users',      usersRoutes);
 app.use('/api/chantiers',  chantiersRoutes);
-app.use('/api/produits',   produitsRoutes);
-app.use('/api',            produitsRoutes);
-app.use('/api',            sallesRoutes);
+app.use('/api/bons-livraison', blRoutes);
+app.use('/api/backup',     backupRoutes);
 app.use('/api/documents',  documentsRoutes);
 app.use('/api/import',     importRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/import-pdf', importPdfRoutes);
 app.use('/api/import-xml', importXmlRoutes);
-app.use('/api/bons-livraison', blRoutes);
+app.use('/api/produits',   produitsRoutes);
+app.use('/api',            produitsRoutes);
+app.use('/api',            sallesRoutes);
 
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'Route introuvable: ' + req.method + ' ' + req.path });
@@ -92,6 +102,37 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('║  Env     : ' + process.env.NODE_ENV + '              ║');
   console.log('╚════════════════════════════════════════╝');
   console.log('');
+
+  // Migrations automatiques
+  dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS telephone VARCHAR(30)`).catch(() => {});
+  dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS nom_contact VARCHAR(100)`).catch(() => {});
+  dbQuery(`ALTER TABLE categories_equipement ADD COLUMN IF NOT EXISTS couleur VARCHAR(20) DEFAULT '#7b8096'`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS label_reseau1 VARCHAR(60)`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS label_reseau2 VARCHAR(60)`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS ip2 VARCHAR(50)`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS masque2 VARCHAR(50)`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS gateway2 VARCHAR(50)`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS dns2 VARCHAR(50)`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS mdp2 VARCHAR(100)`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS dns_alt VARCHAR(50)`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS dns2_alt VARCHAR(50)`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS login VARCHAR(100)`).catch(() => {});
+  dbQuery(`CREATE TABLE IF NOT EXISTS app_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)`).catch(() => {});
+  dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS login2 VARCHAR(100)`).catch(() => {});
+  dbQuery(`CREATE TABLE IF NOT EXISTS salle_photos (id SERIAL PRIMARY KEY, salle_id INTEGER REFERENCES salles(id) ON DELETE CASCADE, url VARCHAR(500) NOT NULL, created_at TIMESTAMP DEFAULT NOW())`).catch(() => {});
+  dbQuery(`CREATE TABLE IF NOT EXISTS salle_videos (id SERIAL PRIMARY KEY, salle_id INTEGER REFERENCES salles(id) ON DELETE CASCADE, url VARCHAR(500) NOT NULL, nom_original VARCHAR(255), taille_bytes INTEGER, created_at TIMESTAMP DEFAULT NOW())`).catch(() => {});
+  dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500)`).catch(() => {});
+
+  // Sauvegarde quotidienne automatique à 2h du matin
+  autoBackup();
+  const now = new Date();
+  const next2am = new Date(now);
+  next2am.setHours(2, 0, 0, 0);
+  if (next2am <= now) next2am.setDate(next2am.getDate() + 1);
+  setTimeout(function tick() {
+    autoBackup();
+    setTimeout(tick, 24 * 60 * 60 * 1000);
+  }, next2am - now);
 });
 
 module.exports = app;

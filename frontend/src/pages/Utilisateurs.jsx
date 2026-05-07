@@ -54,7 +54,13 @@ export default function Utilisateurs() {
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [showCats, setShowCats] = useState(false)
+  const [showMailConfig, setShowMailConfig] = useState(false)
+  const [mailSettings, setMailSettings] = useState({})
+  const [mailSaving, setMailSaving] = useState(false)
+  const [mailMsg, setMailMsg] = useState('')
   const [newCat, setNewCat] = useState('')
+  const [newCatCouleur, setNewCatCouleur] = useState('#00D4FF')
+  const [pendingColors, setPendingColors] = useState({})
   const [editUser, setEditUser] = useState(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ nom: '', prenom: '', email: '', password: '', role: 'technicien', poste: 'Technicien AV' })
@@ -67,6 +73,9 @@ export default function Utilisateurs() {
       return
     }
     axios.get('/api/chantiers').then(res => setChantiers(res.data))
+    if (currentUser?.role === 'admin') {
+      axios.get('/api/settings').then(res => setMailSettings(res.data)).catch(() => {})
+    }
     axios.get('/api/users')
       .then(res => setUsers(res.data))
       .finally(() => setLoading(false))
@@ -121,12 +130,41 @@ export default function Utilisateurs() {
   const addCategorie = async () => {
     if (!newCat.trim()) return
     try {
-      await axios.post('/api/categories', { nom: newCat.trim(), ordre: categories.length })
+      await axios.post('/api/categories', { nom: newCat.trim(), ordre: categories.length, couleur: newCatCouleur })
       refreshCats()
       setNewCat('')
+      setNewCatCouleur('#00D4FF')
     } catch (err) {
       alert(err.response?.data?.error || 'Erreur')
     }
+  }
+
+  const updateCouleurCat = async (id, couleur) => {
+    try {
+      await axios.patch('/api/categories/' + id, { couleur })
+      setPendingColors(prev => { const n = { ...prev }; delete n[id]; return n })
+      refreshCats()
+    } catch (err) { alert('Erreur lors de la sauvegarde.') }
+  }
+
+  const saveMailSettings = async () => {
+    setMailSaving(true); setMailMsg('')
+    try {
+      await axios.patch('/api/settings', mailSettings)
+      setMailMsg('✅ Paramètres sauvegardés.')
+    } catch (err) {
+      setMailMsg('❌ ' + (err.response?.data?.error || 'Erreur.'))
+    } finally { setMailSaving(false) }
+  }
+
+  const testEmail = async () => {
+    setMailSaving(true); setMailMsg('')
+    try {
+      const res = await axios.post('/api/settings/test-email')
+      setMailMsg('✅ ' + res.data.message)
+    } catch (err) {
+      setMailMsg('❌ ' + (err.response?.data?.error || 'Erreur envoi.'))
+    } finally { setMailSaving(false) }
   }
 
   const deleteCategorie = async (id, nom) => {
@@ -165,7 +203,14 @@ export default function Utilisateurs() {
             {showCats && (
               <div style={{ background: '#13151E', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 16, padding: 20 }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Types d'equipements disponibles</div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center' }}>
+                  <label title="Choisir une couleur" style={{ cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 10, background: newCatCouleur + '30', border: '2px solid ' + newCatCouleur, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
+                      🎨
+                    </div>
+                    <input type="color" value={newCatCouleur} onChange={e => setNewCatCouleur(e.target.value)}
+                      style={{ position: 'absolute', opacity: 0, top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none', padding: 0 }} />
+                  </label>
                   <input value={newCat} onChange={e => setNewCat(e.target.value)}
                     placeholder="Nouveau type (ex: Ecran LED)"
                     onKeyDown={e => e.key === 'Enter' && addCategorie()}
@@ -176,15 +221,107 @@ export default function Utilisateurs() {
                   </button>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {categories.map(cat => (
-                    <div key={cat.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '5px 12px', fontSize: 12 }}>
-                      <span>{cat.nom}</span>
-                      <button onClick={() => deleteCategorie(cat.id, cat.nom)}
-                        style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1, fontWeight: 700 }}>
-                        ×
-                      </button>
+                  {categories.map(cat => {
+                    const displayColor = pendingColors[cat.id] ?? (cat.couleur || '#7b8096')
+                    const hasChange = pendingColors[cat.id] !== undefined && pendingColors[cat.id] !== cat.couleur
+                    return (
+                      <div key={cat.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: displayColor + '18', border: '1px solid ' + displayColor + '50', borderRadius: 20, padding: '5px 10px 5px 6px', fontSize: 12, transition: 'all .15s' }}>
+                        <label title="Changer la couleur" style={{ cursor: 'pointer', position: 'relative', flexShrink: 0, width: 16, height: 16 }}>
+                          <div style={{ width: 16, height: 16, borderRadius: '50%', background: displayColor }} />
+                          <input type="color" value={displayColor}
+                            onChange={e => setPendingColors(prev => ({ ...prev, [cat.id]: e.target.value }))}
+                            style={{ position: 'absolute', opacity: 0, top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none', padding: 0 }} />
+                        </label>
+                        <span style={{ color: displayColor, fontWeight: 600 }}>{cat.nom}</span>
+                        {hasChange && (
+                          <button onClick={() => updateCouleurCat(cat.id, pendingColors[cat.id])}
+                            title="Valider la couleur"
+                            style={{ background: displayColor, border: 'none', color: '#fff', borderRadius: 20, padding: '2px 8px', cursor: 'pointer', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            ✓
+                          </button>
+                        )}
+                        <button onClick={() => deleteCategorie(cat.id, cat.nom)}
+                          style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1, fontWeight: 700 }}>
+                          ×
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {currentUser?.role === 'admin' && (
+          <div style={{ marginBottom: 24 }}>
+            <button onClick={() => setShowMailConfig(!showMailConfig)}
+              style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#10B981', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, marginBottom: showMailConfig ? 12 : 0 }}>
+              ✉️ Paramètres email (notifications BL)
+            </button>
+            {showMailConfig && (
+              <div style={{ background: '#13151E', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 16, padding: 24 }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 700, marginBottom: 16, color: '#10B981' }}>Configuration SMTP</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                  <div>
+                    <label style={labelStyle}>Email ADV (destinataire)</label>
+                    <input type="email" value={mailSettings.adv_email || ''} onChange={e => setMailSettings(s => ({ ...s, adv_email: e.target.value }))}
+                      placeholder="adv@entreprise.fr" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>URL de l'application</label>
+                    <input value={mailSettings.app_url || ''} onChange={e => setMailSettings(s => ({ ...s, app_url: e.target.value }))}
+                      placeholder="https://avtrack.votredomaine.fr" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Serveur SMTP</label>
+                    <input value={mailSettings.smtp_host || ''} onChange={e => setMailSettings(s => ({ ...s, smtp_host: e.target.value }))}
+                      placeholder="smtp.gmail.com" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Port SMTP</label>
+                    <input value={mailSettings.smtp_port || ''} onChange={e => setMailSettings(s => ({ ...s, smtp_port: e.target.value }))}
+                      placeholder="587" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Utilisateur SMTP</label>
+                    <input value={mailSettings.smtp_user || ''} onChange={e => setMailSettings(s => ({ ...s, smtp_user: e.target.value }))}
+                      placeholder="votre@email.com" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Mot de passe SMTP</label>
+                    <input type="password" value={mailSettings.smtp_pass || ''} onChange={e => setMailSettings(s => ({ ...s, smtp_pass: e.target.value }))}
+                      placeholder="••••••••" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Email expéditeur (optionnel)</label>
+                    <input value={mailSettings.smtp_from || ''} onChange={e => setMailSettings(s => ({ ...s, smtp_from: e.target.value }))}
+                      placeholder="avtrack@entreprise.fr" style={inputStyle} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px', width: '100%' }}
+                      onClick={() => setMailSettings(s => ({ ...s, smtp_secure: s.smtp_secure === 'true' ? 'false' : 'true' }))}>
+                      <div style={{ width: 36, height: 20, borderRadius: 10, background: mailSettings.smtp_secure === 'true' ? '#10B981' : 'rgba(255,255,255,0.1)', position: 'relative', transition: '.2s', flexShrink: 0 }}>
+                        <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: mailSettings.smtp_secure === 'true' ? 19 : 3, transition: '.2s' }} />
+                      </div>
+                      <span style={{ fontSize: 12, color: '#E8EAF0' }}>SSL/TLS (port 465)</span>
                     </div>
-                  ))}
+                  </div>
+                </div>
+                {mailMsg && (
+                  <div style={{ background: mailMsg.startsWith('✅') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', border: '1px solid ' + (mailMsg.startsWith('✅') ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'), borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: mailMsg.startsWith('✅') ? '#10B981' : '#EF4444' }}>
+                    {mailMsg}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={testEmail} disabled={mailSaving}
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                    📨 Envoyer un email de test
+                  </button>
+                  <button onClick={saveMailSettings} disabled={mailSaving}
+                    style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+                    {mailSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+                  </button>
                 </div>
               </div>
             )}
@@ -356,14 +493,14 @@ export default function Utilisateurs() {
                     )}
                   </div>
                 </div>
-                {currentUser?.role === 'admin' && (
+                {(currentUser?.role === 'admin' || u.id === currentUser?.id) && (
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       onClick={() => { setEditUser(u); setEditForm({ nom: u.nom, prenom: u.prenom, email: u.email, role: u.role, poste: u.poste }); setError('') }}
                       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Icon d={icons.edit} size={13} /> Modifier
+                      <Icon d={icons.edit} size={13} /> {u.id === currentUser?.id ? 'Mon profil' : 'Modifier'}
                     </button>
-                    {u.id !== currentUser?.id && (
+                    {currentUser?.role === 'admin' && u.id !== currentUser?.id && (
                       <button
                         onClick={() => toggleActif(u)}
                         style={{ background: u.actif ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)', border: '1px solid ' + (u.actif ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'), color: u.actif ? '#EF4444' : '#10B981', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>

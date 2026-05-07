@@ -34,7 +34,8 @@ router.get('/salles/:sid/produits', async (req, res) => {
 
 router.post('/salles/:sid/produits', async (req, res) => {
   const { type_equipement, reference, serial_number, description,
-          sur_reseau = false, ip, masque, gateway, dns, mdp } = req.body;
+          sur_reseau = false, ip, masque, gateway, dns, dns_alt, login, mdp,
+          label_reseau1, label_reseau2, ip2, masque2, gateway2, dns2, dns2_alt, login2, mdp2 } = req.body;
 
   if (!reference) return res.status(400).json({ error: 'La référence est requise.' });
 
@@ -42,12 +43,15 @@ router.post('/salles/:sid/produits', async (req, res) => {
     const result = await query(
       `INSERT INTO produits
         (salle_id, type_equipement, reference, serial_number, description,
-         sur_reseau, ip, masque, gateway, dns, mdp, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+         sur_reseau, ip, masque, gateway, dns, dns_alt, login, mdp,
+         label_reseau1, label_reseau2, ip2, masque2, gateway2, dns2, dns2_alt, login2, mdp2, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING *`,
       [req.params.sid,
        type_equipement || 'Autre', reference, serial_number, description,
-       sur_reseau, ip || null, masque || null, gateway || null, dns || null,
-       mdp || null, req.user.id]
+       sur_reseau, ip || null, masque || null, gateway || null, dns || null, dns_alt || null, login || null, mdp || null,
+       label_reseau1 || null, label_reseau2 || null,
+       ip2 || null, masque2 || null, gateway2 || null, dns2 || null, dns2_alt || null, login2 || null, mdp2 || null,
+       req.user.id]
     );
     const produit = result.rows[0];
     const chantierId = await getChantierIdFromSalle(req.params.sid);
@@ -61,7 +65,9 @@ router.post('/salles/:sid/produits', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   const allowed = ['type_equipement','reference','serial_number','description',
-                   'sur_reseau','ip','masque','gateway','dns','mdp','position_ordre'];
+                   'sur_reseau','ip','masque','gateway','dns','dns_alt','login','mdp',
+                   'label_reseau1','label_reseau2','ip2','masque2','gateway2','dns2','dns2_alt','login2','mdp2',
+                   'position_ordre','salle_id'];
   const fields = [], vals = [];
 
   allowed.forEach(f => {

@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Layout from '../components/Layout'
+import { useCategories } from '../context/CategoriesContext'
 
 const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 14px', color: '#E8EAF0', fontSize: 13, outline: 'none' }
 const labelStyle = { fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6, display: 'block' }
-const TYPES = ['TV','Videoprojecteur','Matrice','Visio','Amplificateur','Switch AV','Controleur','Autre']
+const TYPES_DEFAULT = ['TV','Videoprojecteur','Matrice','Visio','Amplificateur','Switch AV','Controleur','Autre']
 
 export default function ImportXML() {
+  const { categories } = useCategories()
+  const TYPES = categories.length > 0 ? categories.map(c => c.nom) : TYPES_DEFAULT
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -16,9 +19,11 @@ export default function ImportXML() {
   const [nomChantier, setNomChantier] = useState('')
   const [client, setClient] = useState('')
   const [adresse, setAdresse] = useState('')
+  const [nomContact, setNomContact] = useState('')
+  const [telephone, setTelephone] = useState('')
   const [articles, setArticles] = useState([])
   const [sallesConfig, setSallesConfig] = useState([])
-const [tmpFile, setTmpFile] = useState(null)
+  const [tmpFile, setTmpFile] = useState(null)
 
   const handleFile = async (e) => {
     const file = e.target.files[0]
@@ -67,9 +72,9 @@ const [tmpFile, setTmpFile] = useState(null)
       const sallesActives = sallesConfig.filter(s => s.inclure)
       const res = await axios.post('/api/import-xml/create', {
         nom_chantier: nomChantier,
-        client, adresse,
+        client, adresse, nom_contact: nomContact, telephone,
         salles_config: sallesActives,
-articles: articles.filter(a => a.reference),
+        articles: articles.filter(a => a.reference),
         tmpFile
       })
       setStep(3)
@@ -148,23 +153,45 @@ articles: articles.filter(a => a.reference),
                   <label style={labelStyle}>Adresse</label>
                   <input value={adresse} onChange={e => setAdresse(e.target.value)} style={inputStyle} />
                 </div>
+                <div>
+                  <label style={labelStyle}>Nom du contact</label>
+                  <input value={nomContact} onChange={e => setNomContact(e.target.value)} placeholder="Ex: Jean Dupont" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Téléphone contact</label>
+                  <input value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="Ex: 06 12 34 56 78" style={inputStyle} />
+                </div>
               </div>
             </div>
 
             <div style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 24, marginBottom: 16 }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, marginBottom: 4 }}>
-                Salles detectees ({sallesConfig.filter(s => s.inclure).length})
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800 }}>
+                  Salles ({sallesConfig.filter(s => s.inclure).length})
+                </div>
+                <button
+                  onClick={() => setSallesConfig(prev => [...prev, { section: 'custom_' + Date.now(), nom: '', inclure: true, isCustom: true }])}
+                  style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', color: '#8B5CF6', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  + Ajouter une salle
+                </button>
               </div>
-              <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>Zones du synoptique — cochez et renommez si besoin.</div>
+              <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>Zones du synoptique — cochez, renommez ou ajoutez des salles.</div>
               {sallesConfig.map((sc, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div key={sc.section} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                   <div onClick={() => updateSalle(i, 'inclure', !sc.inclure)}
                     style={{ width: 20, height: 20, borderRadius: 5, border: '2px solid ' + (sc.inclure ? '#8B5CF6' : 'rgba(255,255,255,0.2)'), background: sc.inclure ? 'rgba(139,92,246,0.2)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {sc.inclure && <span style={{ color: '#8B5CF6', fontSize: 13, fontWeight: 700 }}>✓</span>}
                   </div>
-                  <div style={{ fontSize: 12, color: '#6B7280', minWidth: 180 }}>{sc.section}</div>
+                  {!sc.isCustom && <div style={{ fontSize: 12, color: '#6B7280', minWidth: 150, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sc.section}</div>}
                   <input value={sc.nom} onChange={e => updateSalle(i, 'nom', e.target.value)}
-                    style={{ ...inputStyle, opacity: sc.inclure ? 1 : 0.4 }} disabled={!sc.inclure} />
+                    placeholder="Nom de la salle"
+                    style={{ ...inputStyle, flex: 1, opacity: sc.inclure ? 1 : 0.4 }} disabled={!sc.inclure} />
+                  {sc.isCustom && (
+                    <button onClick={() => setSallesConfig(prev => prev.filter((_, j) => j !== i))}
+                      style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>
+                      ✕
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -172,22 +199,40 @@ articles: articles.filter(a => a.reference),
             <div style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 24, marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800 }}>Equipements ({articles.filter(a => a.reference).length})</div>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800 }}>
+                    Equipements ({articles.filter(a => a.reference).length})
+                    {articles.some(a => a.type_auto) && (
+                      <span style={{ marginLeft: 10, fontSize: 11, fontWeight: 600, color: '#10B981', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 20, padding: '2px 8px' }}>
+                        🤖 {articles.filter(a => a.type_auto).length} auto-détecté{articles.filter(a => a.type_auto).length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>Extraits automatiquement du synoptique</div>
                 </div>
                 <button onClick={addArticle} style={{ background: 'linear-gradient(135deg,#8B5CF6,#6D28D9)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>+ Ajouter</button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 120px 60px 130px 36px', gap: 6, marginBottom: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 140px 60px 130px 36px', gap: 6, marginBottom: 8 }}>
                 {['Reference', 'Type', 'Qte', 'Salle', ''].map((h, i) => (
                   <div key={i} style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: .8 }}>{h}</div>
                 ))}
               </div>
               {articles.map((art, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 120px 60px 130px 36px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 140px 60px 130px 36px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
                   <input value={art.reference} onChange={e => updateArticle(i, 'reference', e.target.value)} style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }} />
-                  <select value={art.type_equipement} onChange={e => updateArticle(i, 'type_equipement', e.target.value)} style={{ ...inputStyle, fontSize: 12, padding: '7px 10px', cursor: 'pointer' }}>
-                    {TYPES.map(t => <option key={t}>{t}</option>)}
-                  </select>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={art.type_equipement}
+                      onChange={e => updateArticle(i, 'type_equipement', e.target.value)}
+                      style={{ ...inputStyle, fontSize: 12, padding: '7px 10px', cursor: 'pointer', width: '100%', borderColor: art.type_auto ? 'rgba(16,185,129,0.4)' : undefined }}>
+                      {TYPES.map(t => <option key={t}>{t}</option>)}
+                    </select>
+                    {art.type_auto && (
+                      <span title={`Auto-détecté à ${art.type_sim}% de similarité`}
+                        style={{ position: 'absolute', top: -6, right: -4, fontSize: 10, background: '#10B981', color: '#fff', borderRadius: 20, padding: '1px 5px', fontWeight: 700, pointerEvents: 'none' }}>
+                        🤖{art.type_sim}%
+                      </span>
+                    )}
+                  </div>
                   <input type="number" min="1" value={art.quantite || 1} onChange={e => updateArticle(i, 'quantite', parseInt(e.target.value))} style={{ ...inputStyle, fontSize: 12, padding: '7px 6px', textAlign: 'center' }} />
                   <select value={art.section} onChange={e => updateArticle(i, 'section', e.target.value)} style={{ ...inputStyle, fontSize: 11, padding: '7px 8px', cursor: 'pointer' }}>
                     {sallesConfig.map(s => <option key={s.section} value={s.section}>{s.nom}</option>)}

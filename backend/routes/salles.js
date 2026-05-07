@@ -130,6 +130,106 @@ router.delete('/salles/:id/photo', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
 });
 
+// GET toutes les photos d'une salle
+router.get('/salles/:id/photos', async (req, res) => {
+  try {
+    let result = await query('SELECT * FROM salle_photos WHERE salle_id = $1 ORDER BY created_at ASC', [req.params.id]);
+    // Migration auto : si pas de salle_photos mais photo_url existe, on l'insère
+    if (result.rows.length === 0) {
+      const salleResult = await query('SELECT photo_url FROM salles WHERE id = $1', [req.params.id]);
+      if (salleResult.rows[0]?.photo_url) {
+        const inserted = await query(
+          'INSERT INTO salle_photos (salle_id, url) VALUES ($1, $2) RETURNING *',
+          [req.params.id, salleResult.rows[0].photo_url]
+        );
+        return res.json(inserted.rows);
+      }
+    }
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
+// POST ajouter une photo (multiple)
+router.post('/salles/:id/photos', upload.single('photo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier recu.' });
+  try {
+    const url = `/uploads/${req.file.filename}`;
+    const inserted = await query(
+      'INSERT INTO salle_photos (salle_id, url) VALUES ($1, $2) RETURNING *',
+      [req.params.id, url]
+    );
+    const salle = await query('SELECT photo_url, chantier_id, nom FROM salles WHERE id = $1', [req.params.id]);
+    if (!salle.rows[0].photo_url) {
+      await query('UPDATE salles SET photo_url = $1 WHERE id = $2', [url, req.params.id]);
+    }
+    await audit(salle.rows[0].chantier_id, req.user, `Photo ajoutée pour "${salle.rows[0].nom}"`, 'salle', parseInt(req.params.id));
+    res.json(inserted.rows[0]);
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
+// DELETE supprimer une photo spécifique
+router.delete('/salles/:id/photos/:photoId', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM salle_photos WHERE id = $1 AND salle_id = $2', [req.params.photoId, req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Photo introuvable.' });
+    const photo = result.rows[0];
+    const fs = require('fs');
+    const filePath = path.join('/opt/avtrack/backend', photo.url);
+    if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+    await query('DELETE FROM salle_photos WHERE id = $1', [photo.id]);
+    const salle = await query('SELECT photo_url FROM salles WHERE id = $1', [req.params.id]);
+    if (salle.rows[0].photo_url === photo.url) {
+      const next = await query('SELECT url FROM salle_photos WHERE salle_id = $1 ORDER BY created_at ASC LIMIT 1', [req.params.id]);
+      await query('UPDATE salles SET photo_url = $1 WHERE id = $2', [next.rows[0]?.url || null, req.params.id]);
+    }
+    res.json({ message: 'Photo supprimée.' });
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
+const videoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, process.env.UPLOAD_DIR || './uploads'),
+  filename: (req, file, cb) => cb(null, `video_salle_${req.params.id}_${Date.now()}${path.extname(file.originalname)}`)
+});
+const uploadVideo = multer({
+  storage: videoStorage,
+  limits: { fileSize: 500 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => file.mimetype.startsWith('video/') ? cb(null, true) : cb(new Error('Vidéo uniquement.'))
+});
+
+router.get('/salles/:id/videos', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM salle_videos WHERE salle_id = $1 ORDER BY created_at ASC', [req.params.id]);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
+router.post('/salles/:id/videos', uploadVideo.single('video'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier recu.' });
+  try {
+    const url = `/uploads/${req.file.filename}`;
+    const inserted = await query(
+      'INSERT INTO salle_videos (salle_id, url, nom_original, taille_bytes) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.params.id, url, req.file.originalname, req.file.size]
+    );
+    const salle = await query('SELECT chantier_id, nom FROM salles WHERE id = $1', [req.params.id]);
+    await audit(salle.rows[0].chantier_id, req.user, `Vidéo ajoutée pour "${salle.rows[0].nom}"`, 'salle', parseInt(req.params.id));
+    res.json(inserted.rows[0]);
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
+router.delete('/salles/:id/videos/:videoId', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM salle_videos WHERE id = $1 AND salle_id = $2', [req.params.videoId, req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Vidéo introuvable.' });
+    const video = result.rows[0];
+    const filePath = path.join('/opt/avtrack/backend', video.url);
+    const fsLib = require('fs');
+    if (fsLib.existsSync(filePath)) fsLib.unlink(filePath, () => {});
+    await query('DELETE FROM salle_videos WHERE id = $1', [video.id]);
+    res.json({ message: 'Vidéo supprimée.' });
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
 router.delete('/salles/:id', async (req, res) => {
   try {
     const result = await query(
@@ -147,7 +247,14 @@ router.get('/salles/:id/export', async (req, res) => {
     const salleResult = await query('SELECT * FROM salles WHERE id = $1', [req.params.id]);
     if (salleResult.rows.length === 0) return res.status(404).json({ error: 'Salle introuvable.' });
     const salle = salleResult.rows[0];
-    const produitsResult = await query('SELECT * FROM produits WHERE salle_id = $1 ORDER BY type_equipement', [req.params.id]);
+    const produitsResult = await query(
+      `SELECT * FROM produits WHERE salle_id = $1
+       ORDER BY
+         CASE WHEN sur_reseau THEN 0 ELSE 1 END,
+         CASE WHEN type_equipement = 'Autre' THEN 1 ELSE 0 END,
+         type_equipement`,
+      [req.params.id]
+    );
     const ExcelJS = require('exceljs');
     const workbook = new ExcelJS.Workbook();
     const ws = workbook.addWorksheet(salle.nom.substring(0, 28));

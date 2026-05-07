@@ -15,10 +15,12 @@ export default function Categories() {
   const [showAdd, setShowAdd] = useState(false)
   const [nom, setNom] = useState('')
   const [ordre, setOrdre] = useState(0)
+  const [couleur, setCouleur] = useState('#00D4FF')
   const [saving, setSaving] = useState(false)
   const [editId, setEditId] = useState(null)
   const [editNom, setEditNom] = useState('')
   const [editOrdre, setEditOrdre] = useState(0)
+  const [editCouleur, setEditCouleur] = useState('#7b8096')
 
   if (user?.role !== 'admin') {
     navigate('/')
@@ -29,10 +31,11 @@ export default function Categories() {
     if (!nom) return
     setSaving(true)
     try {
-      await axios.post('/api/categories', { nom, ordre: parseInt(ordre) })
+      await axios.post('/api/categories', { nom, ordre: parseInt(ordre), couleur })
       refresh()
       setNom('')
       setOrdre(0)
+      setCouleur('#00D4FF')
       setShowAdd(false)
     } catch (err) {
       alert(err.response?.data?.error || 'Erreur')
@@ -44,7 +47,7 @@ export default function Categories() {
   const save = async (id) => {
     setSaving(true)
     try {
-      await axios.patch('/api/categories/' + id, { nom: editNom, ordre: parseInt(editOrdre) })
+      await axios.patch('/api/categories/' + id, { nom: editNom, ordre: parseInt(editOrdre), couleur: editCouleur })
       refresh()
       setEditId(null)
     } catch (err) {
@@ -52,6 +55,11 @@ export default function Categories() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const updateCouleur = async (id, couleur) => {
+    await axios.patch('/api/categories/' + id, { couleur })
+    refresh()
   }
 
   const toggle = async (cat) => {
@@ -82,10 +90,17 @@ export default function Categories() {
         {showAdd && (
           <div style={{ background: '#13151E', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 16, padding: 20, marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 14 }}>Nouvelle categorie</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10, marginBottom: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px', gap: 10, marginBottom: 12 }}>
               <div>
                 <label style={labelStyle}>Nom *</label>
                 <input value={nom} onChange={e => setNom(e.target.value)} placeholder="Ex: Ecran LED" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Couleur</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="color" value={couleur} onChange={e => setCouleur(e.target.value)}
+                    style={{ width: '100%', height: 42, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, background: 'rgba(255,255,255,0.05)', cursor: 'pointer', padding: 2 }} />
+                </div>
               </div>
               <div>
                 <label style={labelStyle}>Ordre</label>
@@ -108,12 +123,22 @@ export default function Categories() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {categories.map(cat => (
             <div key={cat.id} style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, opacity: cat.actif ? 1 : 0.5 }}>
+              {/* Carré couleur cliquable — toujours visible */}
+              <label title="Cliquer pour changer la couleur" style={{ cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: (cat.couleur || '#7b8096') + '30', border: '2px solid ' + (cat.couleur || '#7b8096'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 10, color: cat.couleur || '#7b8096', fontWeight: 700 }}>🎨</span>
+                </div>
+                <input type="color" value={cat.couleur || '#7b8096'}
+                  onChange={e => updateCouleur(cat.id, e.target.value)}
+                  style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+              </label>
+
               {editId === cat.id ? (
                 <>
                   <input value={editNom} onChange={e => setEditNom(e.target.value)}
                     style={{ ...inputStyle, flex: 1 }} />
                   <input type="number" value={editOrdre} onChange={e => setEditOrdre(e.target.value)}
-                    style={{ ...inputStyle, width: 80 }} />
+                    style={{ ...inputStyle, width: 70, flexShrink: 0 }} />
                   <button onClick={() => save(cat.id)} disabled={saving}
                     style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
                     {saving ? '...' : 'OK'}
@@ -126,7 +151,7 @@ export default function Categories() {
               ) : (
                 <>
                   <div style={{ flex: 1 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600 }}>{cat.nom}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: cat.couleur || '#E8EAF0' }}>{cat.nom}</span>
                     <span style={{ fontSize: 11, color: '#4B5563', marginLeft: 10 }}>ordre: {cat.ordre}</span>
                     {!cat.actif && <span style={{ fontSize: 11, color: '#EF4444', marginLeft: 8 }}>desactive</span>}
                   </div>

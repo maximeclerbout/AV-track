@@ -5,8 +5,26 @@ const fs = require('fs')
 const { query } = require('../db/pool')
 const { auth } = require('../middleware/auth')
 const { audit } = require('../middleware/audit')
+const { sendBlSigne } = require('../utils/mailer')
 
 const router = express.Router()
+
+// Route publique — accessible depuis un lien email sans connexion
+router.get('/:id/download-signe', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM bons_livraison WHERE id = $1', [req.params.id])
+    if (result.rows.length === 0) return res.status(404).json({ error: 'BL introuvable.' })
+    const bl = result.rows[0]
+    if (!bl.chemin_signe) return res.status(404).json({ error: 'BL non signé.' })
+    const filePath = path.join('/opt/avtrack/backend', bl.chemin_signe)
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier introuvable.' })
+    const nomSigne = bl.nom_original.replace('.pdf', '_signe.pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(nomSigne)}"`)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.sendFile(filePath)
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }) }
+})
+
 router.use(auth)
 
 const storage = multer.diskStorage({
@@ -71,6 +89,20 @@ router.post('/chantier/:cid', upload.single('fichier'), async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }) }
 })
 
+// GET affichage inline (iframe mobile) — token accepté en query param via auth middleware
+router.get('/:id/inline', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM bons_livraison WHERE id = $1', [req.params.id])
+    if (!result.rows.length) return res.status(404).send('Introuvable')
+    const bl = result.rows[0]
+    const filePath = path.join('/opt/avtrack/backend', bl.chemin)
+    if (!fs.existsSync(filePath)) return res.status(404).send('Fichier introuvable')
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(bl.nom_original)}"`)
+    res.sendFile(filePath)
+  } catch (err) { res.status(500).send('Erreur serveur') }
+})
+
 // GET télécharger un BL
 router.get('/:id/download', async (req, res) => {
   try {
@@ -80,22 +112,6 @@ router.get('/:id/download', async (req, res) => {
     const filePath = path.join('/opt/avtrack/backend', bl.chemin)
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier introuvable.' })
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(bl.nom_original)}"`)
-    res.setHeader('Content-Type', 'application/pdf')
-    res.sendFile(filePath)
-  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }) }
-})
-
-// GET télécharger le BL signé
-router.get('/:id/download-signe', async (req, res) => {
-  try {
-    const result = await query('SELECT * FROM bons_livraison WHERE id = $1', [req.params.id])
-    if (result.rows.length === 0) return res.status(404).json({ error: 'BL introuvable.' })
-    const bl = result.rows[0]
-    if (!bl.chemin_signe) return res.status(404).json({ error: 'BL non signe.' })
-    const filePath = path.join('/opt/avtrack/backend', bl.chemin_signe)
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier introuvable.' })
-    const nomSigne = bl.nom_original.replace('.pdf', '_signe.pdf')
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(nomSigne)}"`)
     res.setHeader('Content-Type', 'application/pdf')
     res.sendFile(filePath)
   } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }) }
@@ -165,6 +181,26 @@ firstPage.drawText(nom_signataire, {
     )
 
     await audit(bl.chantier_id, req.user, `BL signe par "${nom_signataire}"`, 'chantier', bl.chantier_id)
+
+    // Passer toutes les salles du chantier à "termine"
+    await query(`UPDATE salles SET statut = 'termine' WHERE chantier_id = $1 AND statut != 'termine'`, [bl.chantier_id])
+
+    // Si toutes les salles sont terminées → chantier "termine"
+    const sallesRes = await query(`SELECT COUNT(*) FILTER (WHERE statut != 'termine') AS restantes FROM salles WHERE chantier_id = $1`, [bl.chantier_id])
+    if (parseInt(sallesRes.rows[0].restantes) === 0) {
+      await query(`UPDATE chantiers SET statut = 'termine' WHERE id = $1`, [bl.chantier_id])
+    }
+
+    // Email automatique à l'ADV
+    const chantierRes = await query('SELECT * FROM chantiers WHERE id = $1', [bl.chantier_id])
+    sendBlSigne({
+      bl: { ...bl, id: req.params.id },
+      chantier: chantierRes.rows[0] || { nom: '?', client: '' },
+      signataire: nom_signataire,
+      date: date_signature || new Date().toLocaleDateString('fr-FR'),
+      fichierPath: filePath,
+    }).catch(err => console.error('[Mail] Erreur async:', err.message))
+
     res.json({ message: 'BL signe avec succes.', chemin_signe: '/uploads/' + nomFichier })
   } catch (err) {
     console.error('Erreur signature BL:', err)

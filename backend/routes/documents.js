@@ -76,14 +76,33 @@ router.post('/', upload.single('fichier'), async (req, res) => {
   }
 });
 
+const resolveDocPath = (chemin) => {
+  const uploadDir = process.env.UPLOAD_DIR
+    ? path.resolve(process.env.UPLOAD_DIR)
+    : path.join(__dirname, '../uploads');
+  return path.join(uploadDir, path.basename(chemin));
+};
+
+// GET affichage inline — token accepté en query param
+router.get('/:id/inline', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
+    if (!result.rows.length) return res.status(404).send('Introuvable');
+    const doc = result.rows[0];
+    const filePath = resolveDocPath(doc.chemin);
+    if (!fs.existsSync(filePath)) return res.status(404).send('Fichier introuvable');
+    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.nom_original)}"`);
+    res.sendFile(filePath);
+  } catch (err) { res.status(500).send('Erreur serveur'); }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const result = await query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Document introuvable.' });
     const doc = result.rows[0];
-const filePath = doc.chemin.startsWith('/uploads/')
-      ? path.join('/opt/avtrack/backend', doc.chemin)
-      : path.join('/opt/avtrack/backend', doc.chemin.startsWith('uploads/') ? doc.chemin : 'uploads/' + path.basename(doc.chemin))
+    const filePath = resolveDocPath(doc.chemin);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier introuvable sur le disque.' });
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(doc.nom_original)}"`);
     res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
