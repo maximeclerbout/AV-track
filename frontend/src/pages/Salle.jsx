@@ -1,5 +1,5 @@
 import Scanner from '../components/Scanner'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Layout from '../components/Layout'
@@ -287,6 +287,23 @@ export default function Salle() {
     } catch (err) { alert('Erreur export.') }
   }
 
+  const touchStartX = useRef(null)
+  const sortedSalles = [...sallesChantier].sort((a, b) => a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' }))
+  const currentSalleIdx = sortedSalles.findIndex(s => s.id === parseInt(sid))
+  const prevSalle = currentSalleIdx > 0 ? sortedSalles[currentSalleIdx - 1] : null
+  const nextSalle = currentSalleIdx < sortedSalles.length - 1 ? sortedSalles[currentSalleIdx + 1] : null
+
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX }
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return
+    const diff = touchStartX.current - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 60) {
+      if (diff > 0 && nextSalle) navigate('/chantiers/' + cid + '/salles/' + nextSalle.id)
+      else if (diff < 0 && prevSalle) navigate('/chantiers/' + cid + '/salles/' + prevSalle.id)
+    }
+    touchStartX.current = null
+  }
+
   const produitsFiltres = (salle?.produits || []).filter(p => {
     const matchReseau = filtreReseau === 'tous' ||
       (filtreReseau === 'reseau' && p.sur_reseau) ||
@@ -313,7 +330,35 @@ export default function Salle() {
 
   return (
     <Layout chantiers={chantiers}>
-      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      {/* Bandeau sticky mobile — nom salle + navigation */}
+      {sortedSalles.length > 1 && (
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 60,
+          background: '#0D1117cc', backdropFilter: 'blur(12px)',
+          borderBottom: `2px solid ${salleStatusColor}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '8px 16px', gap: 8
+        }}>
+          <button onClick={() => prevSalle && navigate('/chantiers/' + cid + '/salles/' + prevSalle.id)}
+            disabled={!prevSalle}
+            style={{ background: 'none', border: 'none', color: prevSalle ? '#eef0f6' : '#3d4155', cursor: prevSalle ? 'pointer' : 'default', fontSize: 18, lineHeight: 1, padding: '4px 8px', flexShrink: 0 }}>‹</button>
+          <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: 14, color: '#eef0f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{salle.nom}</div>
+            {sortedSalles.length > 1 && (
+              <div style={{ fontSize: 10, color: '#4b5063', fontFamily: "'Cousine', monospace" }}>
+                {currentSalleIdx + 1} / {sortedSalles.length}
+              </div>
+            )}
+          </div>
+          <button onClick={() => nextSalle && navigate('/chantiers/' + cid + '/salles/' + nextSalle.id)}
+            disabled={!nextSalle}
+            style={{ background: 'none', border: 'none', color: nextSalle ? '#eef0f6' : '#3d4155', cursor: nextSalle ? 'pointer' : 'default', fontSize: 18, lineHeight: 1, padding: '4px 8px', flexShrink: 0 }}>›</button>
+        </div>
+      )}
+
+      <div style={{ maxWidth: 900, margin: '0 auto' }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}>
 
         {/* Breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 12, color: '#7b8096', flexWrap: 'wrap' }}>
