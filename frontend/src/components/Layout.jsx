@@ -6,6 +6,7 @@ const icons = {
   grid: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
   building: "M3 21V7l9-4 9 4v14M9 21v-6h6v6",
   users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+  cog: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.49.49 0 0 0-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65A.49.49 0 0 0 13.5 3h-3a.49.49 0 0 0-.49.42l-.38 2.65c-.61.25-1.17.58-1.69.98l-2.49-1a.49.49 0 0 0-.61.22l-2 3.46a.48.48 0 0 0 .12.64l2.11 1.65a7.36 7.36 0 0 0-.07.98c0 .34.03.66.07.98l-2.11 1.65a.48.48 0 0 0-.12.64l2 3.46c.13.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.05.24.26.42.49.42h3c.24 0 .44-.18.49-.42l.38-2.65c.61-.25 1.17-.58 1.69-.98l2.49 1c.23.08.48 0 .61-.22l2-3.46a.48.48 0 0 0-.12-.64l-2.11-1.65z",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
   menu: "M3 12h18M3 6h18M3 18h18",
   xmark: "M18 6L6 18M6 6l12 12",
@@ -35,8 +36,8 @@ function SidebarLinks({ chantiers, user, logout, navigate, location, setMenuOpen
     { path: '/', icon: icons.grid, label: 'Tableau de bord' },
     { path: '/chantiers', icon: icons.building, label: 'Chantiers' },
   ]
-  if (user?.role === 'admin') {
-    navLinks.push({ path: '/utilisateurs', icon: icons.users, label: 'Utilisateurs' })
+  if (user?.role === 'admin' || user?.role === 'chef') {
+    navLinks.push({ path: '/utilisateurs', icon: icons.cog, label: 'Paramètres' })
   }
   if (user?.role === 'admin' || user?.role === 'chef') {
     navLinks.push({ path: '/backup', icon: icons.save, label: 'Sauvegardes' })
