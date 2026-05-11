@@ -35,15 +35,8 @@ const loginLimiter = rateLimit({
   validate: false,
   keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip
 });
-const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 200,
-  validate: false,
-  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip
-});
 
 app.use('/api/auth/login', loginLimiter);
-app.use('/api/', apiLimiter);
 app.use('/uploads', express.static(path.resolve(uploadDir)));
 
 const { query: dbQuery } = require('./db/pool');
