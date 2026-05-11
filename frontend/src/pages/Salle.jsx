@@ -288,7 +288,7 @@ export default function Salle() {
   }
 
   const touchStartX = useRef(null)
-  const [slideDir, setSlideDir] = useState(null)
+  const [slide, setSlide] = useState({ dir: null, key: 0 })
   const sortedSalles = [...sallesChantier].sort((a, b) => a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' }))
   const currentSalleIdx = sortedSalles.findIndex(s => s.id === parseInt(sid))
   const prevSalle = currentSalleIdx > 0 ? sortedSalles[currentSalleIdx - 1] : null
@@ -296,7 +296,7 @@ export default function Salle() {
 
   useEffect(() => {
     const dir = sessionStorage.getItem('swipeDir')
-    if (dir) { sessionStorage.removeItem('swipeDir'); setSlideDir(dir) }
+    if (dir) { sessionStorage.removeItem('swipeDir'); setSlide(s => ({ dir, key: s.key + 1 })) }
   }, [sid])
 
   const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX }
@@ -339,9 +339,9 @@ export default function Salle() {
   const salleStatusColor = STATUS[salle.statut]?.color || '#7b8096'
   const newTypeColor = getTypeColor(newProduit.type_equipement)
 
-  const slideAnim = slideDir === 'next'
+  const slideAnim = slide.dir === 'next'
     ? 'slideFromRight 0.28s cubic-bezier(.25,.46,.45,.94) both'
-    : slideDir === 'prev'
+    : slide.dir === 'prev'
     ? 'slideFromLeft 0.28s cubic-bezier(.25,.46,.45,.94) both'
     : undefined
 
@@ -374,7 +374,7 @@ export default function Salle() {
         </div>
       )}
 
-      <div style={{ maxWidth: 900, margin: '0 auto', animation: slideAnim, paddingTop: sortedSalles.length > 1 ? 40 : 0 }}
+      <div key={slide.key} style={{ maxWidth: 900, margin: '0 auto', animation: slideAnim, paddingTop: sortedSalles.length > 1 ? 40 : 0 }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}>
 
