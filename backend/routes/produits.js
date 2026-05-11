@@ -47,7 +47,7 @@ router.post('/salles/:sid/produits', async (req, res) => {
          label_reseau1, label_reseau2, ip2, masque2, gateway2, dns2, dns2_alt, login2, mdp2, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING *`,
       [req.params.sid,
-       type_equipement || 'Autre', reference, serial_number, description,
+       type_equipement || 'Autre', reference, serial_number || null, description || null,
        sur_reseau, ip || null, masque || null, gateway || null, dns || null, dns_alt || null, login || null, mdp || null,
        label_reseau1 || null, label_reseau2 || null,
        ip2 || null, masque2 || null, gateway2 || null, dns2 || null, dns2_alt || null, login2 || null, mdp2 || null,

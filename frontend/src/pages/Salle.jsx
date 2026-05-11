@@ -210,7 +210,7 @@ export default function Salle() {
       const qty = Math.max(1, Math.min(50, addQuantite))
       const created = []
       for (let i = 0; i < qty; i++) {
-        const payload = { ...newProduit, serial_number: qty > 1 ? '' : newProduit.serial_number }
+        const payload = { ...newProduit, serial_number: qty > 1 ? null : (newProduit.serial_number || null) }
         const res = await axios.post('/api/salles/' + sid + '/produits', payload)
         created.push(res.data)
       }
