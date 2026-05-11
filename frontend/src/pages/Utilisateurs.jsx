@@ -25,6 +25,7 @@ const icons = {
   send:   "M22 2L11 13M22 2l-7 20-4-9-9-4z",
   save:   "M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8",
   shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+  box:    "M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12",
 }
 
 const ROLES = {
@@ -235,6 +236,11 @@ export default function Parametres() {
   const [mailSaving, setMailSaving] = useState(false)
   const [mailMsg, setMailMsg] = useState('')
 
+  const [marques, setMarques] = useState([])
+  const [newMarque, setNewMarque] = useState('')
+  const [marqueSaving, setMarqueSaving] = useState(false)
+  const [detectMsg, setDetectMsg] = useState('')
+
   useEffect(() => {
     if (currentUser?.role !== 'admin' && currentUser?.role !== 'chef') {
       navigate('/')
@@ -244,6 +250,7 @@ export default function Parametres() {
     if (currentUser?.role === 'admin') {
       axios.get('/api/settings').then(res => setMailSettings(res.data)).catch(() => {})
     }
+    axios.get('/api/marques').then(res => setMarques(res.data)).catch(() => {})
     axios.get('/api/users')
       .then(res => setUsers(res.data))
       .finally(() => setLoading(false))
@@ -343,9 +350,40 @@ export default function Parametres() {
     } finally { setMailSaving(false) }
   }
 
+  const addMarque = async () => {
+    if (!newMarque.trim()) return
+    setMarqueSaving(true)
+    try {
+      const res = await axios.post('/api/marques', { nom: newMarque.trim() })
+      setMarques(prev => [...prev.filter(m => m.nom !== res.data.nom), res.data].sort((a, b) => a.nom.localeCompare(b.nom)))
+      setNewMarque('')
+    } catch (err) { alert(err.response?.data?.error || 'Erreur') }
+    finally { setMarqueSaving(false) }
+  }
+
+  const deleteMarque = async (id, nom) => {
+    if (!confirm('Supprimer la marque "' + nom + '" ?')) return
+    try {
+      await axios.delete('/api/marques/' + id)
+      setMarques(prev => prev.filter(m => m.id !== id))
+    } catch { alert('Erreur lors de la suppression.') }
+  }
+
+  const autoDetectMarques = async () => {
+    setDetectMsg('')
+    setMarqueSaving(true)
+    try {
+      const res = await axios.post('/api/marques/auto-detect')
+      setDetectMsg('✅ ' + res.data.message)
+    } catch (err) {
+      setDetectMsg('❌ ' + (err.response?.data?.error || 'Erreur'))
+    } finally { setMarqueSaving(false) }
+  }
+
   const tabs = [
-    { id: 'users', label: 'Utilisateurs',        icon: icons.users, count: users.length,      color: '#10B981' },
-    { id: 'cats',  label: "Types d'équipements",  icon: icons.tag,   count: categories.length, color: '#8B5CF6' },
+    { id: 'users',   label: 'Utilisateurs',        icon: icons.users, count: users.length,      color: '#10B981' },
+    { id: 'cats',    label: "Types d'équipements",  icon: icons.tag,   count: categories.length, color: '#8B5CF6' },
+    { id: 'marques', label: 'Marques',              icon: icons.box,   count: marques.length,    color: '#06B6D4' },
     ...(currentUser?.role === 'admin'
       ? [{ id: 'mail', label: 'Notifications email', icon: icons.mail, count: null, color: '#F59E0B' }]
       : [])
@@ -630,6 +668,52 @@ export default function Parametres() {
               })}
               {categories.length === 0 && (
                 <div style={{ color: '#7b8096', fontSize: 13, padding: '16px 0', textAlign: 'center' }}>Aucun type défini.</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB MARQUES ── */}
+        {tab === 'marques' && (
+          <div style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 22 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+              <input value={newMarque} onChange={e => setNewMarque(e.target.value)}
+                placeholder="Nouvelle marque (ex: Samsung, Cisco, QSC…)"
+                onKeyDown={e => e.key === 'Enter' && addMarque()}
+                style={{ ...inputStyle, flex: 1 }} />
+              <button onClick={addMarque} disabled={marqueSaving} style={primaryBtn}>
+                <Icon d={icons.plus} size={14} color="#fff" /> Ajouter
+              </button>
+            </div>
+
+            <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', marginBottom: 16 }} />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#7b8096', textTransform: 'uppercase', letterSpacing: '.1em', fontFamily: "'Cousine', monospace" }}>
+                Marques enregistrées ({marques.length})
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {detectMsg && <span style={{ fontSize: 12, color: detectMsg.startsWith('✅') ? '#10B981' : '#EF4444' }}>{detectMsg}</span>}
+                <button onClick={autoDetectMarques} disabled={marqueSaving} style={{ ...ghostBtn, fontSize: 12, padding: '7px 14px' }}>
+                  Détecter dans produits existants
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {marques.map(m => (
+                <div key={m.id} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.2)',
+                  borderRadius: 20, padding: '5px 12px',
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#eef0f6' }}>{m.nom}</span>
+                  <button onClick={() => deleteMarque(m.id, m.nom)}
+                    style={{ background: 'none', border: 'none', color: '#7b8096', cursor: 'pointer', lineHeight: 1, padding: '0 2px', fontSize: 14 }}>✕</button>
+                </div>
+              ))}
+              {marques.length === 0 && (
+                <div style={{ color: '#7b8096', fontSize: 13, padding: '16px 0' }}>Aucune marque enregistrée. Ajoutez-en ou utilisez "Détecter" après avoir créé des équipements.</div>
               )}
             </div>
           </div>

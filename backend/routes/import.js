@@ -322,6 +322,8 @@ router.post('/excel', requireRole('admin', 'chef'), upload.single('fichier'), as
       sallesMap[salleKey].produits.push({
         type_equipement: typeEquip,
         reference:       ref,
+        marque:          marque || null,
+        modele:          modele || null,
         serial_number:   clean(col.sn      >= 0 ? row[col.sn]      : '') || null,
         description:     nomEquip + (clean(col.comment >= 0 ? row[col.comment] : '') ? ' — ' + clean(col.comment >= 0 ? row[col.comment] : '') : ''),
         statut_produit:  mapStatut(etat),
@@ -371,19 +373,24 @@ router.post('/excel', requireRole('admin', 'chef'), upload.single('fichier'), as
                description, sur_reseau,
                label_reseau1, ip, masque, gateway, dns, dns_alt, login, mdp,
                label_reseau2, ip2, masque2, gateway2, dns2, dns2_alt, login2, mdp2,
-               created_by)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
+               marque, modele, created_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
             [salleId, p.type_equipement, p.reference, p.serial_number,
              p.description, p.sur_reseau,
              p.label_reseau1, p.ip, p.masque, p.gateway, p.dns, p.dns_alt, p.login, p.mdp,
              p.label_reseau2, p.ip2, p.masque2, p.gateway2, p.dns2, p.dns2_alt, p.login2, p.mdp2,
-             req.user.id]
+             p.marque, p.modele, req.user.id]
           );
           totalProduits++;
         }
       }
       return { chantier_id: chantier.id, nb_salles: salles.length, nb_produits: totalProduits };
     });
+
+    const allMarques = [...new Set(salles.flatMap(s => s.produits.map(p => p.marque)).filter(Boolean))];
+    for (const m of allMarques) {
+      await query('INSERT INTO marques (nom) VALUES ($1) ON CONFLICT (nom) DO NOTHING', [m]);
+    }
 
     await audit(importResult.chantier_id, req.user,
       `Chantier importé depuis Excel : ${importResult.nb_salles} salle(s), ${importResult.nb_produits} équipement(s)`,

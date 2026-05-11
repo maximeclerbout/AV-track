@@ -84,6 +84,7 @@ export default function Salle() {
   const [salle, setSalle] = useState(null)
   const [chantiers, setChantiers] = useState([])
   const [chantierNom, setChantierNom] = useState('')
+  const [marques, setMarques] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandedProduit, setExpandedProduit] = useState(null)
   const [showAddProduit, setShowAddProduit] = useState(false)
@@ -107,7 +108,7 @@ export default function Salle() {
   const [showNic2Add, setShowNic2Add] = useState(false)
   const [showNic2Edit, setShowNic2Edit] = useState(false)
   const [newProduit, setNewProduit] = useState({
-    type_equipement: TYPES[0] || 'Autre', reference: '', serial_number: '',
+    type_equipement: TYPES[0] || 'Autre', marque: '', modele: '', serial_number: '',
     description: '', sur_reseau: false,
     ip: '', masque: '', gateway: '', dns: '', dns_alt: '', login: '', mdp: '', label_reseau1: '',
     ip2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '',
@@ -120,6 +121,7 @@ export default function Salle() {
   }, [categories])
 
   useEffect(() => {
+    axios.get('/api/marques').then(res => setMarques(res.data)).catch(() => {})
     axios.get('/api/chantiers').then(res => {
       setChantiers(res.data)
       const ch = res.data.find(c => c.id === parseInt(cid))
@@ -204,18 +206,22 @@ export default function Salle() {
   const [addQuantite, setAddQuantite] = useState(1)
 
   const addProduit = async () => {
-    if (!newProduit.reference) return
+    if (!newProduit.modele && !newProduit.marque) return
+    const reference = [newProduit.marque, newProduit.modele].filter(Boolean).join(' ')
     setSaving(true)
     try {
       const qty = Math.max(1, Math.min(50, addQuantite))
       const created = []
       for (let i = 0; i < qty; i++) {
-        const payload = { ...newProduit, serial_number: qty > 1 ? null : (newProduit.serial_number || null) }
+        const payload = { ...newProduit, reference, serial_number: qty > 1 ? null : (newProduit.serial_number || null) }
         const res = await axios.post('/api/salles/' + sid + '/produits', payload)
         created.push(res.data)
       }
       setSalle(prev => ({ ...prev, produits: [...(prev.produits || []), ...created] }))
-      setNewProduit({ type_equipement: TYPES[0] || 'Autre', reference: '', serial_number: '', description: '', sur_reseau: false, ip: '', masque: salle?.net_masque || '', gateway: salle?.net_gateway || '', dns: salle?.net_dns || '', dns_alt: '', login: '', mdp: '', label_reseau1: '', ip2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '' })
+      if (newProduit.marque && !marques.find(m => m.nom.toLowerCase() === newProduit.marque.toLowerCase())) {
+        axios.get('/api/marques').then(r => setMarques(r.data)).catch(() => {})
+      }
+      setNewProduit({ type_equipement: TYPES[0] || 'Autre', marque: '', modele: '', serial_number: '', description: '', sur_reseau: false, ip: '', masque: salle?.net_masque || '', gateway: salle?.net_gateway || '', dns: salle?.net_dns || '', dns_alt: '', login: '', mdp: '', label_reseau1: '', ip2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '' })
       setAddQuantite(1)
       setShowNic2Add(false)
       setShowAddProduit(false)
@@ -241,15 +247,30 @@ export default function Salle() {
 
   const startEditProduit = (p) => {
     setEditProduit(p)
-    setEditProduitForm({ type_equipement: p.type_equipement, reference: p.reference, serial_number: p.serial_number || '', description: p.description || '', sur_reseau: p.sur_reseau, ip: p.ip || '', masque: p.masque || '', gateway: p.gateway || '', dns: p.dns || '', dns_alt: p.dns_alt || '', login: p.login || '', mdp: p.mdp || '', label_reseau1: p.label_reseau1 || '', ip2: p.ip2 || '', masque2: p.masque2 || '', gateway2: p.gateway2 || '', dns2: p.dns2 || '', dns2_alt: p.dns2_alt || '', login2: p.login2 || '', mdp2: p.mdp2 || '', label_reseau2: p.label_reseau2 || '' })
+    setEditProduitForm({
+      type_equipement: p.type_equipement,
+      marque: p.marque || '',
+      modele: p.modele || (p.marque ? '' : p.reference),
+      serial_number: p.serial_number || '', description: p.description || '',
+      sur_reseau: p.sur_reseau, ip: p.ip || '', masque: p.masque || '', gateway: p.gateway || '',
+      dns: p.dns || '', dns_alt: p.dns_alt || '', login: p.login || '', mdp: p.mdp || '',
+      label_reseau1: p.label_reseau1 || '', ip2: p.ip2 || '', masque2: p.masque2 || '',
+      gateway2: p.gateway2 || '', dns2: p.dns2 || '', dns2_alt: p.dns2_alt || '',
+      login2: p.login2 || '', mdp2: p.mdp2 || '', label_reseau2: p.label_reseau2 || ''
+    })
     setShowNic2Edit(!!p.ip2)
   }
 
   const saveEditProduit = async () => {
     setSaving(true)
     try {
-      const res = await axios.patch('/api/produits/' + editProduit.id, editProduitForm)
+      const { marque, modele } = editProduitForm
+      const reference = [marque, modele].filter(Boolean).join(' ') || modele || marque || editProduit.reference
+      const res = await axios.patch('/api/produits/' + editProduit.id, { ...editProduitForm, reference, marque: marque || null, modele: modele || null })
       setSalle(prev => ({ ...prev, produits: prev.produits.map(p => p.id === editProduit.id ? { ...p, ...res.data } : p) }))
+      if (marque && !marques.find(m => m.nom.toLowerCase() === marque.toLowerCase())) {
+        axios.get('/api/marques').then(r => setMarques(r.data)).catch(() => {})
+      }
       setEditProduit(null)
     } catch (err) { alert('Erreur modification.') }
     finally { setSaving(false) }
@@ -492,8 +513,13 @@ export default function Salle() {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Référence *</label>
-                <input value={newProduit.reference} onChange={e => setNewProduit({ ...newProduit, reference: e.target.value })} placeholder="Ex: Samsung QM65B" style={inputStyle} />
+                <label style={labelStyle}>Marque</label>
+                <input list="marques-list-add" value={newProduit.marque} onChange={e => setNewProduit({ ...newProduit, marque: e.target.value })} placeholder="ex: Samsung" style={inputStyle} />
+                <datalist id="marques-list-add">{marques.map(m => <option key={m.id} value={m.nom} />)}</datalist>
+              </div>
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={labelStyle}>Modèle / Référence *</label>
+                <input value={newProduit.modele} onChange={e => setNewProduit({ ...newProduit, modele: e.target.value })} placeholder="ex: QM65B" style={inputStyle} />
               </div>
             </div>
             <div style={{ marginBottom: 10 }}>
@@ -622,8 +648,13 @@ export default function Salle() {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Référence *</label>
-                  <input value={editProduitForm.reference || ''} onChange={e => setEditProduitForm({ ...editProduitForm, reference: e.target.value })} style={inputStyle} />
+                  <label style={labelStyle}>Marque</label>
+                  <input list="marques-list-edit" value={editProduitForm.marque || ''} onChange={e => setEditProduitForm({ ...editProduitForm, marque: e.target.value })} placeholder="ex: Samsung" style={inputStyle} />
+                  <datalist id="marques-list-edit">{marques.map(m => <option key={m.id} value={m.nom} />)}</datalist>
+                </div>
+                <div style={{ gridColumn: '1/-1' }}>
+                  <label style={labelStyle}>Modèle / Référence *</label>
+                  <input value={editProduitForm.modele || ''} onChange={e => setEditProduitForm({ ...editProduitForm, modele: e.target.value })} placeholder="ex: QM65B" style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Numéro de série</label>
