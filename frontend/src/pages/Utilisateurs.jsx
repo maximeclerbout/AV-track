@@ -79,6 +79,10 @@ export default function Utilisateurs() {
   const [newCat, setNewCat] = useState('')
   const [newCatCouleur, setNewCatCouleur] = useState('#00D4FF')
   const [pendingColors, setPendingColors] = useState({})
+  const [editCatId, setEditCatId] = useState(null)
+  const [editCatNom, setEditCatNom] = useState('')
+  const [editCatOrdre, setEditCatOrdre] = useState(0)
+  const [catSaving, setCatSaving] = useState(false)
 
   // Mail settings
   const [mailSettings, setMailSettings] = useState({})
@@ -151,6 +155,23 @@ export default function Utilisateurs() {
       setPendingColors(prev => { const n = { ...prev }; delete n[id]; return n })
       refreshCats()
     } catch { alert('Erreur lors de la sauvegarde.') }
+  }
+
+  const saveEditCat = async (id) => {
+    setCatSaving(true)
+    try {
+      await axios.patch('/api/categories/' + id, { nom: editCatNom, ordre: parseInt(editCatOrdre) })
+      refreshCats()
+      setEditCatId(null)
+    } catch { alert('Erreur lors de la modification.') }
+    finally { setCatSaving(false) }
+  }
+
+  const toggleActiveCat = async (cat) => {
+    try {
+      await axios.patch('/api/categories/' + cat.id, { actif: !cat.actif })
+      refreshCats()
+    } catch { alert('Erreur.') }
   }
 
   const deleteCategorie = async (id, nom) => {
@@ -338,56 +359,84 @@ export default function Utilisateurs() {
 
         {/* ── TAB: TYPES D'ÉQUIPEMENTS ── */}
         {tab === 'categories' && (
-          <div style={{ background: '#13151E', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 16, padding: 24 }}>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 700, marginBottom: 16, color: '#8B5CF6' }}>
-              Types d'équipements disponibles
+          <div>
+            {/* Ajouter */}
+            <div style={{ background: '#13151E', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 700, marginBottom: 12, color: '#8B5CF6' }}>
+                Ajouter un type
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <label title="Couleur" style={{ cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: newCatCouleur + '30', border: '2px solid ' + newCatCouleur, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🎨</div>
+                  <input type="color" value={newCatCouleur} onChange={e => setNewCatCouleur(e.target.value)}
+                    style={{ position: 'absolute', opacity: 0, top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none', padding: 0 }} />
+                </label>
+                <input value={newCat} onChange={e => setNewCat(e.target.value)}
+                  placeholder="Nom du type (ex: Ecran LED)"
+                  onKeyDown={e => e.key === 'Enter' && addCategorie()}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 14px', color: '#E8EAF0', fontSize: 13, outline: 'none' }} />
+                <button onClick={addCategorie}
+                  style={{ background: 'linear-gradient(135deg,#8B5CF6,#6D28D9)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>
+                  + Ajouter
+                </button>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
-              <label title="Choisir une couleur" style={{ cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: newCatCouleur + '30', border: '2px solid ' + newCatCouleur, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
-                  🎨
-                </div>
-                <input type="color" value={newCatCouleur} onChange={e => setNewCatCouleur(e.target.value)}
-                  style={{ position: 'absolute', opacity: 0, top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none', padding: 0 }} />
-              </label>
-              <input value={newCat} onChange={e => setNewCat(e.target.value)}
-                placeholder="Nouveau type (ex: Ecran LED)"
-                onKeyDown={e => e.key === 'Enter' && addCategorie()}
-                style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 14px', color: '#E8EAF0', fontSize: 13, outline: 'none' }} />
-              <button onClick={addCategorie}
-                style={{ background: 'linear-gradient(135deg,#8B5CF6,#6D28D9)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>
-                + Ajouter
-              </button>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {categories.map(cat => {
-                const displayColor = pendingColors[cat.id] ?? (cat.couleur || '#7b8096')
-                const hasChange = pendingColors[cat.id] !== undefined && pendingColors[cat.id] !== cat.couleur
-                return (
-                  <div key={cat.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: displayColor + '18', border: '1px solid ' + displayColor + '50', borderRadius: 20, padding: '5px 10px 5px 6px', fontSize: 12, transition: 'all .15s' }}>
-                    <label title="Changer la couleur" style={{ cursor: 'pointer', position: 'relative', flexShrink: 0, width: 16, height: 16 }}>
-                      <div style={{ width: 16, height: 16, borderRadius: '50%', background: displayColor }} />
-                      <input type="color" value={displayColor}
-                        onChange={e => setPendingColors(prev => ({ ...prev, [cat.id]: e.target.value }))}
-                        style={{ position: 'absolute', opacity: 0, top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none', padding: 0 }} />
-                    </label>
-                    <span style={{ color: displayColor, fontWeight: 600 }}>{cat.nom}</span>
-                    {hasChange && (
-                      <button onClick={() => updateCouleurCat(cat.id, pendingColors[cat.id])}
-                        title="Valider la couleur"
-                        style={{ background: displayColor, border: 'none', color: '#fff', borderRadius: 20, padding: '2px 8px', cursor: 'pointer', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                        ✓
+
+            {/* Liste */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {categories.map(cat => (
+                <div key={cat.id} style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, opacity: cat.actif ? 1 : 0.55 }}>
+                  {/* Couleur */}
+                  <label title="Changer la couleur" style={{ cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: (cat.couleur || '#7b8096') + '30', border: '2px solid ' + (cat.couleur || '#7b8096'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>
+                      🎨
+                    </div>
+                    <input type="color" value={cat.couleur || '#7b8096'}
+                      onChange={e => updateCouleurCat(cat.id, e.target.value)}
+                      style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+                  </label>
+
+                  {editCatId === cat.id ? (
+                    <>
+                      <input value={editCatNom} onChange={e => setEditCatNom(e.target.value)}
+                        style={{ ...inputStyle, flex: 1 }} />
+                      <input type="number" value={editCatOrdre} onChange={e => setEditCatOrdre(e.target.value)}
+                        title="Ordre d'affichage"
+                        style={{ ...inputStyle, width: 70, flexShrink: 0 }} />
+                      <button onClick={() => saveEditCat(cat.id)} disabled={catSaving}
+                        style={{ background: 'linear-gradient(135deg,#8B5CF6,#6D28D9)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {catSaving ? '...' : 'OK'}
                       </button>
-                    )}
-                    <button onClick={() => deleteCategorie(cat.id, cat.nom)}
-                      style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1, fontWeight: 700 }}>
-                      ×
-                    </button>
-                  </div>
-                )
-              })}
+                      <button onClick={() => setEditCatId(null)}
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
+                        ✕
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: cat.couleur || '#E8EAF0' }}>{cat.nom}</span>
+                        <span style={{ fontSize: 11, color: '#4B5563', marginLeft: 10 }}>ordre : {cat.ordre}</span>
+                        {!cat.actif && <span style={{ fontSize: 11, color: '#EF4444', marginLeft: 8 }}>désactivé</span>}
+                      </div>
+                      <button onClick={() => { setEditCatId(cat.id); setEditCatNom(cat.nom); setEditCatOrdre(cat.ordre) }}
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
+                        ✏️
+                      </button>
+                      <button onClick={() => toggleActiveCat(cat)}
+                        style={{ background: cat.actif ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)', border: '1px solid ' + (cat.actif ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'), color: cat.actif ? '#F59E0B' : '#10B981', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}>
+                        {cat.actif ? 'Désactiver' : 'Activer'}
+                      </button>
+                      <button onClick={() => deleteCategorie(cat.id, cat.nom)}
+                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
+                        🗑️
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
               {categories.length === 0 && (
-                <div style={{ color: '#6B7280', fontSize: 13, padding: '8px 0' }}>Aucun type d'équipement défini.</div>
+                <div style={{ color: '#6B7280', fontSize: 13, padding: '16px 0', textAlign: 'center' }}>Aucun type d'équipement défini.</div>
               )}
             </div>
           </div>
