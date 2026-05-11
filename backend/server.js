@@ -32,12 +32,14 @@ const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
-  validate: { xForwardedForHeader: false }
+  validate: false,
+  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip
 });
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 200,
-  validate: { xForwardedForHeader: false }
+  validate: false,
+  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip
 });
 
 app.use('/api/auth/login', loginLimiter);
