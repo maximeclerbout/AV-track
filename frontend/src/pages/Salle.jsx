@@ -874,7 +874,7 @@ export default function Salle() {
                       <select value={moveTarget} onChange={e => setMoveTarget(e.target.value)}
                         style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: '#eef0f6', fontSize: 12, outline: 'none', cursor: 'pointer' }}>
                         <option value="">Choisir une salle...</option>
-                        {sallesChantier.filter(s => s.id !== parseInt(sid)).map(s => (
+                        {sallesChantier.filter(s => s.id !== parseInt(sid)).sort((a, b) => a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' })).map(s => (
                           <option key={s.id} value={s.id}>{s.nom}{s.etage ? ` — ${s.etage}` : ''}</option>
                         ))}
                       </select>
