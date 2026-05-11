@@ -201,13 +201,22 @@ export default function Salle() {
     } catch (err) { alert('Erreur suppression photo.') }
   }
 
+  const [addQuantite, setAddQuantite] = useState(1)
+
   const addProduit = async () => {
     if (!newProduit.reference) return
     setSaving(true)
     try {
-      const res = await axios.post('/api/salles/' + sid + '/produits', newProduit)
-      setSalle(prev => ({ ...prev, produits: [...(prev.produits || []), res.data] }))
+      const qty = Math.max(1, Math.min(50, addQuantite))
+      const created = []
+      for (let i = 0; i < qty; i++) {
+        const payload = { ...newProduit, serial_number: qty > 1 ? '' : newProduit.serial_number }
+        const res = await axios.post('/api/salles/' + sid + '/produits', payload)
+        created.push(res.data)
+      }
+      setSalle(prev => ({ ...prev, produits: [...(prev.produits || []), ...created] }))
       setNewProduit({ type_equipement: TYPES[0] || 'Autre', reference: '', serial_number: '', description: '', sur_reseau: false, ip: '', masque: salle?.net_masque || '', gateway: salle?.net_gateway || '', dns: salle?.net_dns || '', dns_alt: '', login: '', mdp: '', label_reseau1: '', ip2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '' })
+      setAddQuantite(1)
       setShowNic2Add(false)
       setShowAddProduit(false)
     } catch (err) { alert('Erreur ajout.') }
@@ -568,11 +577,31 @@ export default function Salle() {
                 )}
               </div>
             )}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowAddProduit(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
-              <button onClick={addProduit} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
-                {saving ? 'Ajout...' : "Ajouter l'équipement"}
-              </button>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Quantité */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: '#7b8096', fontWeight: 600 }}>Quantité :</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, overflow: 'hidden' }}>
+                  <button onClick={() => setAddQuantite(q => Math.max(1, q - 1))}
+                    style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', padding: '6px 12px', fontSize: 16, lineHeight: 1 }}>−</button>
+                  <input type="number" min="1" max="50" value={addQuantite}
+                    onChange={e => setAddQuantite(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+                    style={{ width: 40, background: 'none', border: 'none', color: '#eef0f6', textAlign: 'center', fontSize: 14, fontWeight: 700, outline: 'none', padding: '6px 0' }} />
+                  <button onClick={() => setAddQuantite(q => Math.min(50, q + 1))}
+                    style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', padding: '6px 12px', fontSize: 16, lineHeight: 1 }}>+</button>
+                </div>
+                {addQuantite > 1 && (
+                  <span style={{ fontSize: 11, color: '#F59E0B', fontStyle: 'italic' }}>
+                    S/N ignorés — à renseigner individuellement
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => { setShowAddProduit(false); setAddQuantite(1) }} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+                <button onClick={addProduit} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                  {saving ? 'Ajout...' : addQuantite > 1 ? `Ajouter ${addQuantite} exemplaires` : "Ajouter l'équipement"}
+                </button>
+              </div>
             </div>
           </div>
         )}
