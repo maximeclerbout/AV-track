@@ -220,6 +220,218 @@ router.get('/:id/export', async (req, res) => {
   }
 });
 
+router.get('/:id/export-template', async (req, res) => {
+  try {
+    const chResult = await query('SELECT * FROM chantiers WHERE id = $1', [req.params.id]);
+    if (chResult.rows.length === 0) return res.status(404).json({ error: 'Chantier introuvable.' });
+    const chantier = chResult.rows[0];
+
+    const sallesResult = await query('SELECT * FROM salles WHERE chantier_id = $1 ORDER BY position_ordre, nom', [req.params.id]);
+    const salles = await Promise.all(sallesResult.rows.map(async salle => {
+      const prods = await query('SELECT * FROM produits WHERE salle_id = $1 ORDER BY position_ordre, type_equipement', [salle.id]);
+      return { ...salle, produits: prods.rows };
+    }));
+
+    const mapStatutToExcel = (s) => {
+      if (s === 'termine')    return 'Terminé';
+      if (s === 'en_cours')   return 'En cours';
+      if (s === 'a_terminer') return 'A terminer';
+      if (s === 'probleme')   return 'Problème';
+      return 'A faire';
+    };
+    const fmtDate = (d) => {
+      if (!d) return '';
+      const dt = new Date(d);
+      return [String(dt.getDate()).padStart(2,'0'), String(dt.getMonth()+1).padStart(2,'0'), dt.getFullYear()].join('/');
+    };
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'AVTrack Pro';
+    const ws = wb.addWorksheet('Chantier');
+
+    ws.columns = [
+      { width: 18 }, { width: 22 }, { width: 12 }, { width: 28 },
+      { width: 20 }, { width: 16 }, { width: 20 }, { width: 22 },
+      { width: 14 }, { width: 13 },
+      { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
+      { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
+      { width: 30 },
+    ];
+
+    const GREEN     = 'FF059669';
+    const CARD_BG   = 'FF181B24';
+    const YELLOW    = 'FFFFFDE7';
+    const HEADER_FG = 'FFFFFFFF';
+    const GRAY_TEXT = 'FF9CA3AF';
+
+    const applyStyle = (cell, style) => Object.assign(cell, style);
+
+    // Ligne 1 : Titre
+    ws.mergeCells('A1:AA1');
+    applyStyle(ws.getCell('A1'), {
+      value: `AVTrack Pro  —  Export chantier : ${chantier.nom}`,
+      font: { bold: true, size: 15, color: { argb: HEADER_FG }, name: 'Calibri' },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+    });
+    ws.getRow(1).height = 34;
+
+    // Ligne 2 : Info
+    ws.mergeCells('A2:AA2');
+    applyStyle(ws.getCell('A2'), {
+      value: 'Fichier exporté depuis AVTrack Pro — réimportable tel quel. NIC 2 = 2ème carte réseau (Dante, AV LAN…)',
+      font: { italic: true, size: 10, color: { argb: GRAY_TEXT } },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: CARD_BG } },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+    });
+    ws.getRow(2).height = 18;
+    ws.getRow(3).height = 10;
+
+    // Bloc infos chantier (lignes 4-7)
+    const labelStyle = {
+      font: { bold: true, size: 11, color: { argb: 'FFE8EAF0' } },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: CARD_BG } },
+      alignment: { horizontal: 'right', vertical: 'middle' },
+      border: { right: { style: 'thin', color: { argb: GREEN } } },
+    };
+    const valueStyle = {
+      font: { size: 11, color: { argb: 'FF1F2937' } },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: YELLOW } },
+      border: { bottom: { style: 'medium', color: { argb: GREEN } } },
+      alignment: { vertical: 'middle' },
+    };
+
+    const infoData = [
+      [4, 'Client :', chantier.client || '', 'Nom du chantier :', chantier.nom || ''],
+      [5, 'Adresse :', chantier.adresse || '', 'Date début (JJ/MM/AAAA) :', fmtDate(chantier.date_debut)],
+      [6, 'Contact :', chantier.nom_contact || '', 'Date fin (JJ/MM/AAAA) :', fmtDate(chantier.date_fin)],
+      [7, 'Téléphone :', chantier.telephone || '', null, null],
+    ];
+
+    infoData.forEach(([rowNum, leftLabel, leftVal, rightLabel, rightVal]) => {
+      ws.getRow(rowNum).height = 24;
+      applyStyle(ws.getCell(`A${rowNum}`), labelStyle);
+      ws.getCell(`A${rowNum}`).value = leftLabel;
+      ws.mergeCells(`B${rowNum}:E${rowNum}`);
+      applyStyle(ws.getCell(`B${rowNum}`), valueStyle);
+      ws.getCell(`B${rowNum}`).value = leftVal;
+      if (rightLabel !== null) {
+        applyStyle(ws.getCell(`F${rowNum}`), { ...labelStyle, border: { left: { style: 'thin', color: { argb: GREEN } }, right: { style: 'thin', color: { argb: GREEN } } } });
+        ws.getCell(`F${rowNum}`).value = rightLabel;
+        ws.mergeCells(`G${rowNum}:J${rowNum}`);
+        applyStyle(ws.getCell(`G${rowNum}`), valueStyle);
+        ws.getCell(`G${rowNum}`).value = rightVal;
+      }
+    });
+
+    ws.getRow(10).height = 10;
+
+    // Ligne 11 : Séparateur
+    ws.mergeCells('A11:AA11');
+    applyStyle(ws.getCell('A11'), {
+      value: 'LISTE DES ÉQUIPEMENTS',
+      font: { bold: true, size: 11, color: { argb: HEADER_FG } },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: CARD_BG } },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+    });
+    ws.getRow(11).height = 20;
+
+    // Ligne 12 : En-têtes
+    const headers = [
+      'Site', 'Salle', 'Étage',
+      'Nom Equipement', 'Type Equipement', 'Marque', 'Modèle', 'S/N',
+      'Etat', 'Réseau (O/N)',
+      'Label NIC 1', 'Adresse IP', 'Masque', 'Passerelle', 'DNS 1', 'DNS 2', 'Identifiant', 'Mot de passe',
+      'Label NIC 2', 'Adresse IP 2', 'Masque 2', 'Passerelle 2', 'DNS 1 (NIC2)', 'DNS 2 (NIC2)', 'Identifiant 2', 'Mot de passe 2',
+      'Commentaire',
+    ];
+    const headerRow = ws.getRow(12);
+    headerRow.height = 30;
+    headers.forEach((h, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = h;
+      cell.font = { bold: true, size: 10, color: { argb: HEADER_FG } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF10B981' } },
+        bottom: { style: 'medium', color: { argb: 'FF10B981' } },
+        left: { style: 'thin', color: { argb: 'FF10B981' } },
+        right: { style: 'thin', color: { argb: 'FF10B981' } },
+      };
+    });
+
+    // Données équipements à partir de la ligne 13
+    let rowIdx = 13;
+    for (const salle of salles) {
+      let firstInSalle = true;
+      for (const p of salle.produits) {
+        const row = ws.getRow(rowIdx++);
+        row.height = 18;
+        const vals = [
+          firstInSalle ? chantier.nom : '',
+          firstInSalle ? salle.nom : '',
+          firstInSalle ? (salle.etage || '') : '',
+          p.reference || '',
+          p.type_equipement || '',
+          '',
+          '',
+          p.serial_number || '',
+          mapStatutToExcel(p.statut_produit),
+          p.sur_reseau ? 'O' : 'N',
+          p.label_reseau1 || '',
+          p.ip || '',
+          p.masque || '',
+          p.gateway || '',
+          p.dns || '',
+          p.dns_alt || '',
+          p.login || '',
+          p.mdp || '',
+          p.label_reseau2 || '',
+          p.ip2 || '',
+          p.masque2 || '',
+          p.gateway2 || '',
+          p.dns2 || '',
+          p.dns2_alt || '',
+          p.login2 || '',
+          p.mdp2 || '',
+          p.description || '',
+        ];
+        vals.forEach((val, i) => {
+          const cell = row.getCell(i + 1);
+          cell.value = val;
+          cell.font = { size: 10 };
+          cell.alignment = { vertical: 'middle' };
+          cell.border = {
+            bottom: { style: 'hair', color: { argb: 'FF2A2D3A' } },
+            right:  { style: 'hair', color: { argb: 'FF2A2D3A' } },
+          };
+        });
+        firstInSalle = false;
+      }
+      if (salle.produits.length === 0) {
+        const row = ws.getRow(rowIdx++);
+        row.height = 18;
+        [chantier.nom, salle.nom, salle.etage || ''].forEach((val, i) => {
+          row.getCell(i + 1).value = val;
+          row.getCell(i + 1).font = { size: 10, italic: true, color: { argb: GRAY_TEXT } };
+        });
+      }
+    }
+
+    ws.views = [{ state: 'frozen', ySplit: 12 }];
+
+    const safeName = chantier.nom.replace(/[^a-zA-Z0-9-_]/g, '_');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=AVTrack_export_${safeName}.xlsx`);
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Erreur export template:', err);
+    res.status(500).json({ error: 'Erreur export.' });
+  }
+});
+
 router.post('/:id/photo', uploadPhoto.single('photo'), async (req, res) => {
   console.log('[Photo Chantier] POST reçu, id=' + req.params.id + ', file=' + (req.file?.filename || 'AUCUN'));
   if (!req.file) return res.status(400).json({ error: 'Aucun fichier recu.' });

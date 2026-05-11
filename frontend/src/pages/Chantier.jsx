@@ -371,6 +371,17 @@ export default function Chantier() {
     } catch (err) { alert('Erreur lors de l\'export') }
   }
 
+  const exportTemplate = async () => {
+    try {
+      const res = await axios.get('/api/chantiers/' + id + '/export-template', { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', 'AVTrack_export_' + (chantier?.nom || id) + '.xlsx')
+      document.body.appendChild(link); link.click(); link.remove()
+    } catch (err) { alert('Erreur lors de l\'export') }
+  }
+
   const uploadBL = async (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -531,6 +542,11 @@ export default function Chantier() {
                 <button onClick={exportExcel}
                   style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
                   <Icon d={icons.download} size={14} color="#fff" /> Export Excel
+                </button>
+                <button onClick={exportTemplate}
+                  title="Exporter au format du modèle d'import (réimportable)"
+                  style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)', color: '#00D4FF', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon d={icons.download} size={14} color="#00D4FF" /> Export modèle
                 </button>
               </div>
             </div>
