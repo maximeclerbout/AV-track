@@ -288,18 +288,29 @@ export default function Salle() {
   }
 
   const touchStartX = useRef(null)
+  const [slideDir, setSlideDir] = useState(null)
   const sortedSalles = [...sallesChantier].sort((a, b) => a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' }))
   const currentSalleIdx = sortedSalles.findIndex(s => s.id === parseInt(sid))
   const prevSalle = currentSalleIdx > 0 ? sortedSalles[currentSalleIdx - 1] : null
   const nextSalle = currentSalleIdx < sortedSalles.length - 1 ? sortedSalles[currentSalleIdx + 1] : null
+
+  useEffect(() => {
+    const dir = sessionStorage.getItem('swipeDir')
+    if (dir) { sessionStorage.removeItem('swipeDir'); setSlideDir(dir) }
+  }, [sid])
 
   const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX }
   const handleTouchEnd = (e) => {
     if (touchStartX.current === null) return
     const diff = touchStartX.current - e.changedTouches[0].clientX
     if (Math.abs(diff) > 60) {
-      if (diff > 0 && nextSalle) navigate('/chantiers/' + cid + '/salles/' + nextSalle.id)
-      else if (diff < 0 && prevSalle) navigate('/chantiers/' + cid + '/salles/' + prevSalle.id)
+      if (diff > 0 && nextSalle) {
+        sessionStorage.setItem('swipeDir', 'next')
+        navigate('/chantiers/' + cid + '/salles/' + nextSalle.id)
+      } else if (diff < 0 && prevSalle) {
+        sessionStorage.setItem('swipeDir', 'prev')
+        navigate('/chantiers/' + cid + '/salles/' + prevSalle.id)
+      }
     }
     touchStartX.current = null
   }
@@ -328,35 +339,42 @@ export default function Salle() {
   const salleStatusColor = STATUS[salle.statut]?.color || '#7b8096'
   const newTypeColor = getTypeColor(newProduit.type_equipement)
 
+  const slideAnim = slideDir === 'next'
+    ? 'slideFromRight 0.28s cubic-bezier(.25,.46,.45,.94) both'
+    : slideDir === 'prev'
+    ? 'slideFromLeft 0.28s cubic-bezier(.25,.46,.45,.94) both'
+    : undefined
+
   return (
     <Layout chantiers={chantiers}>
-      {/* Bandeau sticky mobile — nom salle + navigation */}
+      <style>{`
+        @keyframes slideFromRight { from { transform: translateX(48px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+        @keyframes slideFromLeft  { from { transform: translateX(-48px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+      `}</style>
+
+      {/* Bandeau fixe — nom salle + navigation (visible en permanence) */}
       {sortedSalles.length > 1 && (
         <div style={{
-          position: 'sticky', top: 0, zIndex: 60,
-          background: '#0D1117cc', backdropFilter: 'blur(12px)',
+          position: 'fixed', top: 56, left: 0, right: 0, zIndex: 60,
+          background: 'rgba(13,17,23,0.92)', backdropFilter: 'blur(14px)',
           borderBottom: `2px solid ${salleStatusColor}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '8px 16px', gap: 8
+          padding: '7px 16px', gap: 8
         }}>
-          <button onClick={() => prevSalle && navigate('/chantiers/' + cid + '/salles/' + prevSalle.id)}
+          <button onClick={() => { if (prevSalle) { sessionStorage.setItem('swipeDir','prev'); navigate('/chantiers/' + cid + '/salles/' + prevSalle.id) }}}
             disabled={!prevSalle}
-            style={{ background: 'none', border: 'none', color: prevSalle ? '#eef0f6' : '#3d4155', cursor: prevSalle ? 'pointer' : 'default', fontSize: 18, lineHeight: 1, padding: '4px 8px', flexShrink: 0 }}>‹</button>
+            style={{ background: 'none', border: 'none', color: prevSalle ? '#eef0f6' : '#3d4155', cursor: prevSalle ? 'pointer' : 'default', fontSize: 22, lineHeight: 1, padding: '2px 8px', flexShrink: 0 }}>‹</button>
           <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: 14, color: '#eef0f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{salle.nom}</div>
-            {sortedSalles.length > 1 && (
-              <div style={{ fontSize: 10, color: '#4b5063', fontFamily: "'Cousine', monospace" }}>
-                {currentSalleIdx + 1} / {sortedSalles.length}
-              </div>
-            )}
+            <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: 13, color: '#eef0f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{salle.nom}</div>
+            <div style={{ fontSize: 10, color: '#4b5063', fontFamily: "'Cousine', monospace" }}>{currentSalleIdx + 1} / {sortedSalles.length}</div>
           </div>
-          <button onClick={() => nextSalle && navigate('/chantiers/' + cid + '/salles/' + nextSalle.id)}
+          <button onClick={() => { if (nextSalle) { sessionStorage.setItem('swipeDir','next'); navigate('/chantiers/' + cid + '/salles/' + nextSalle.id) }}}
             disabled={!nextSalle}
-            style={{ background: 'none', border: 'none', color: nextSalle ? '#eef0f6' : '#3d4155', cursor: nextSalle ? 'pointer' : 'default', fontSize: 18, lineHeight: 1, padding: '4px 8px', flexShrink: 0 }}>›</button>
+            style={{ background: 'none', border: 'none', color: nextSalle ? '#eef0f6' : '#3d4155', cursor: nextSalle ? 'pointer' : 'default', fontSize: 22, lineHeight: 1, padding: '2px 8px', flexShrink: 0 }}>›</button>
         </div>
       )}
 
-      <div style={{ maxWidth: 900, margin: '0 auto' }}
+      <div style={{ maxWidth: 900, margin: '0 auto', animation: slideAnim, paddingTop: sortedSalles.length > 1 ? 40 : 0 }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}>
 
