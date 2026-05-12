@@ -4,6 +4,7 @@ import axios from 'axios'
 import Layout from '../components/Layout'
 import { useAuth } from '../context/AuthContext'
 import { useCategories } from '../context/CategoriesContext'
+import ClientsTab from './Clients'
 
 const Icon = ({ d, size = 18, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -13,9 +14,10 @@ const Icon = ({ d, size = 18, color = 'currentColor' }) => (
 )
 
 const icons = {
-  user:   "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
-  users:  "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
-  tag:    "M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01",
+  user:     "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+  users:    "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+  building: "M3 21V7l9-4 9 4v14M9 21v-6h6v6",
+  tag:      "M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01",
   mail:   "M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6",
   cog:    "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z",
   plus:   "M12 5v14M5 12h14",
@@ -381,9 +383,10 @@ export default function Parametres() {
   }
 
   const tabs = [
-    { id: 'users',   label: 'Utilisateurs',        icon: icons.users, count: users.length,      color: '#10B981' },
-    { id: 'cats',    label: "Types d'équipements",  icon: icons.tag,   count: categories.length, color: '#8B5CF6' },
-    { id: 'marques', label: 'Marques',              icon: icons.box,   count: marques.length,    color: '#06B6D4' },
+    { id: 'users',    label: 'Utilisateurs',        icon: icons.users,    count: users.length,      color: '#10B981' },
+    { id: 'clients',  label: 'Clients',              icon: icons.building, count: null,              color: '#00D4FF' },
+    { id: 'cats',     label: "Types d'équipements",  icon: icons.tag,      count: categories.length, color: '#8B5CF6' },
+    { id: 'marques',  label: 'Marques',              icon: icons.box,      count: marques.length,    color: '#06B6D4' },
     ...(currentUser?.role === 'admin'
       ? [{ id: 'mail', label: 'Notifications email', icon: icons.mail, count: null, color: '#F59E0B' }]
       : [])
@@ -718,6 +721,9 @@ export default function Parametres() {
             </div>
           </div>
         )}
+
+        {/* ── TAB CLIENTS ── */}
+        {tab === 'clients' && <ClientsTab />}
 
         {/* ── TAB NOTIFICATIONS EMAIL ── */}
         {tab === 'mail' && currentUser?.role === 'admin' && (

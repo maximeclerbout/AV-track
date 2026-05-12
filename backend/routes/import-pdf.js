@@ -4,6 +4,7 @@ const PDFParser = require('pdf2json')
 const { query } = require('../db/pool')
 const { auth } = require('../middleware/auth')
 const { audit } = require('../middleware/audit')
+const { matchOrCreateClient } = require('../utils/clientMatcher')
 
 const router = express.Router()
 router.use(auth)
@@ -276,10 +277,12 @@ router.post('/create', async (req, res) => {
     return res.status(400).json({ error: 'Donnees incompletes.' })
   }
   try {
+    const { clientId, photoUrl } = await matchOrCreateClient(client, { adresse, nom_contact, telephone })
+
     const chRes = await query(
-      `INSERT INTO chantiers (nom, client, adresse, nom_contact, telephone, statut, description, created_by)
-       VALUES ($1, $2, $3, $4, $5, 'a_faire', 'Importe depuis BDC PDF', $6) RETURNING *`,
-      [nom_chantier, client, adresse, nom_contact || null, telephone || null, req.user.id]
+      `INSERT INTO chantiers (nom, client, adresse, nom_contact, telephone, statut, description, created_by, client_id, photo_url)
+       VALUES ($1, $2, $3, $4, $5, 'a_faire', 'Importe depuis BDC PDF', $6, $7, $8) RETURNING *`,
+      [nom_chantier, client, adresse, nom_contact || null, telephone || null, req.user.id, clientId, photoUrl]
     )
     const chantier = chRes.rows[0]
 

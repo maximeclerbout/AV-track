@@ -55,6 +55,7 @@ const importPdfRoutes = require('./routes/import-pdf');
 const importXmlRoutes = require('./routes/import-xml');
 const blRoutes = require('./routes/bons-livraison');
 const marquesRoutes = require('./routes/marques');
+const clientsRoutes = require('./routes/clients');
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', app: 'AVTrack Pro', version: '1.0.0', timestamp: new Date().toISOString() });
@@ -72,6 +73,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/import-pdf', importPdfRoutes);
 app.use('/api/import-xml', importXmlRoutes);
 app.use('/api/marques',    marquesRoutes);
+app.use('/api/clients',    clientsRoutes);
 app.use('/api/produits',   produitsRoutes);
 app.use('/api',            produitsRoutes);
 app.use('/api',            sallesRoutes);
@@ -119,6 +121,11 @@ app.listen(PORT, '0.0.0.0', () => {
   dbQuery(`CREATE TABLE IF NOT EXISTS salle_photos (id SERIAL PRIMARY KEY, salle_id INTEGER REFERENCES salles(id) ON DELETE CASCADE, url VARCHAR(500) NOT NULL, created_at TIMESTAMP DEFAULT NOW())`).catch(() => {});
   dbQuery(`CREATE TABLE IF NOT EXISTS salle_videos (id SERIAL PRIMARY KEY, salle_id INTEGER REFERENCES salles(id) ON DELETE CASCADE, url VARCHAR(500) NOT NULL, nom_original VARCHAR(255), taille_bytes INTEGER, created_at TIMESTAMP DEFAULT NOW())`).catch(() => {});
   dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500)`).catch(() => {});
+  dbQuery(`CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, nom VARCHAR(200) NOT NULL, logo_url VARCHAR(500), created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())`).catch(() => {});
+  dbQuery(`CREATE UNIQUE INDEX IF NOT EXISTS clients_nom_unique ON clients (lower(nom))`).catch(() => {});
+  dbQuery(`CREATE TABLE IF NOT EXISTS client_adresses (id SERIAL PRIMARY KEY, client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE, adresse TEXT NOT NULL, is_principale BOOLEAN DEFAULT false)`).catch(() => {});
+  dbQuery(`CREATE TABLE IF NOT EXISTS client_contacts (id SERIAL PRIMARY KEY, client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE, nom VARCHAR(200) NOT NULL DEFAULT '', telephone VARCHAR(50) NOT NULL DEFAULT '')`).catch(() => {});
+  dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL`).catch(() => {});
 
   // Sauvegarde quotidienne automatique à 2h du matin
   autoBackup();

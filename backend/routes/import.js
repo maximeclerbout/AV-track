@@ -5,6 +5,7 @@ const ExcelJS = require('exceljs');
 const { query, transaction } = require('../db/pool');
 const { auth, requireRole }  = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
+const { matchOrCreateClient } = require('../utils/clientMatcher');
 
 const router = express.Router();
 router.use(auth);
@@ -349,11 +350,13 @@ router.post('/excel', requireRole('admin', 'chef'), upload.single('fichier'), as
       return res.status(400).json({ error: 'Aucune donnée trouvée dans le fichier.' });
     }
 
+    const { clientId, photoUrl } = await matchOrCreateClient(nomClient, { adresse, nom_contact: nomContact, telephone });
+
     const importResult = await transaction(async (dbClient) => {
       const chRes = await dbClient.query(
-        `INSERT INTO chantiers (nom, client, adresse, nom_contact, telephone, statut, description, created_by)
-         VALUES ($1,$2,$3,$4,$5,'en_cours','Importé depuis Excel',$6) RETURNING *`,
-        [nomChantier, nomClient, adresse, nomContact || null, telephone || null, req.user.id]
+        `INSERT INTO chantiers (nom, client, adresse, nom_contact, telephone, statut, description, created_by, client_id, photo_url)
+         VALUES ($1,$2,$3,$4,$5,'en_cours','Importé depuis Excel',$6,$7,$8) RETURNING *`,
+        [nomChantier, nomClient, adresse, nomContact || null, telephone || null, req.user.id, clientId, photoUrl]
       );
       const chantier = chRes.rows[0];
       let totalProduits = 0;

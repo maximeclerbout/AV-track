@@ -8,6 +8,7 @@ const os = require('os');
 const { query } = require('../db/pool');
 const { auth, requireRole } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
+const { matchOrCreateClient } = require('../utils/clientMatcher');
 
 const router = express.Router();
 router.use(auth);
@@ -45,10 +46,12 @@ router.post('/', requireRole('admin', 'chef', 'technicien'), async (req, res) =>
   if (!nom) return res.status(400).json({ error: 'Le nom du chantier est requis.' });
 
   try {
+    const { clientId, photoUrl } = await matchOrCreateClient(client, { adresse, nom_contact, telephone });
+
     const result = await query(
-      `INSERT INTO chantiers (nom, client, adresse, telephone, nom_contact, date_debut, date_fin, statut, description, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [nom, client, adresse, telephone || null, nom_contact || null, date_debut || null, date_fin || null, statut, description, req.user.id]
+      `INSERT INTO chantiers (nom, client, adresse, telephone, nom_contact, date_debut, date_fin, statut, description, created_by, client_id, photo_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [nom, client, adresse, telephone || null, nom_contact || null, date_debut || null, date_fin || null, statut, description, req.user.id, clientId, photoUrl]
     );
     const chantier = result.rows[0];
     const sallesACreer = salles.filter(s => s && s.trim());

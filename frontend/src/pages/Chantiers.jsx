@@ -44,6 +44,82 @@ const labelStyle = {
   letterSpacing: 1, marginBottom: 6, display: 'block'
 }
 
+function ClientAutocomplete({ value, onChange, onClientSelect, style }) {
+  const [suggestions, setSuggestions] = useState([])
+  const [open, setOpen] = useState(false)
+  const [timer, setTimer] = useState(null)
+  const wrapRef = useRef()
+
+  const search = async (q) => {
+    if (!q?.trim()) { setSuggestions([]); setOpen(false); return }
+    try {
+      const res = await axios.get('/api/clients/search', { params: { q } })
+      setSuggestions(res.data)
+      setOpen(res.data.length > 0)
+    } catch { setSuggestions([]); setOpen(false) }
+  }
+
+  const handleChange = (e) => {
+    onChange(e.target.value)
+    clearTimeout(timer)
+    setTimer(setTimeout(() => search(e.target.value), 250))
+  }
+
+  const pick = async (client) => {
+    onChange(client.nom)
+    setOpen(false)
+    setSuggestions([])
+    try {
+      const res = await axios.get('/api/clients/' + client.id)
+      const full = res.data
+      const mainAddr = full.adresses?.find(a => a.is_principale) || full.adresses?.[0]
+      const mainContact = full.contacts?.[0]
+      onClientSelect({
+        adresse: mainAddr?.adresse || '',
+        nom_contact: mainContact?.nom || '',
+        telephone: mainContact?.telephone || '',
+      })
+    } catch { }
+  }
+
+  useEffect(() => {
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <input value={value} onChange={handleChange} onFocus={() => value?.trim() && suggestions.length && setOpen(true)}
+        placeholder="Nom du client" style={style || inputStyle} />
+      {open && suggestions.length > 0 && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+          background: '#1d2030', border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 10, marginTop: 4, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+        }}>
+          {suggestions.map(c => (
+            <div key={c.id} onMouseDown={() => pick(c)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                cursor: 'pointer', fontSize: 13, color: '#eef0f6',
+                borderBottom: '1px solid rgba(255,255,255,0.05)'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(16,185,129,0.08)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              {c.logo_url
+                ? <img src={c.logo_url} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'contain', flexShrink: 0 }} />
+                : <div style={{ width: 24, height: 24, borderRadius: 4, background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
+              }
+              {c.nom}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Chantiers() {
   const [chantiers, setChantiers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -235,8 +311,11 @@ export default function Chantiers() {
               </div>
               <div>
                 <label style={labelStyle}>Client</label>
-                <input value={form.client} onChange={e => setForm({ ...form, client: e.target.value })}
-                  placeholder="Nom du client" style={inputStyle} />
+                <ClientAutocomplete
+                  value={form.client}
+                  onChange={val => setForm(f => ({ ...f, client: val }))}
+                  onClientSelect={data => setForm(f => ({ ...f, ...data }))}
+                />
               </div>
               <div>
                 <label style={labelStyle}>Adresse</label>
