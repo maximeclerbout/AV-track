@@ -26,6 +26,7 @@ const icons = {
   history: "M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0",
   plus: "M12 5v14M5 12h14",
   download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
+  camera: "M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
   truck: "M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM18.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z",
   pen: "M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z",
   check: "M20 6L9 17l-5-5",
@@ -382,6 +383,17 @@ export default function Chantier() {
     } catch (err) { alert('Erreur lors de l\'export') }
   }
 
+  const downloadPhotos = async () => {
+    try {
+      const res = await axios.get('/api/chantiers/' + id + '/photos-zip', { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', 'Photos_' + (chantier?.nom || id) + '.zip')
+      document.body.appendChild(link); link.click(); link.remove()
+    } catch { alert('Erreur téléchargement photos.') }
+  }
+
   const uploadBL = async (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -547,6 +559,11 @@ export default function Chantier() {
                   title="Exporter au format du modèle d'import (réimportable)"
                   style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)', color: '#00D4FF', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Icon d={icons.download} size={14} color="#00D4FF" /> Export modèle
+                </button>
+                <button onClick={downloadPhotos}
+                  title="Télécharger toutes les photos des salles en ZIP"
+                  style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#F59E0B', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon d={icons.camera} size={14} color="#F59E0B" /> Photos ZIP
                 </button>
               </div>
             </div>

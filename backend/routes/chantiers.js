@@ -1,5 +1,6 @@
 const express = require('express');
 const ExcelJS = require('exceljs');
+const archiver = require('archiver');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -466,6 +467,55 @@ router.get('/:id/export-template', async (req, res) => {
   } catch (err) {
     console.error('Erreur export template:', err);
     res.status(500).json({ error: 'Erreur export.' });
+  }
+});
+
+router.get('/:id/photos-zip', async (req, res) => {
+  try {
+    const chResult = await query('SELECT * FROM chantiers WHERE id = $1', [req.params.id]);
+    if (chResult.rows.length === 0) return res.status(404).json({ error: 'Chantier introuvable.' });
+    const chantier = chResult.rows[0];
+
+    const sallesResult = await query(
+      'SELECT * FROM salles WHERE chantier_id = $1',
+      [req.params.id]
+    );
+    const salles = sallesResult.rows.sort((a, b) =>
+      a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' })
+    );
+
+    const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
+    const safeCh = chantier.nom.replace(/[^a-zA-Z0-9-_]/g, '_');
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="Photos_${safeCh}.zip"`);
+
+    const archive = archiver('zip', { zlib: { level: 5 } });
+    archive.on('error', err => { if (!res.headersSent) res.status(500).end(); });
+    archive.pipe(res);
+
+    for (const salle of salles) {
+      const photosResult = await query(
+        'SELECT * FROM salle_photos WHERE salle_id = $1 ORDER BY created_at ASC',
+        [salle.id]
+      );
+      if (photosResult.rows.length === 0) continue;
+
+      const safeSalle = salle.nom.replace(/[^a-zA-Z0-9-_]/g, '_');
+      photosResult.rows.forEach((photo, i) => {
+        const filename = photo.url.replace(/^\/uploads\//, '');
+        const filepath = path.join(uploadDir, filename);
+        const ext = path.extname(filename) || '.jpg';
+        const nb = photosResult.rows.length;
+        const photoName = `${safeSalle}${nb > 1 ? '_' + (i + 1) : ''}${ext}`;
+        if (fs.existsSync(filepath)) archive.file(filepath, { name: photoName });
+      });
+    }
+
+    await archive.finalize();
+  } catch (err) {
+    console.error('Erreur export photos ZIP:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Erreur génération ZIP.' });
   }
 });
 
