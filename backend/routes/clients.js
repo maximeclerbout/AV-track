@@ -28,16 +28,20 @@ async function getClientFull(id) {
   return { ...client, adresses: adresses.rows, contacts: contacts.rows, nb_chantiers: parseInt(nbChantiers.rows[0].count) };
 }
 
-// GET / - Liste tous les clients
+// GET / - Liste tous les clients avec adresses et contacts
 router.get('/', async (req, res) => {
   try {
     const result = await query(`
       SELECT c.*,
         COUNT(DISTINCT ch.id) AS nb_chantiers,
-        (SELECT COUNT(*) FROM client_adresses WHERE client_id = c.id) AS nb_adresses,
-        (SELECT COUNT(*) FROM client_contacts WHERE client_id = c.id) AS nb_contacts
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', ca.id, 'adresse', ca.adresse, 'is_principale', ca.is_principale))
+          FILTER (WHERE ca.id IS NOT NULL), '[]') AS adresses,
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', cc.id, 'nom', cc.nom, 'telephone', cc.telephone))
+          FILTER (WHERE cc.id IS NOT NULL), '[]') AS contacts
       FROM clients c
       LEFT JOIN chantiers ch ON ch.client_id = c.id
+      LEFT JOIN client_adresses ca ON ca.client_id = c.id
+      LEFT JOIN client_contacts cc ON cc.client_id = c.id
       GROUP BY c.id
       ORDER BY c.nom ASC
     `);
