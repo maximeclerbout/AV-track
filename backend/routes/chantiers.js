@@ -512,19 +512,24 @@ router.get('/:id/photos-zip', async (req, res) => {
       return res.status(404).json({ error: 'Aucune photo trouvée pour ce chantier.' });
     }
 
+    // Construire le ZIP en mémoire pour pouvoir envoyer Content-Length
+    // et garantir la fermeture propre de la connexion HTTP
+    const zipBuffer = await new Promise((resolve, reject) => {
+      const archive = archiver('zip', { zlib: { level: 5 } });
+      const chunks = [];
+      archive.on('data',    chunk => chunks.push(chunk));
+      archive.on('end',     ()    => resolve(Buffer.concat(chunks)));
+      archive.on('error',   err   => reject(err));
+      archive.on('warning', err   => { if (err.code !== 'ENOENT') console.warn('Archive warning:', err); });
+      entries.forEach(({ filepath, photoName }) => archive.file(filepath, { name: photoName }));
+      archive.finalize();
+    });
+
     const safeCh = chantier.nom.replace(/[^a-zA-Z0-9-_]/g, '_');
     res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Length', zipBuffer.length);
     res.setHeader('Content-Disposition', `attachment; filename="Photos_${safeCh}.zip"`);
-
-    const archive = archiver('zip', { zlib: { level: 5 } });
-    archive.on('warning', err => { if (err.code !== 'ENOENT') console.error('Archive warning:', err); });
-    archive.on('error',   err => { console.error('Archive error:', err); });
-    archive.pipe(res);
-
-    entries.forEach(({ filepath, photoName }) => archive.file(filepath, { name: photoName }));
-
-    // finalize() sans await : le pipe vers res gère la fermeture du flux
-    archive.finalize();
+    res.end(zipBuffer);
 
   } catch (err) {
     console.error('Erreur export photos ZIP:', err);
