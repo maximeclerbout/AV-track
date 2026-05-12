@@ -4,6 +4,7 @@ const archiver = require('archiver');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { query } = require('../db/pool');
 const { auth, requireRole } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
@@ -512,24 +513,23 @@ router.get('/:id/photos-zip', async (req, res) => {
       return res.status(404).json({ error: 'Aucune photo trouvée pour ce chantier.' });
     }
 
-    // Construire le ZIP en mémoire pour pouvoir envoyer Content-Length
-    // et garantir la fermeture propre de la connexion HTTP
-    const zipBuffer = await new Promise((resolve, reject) => {
+    const safeCh = chantier.nom.replace(/[^a-zA-Z0-9-_]/g, '_');
+    const tmpFile = path.join(os.tmpdir(), `avtrack_photos_${Date.now()}.zip`);
+
+    await new Promise((resolve, reject) => {
+      const output = fs.createWriteStream(tmpFile);
       const archive = archiver('zip', { zlib: { level: 5 } });
-      const chunks = [];
-      archive.on('data',    chunk => chunks.push(chunk));
-      archive.on('end',     ()    => resolve(Buffer.concat(chunks)));
-      archive.on('error',   err   => reject(err));
-      archive.on('warning', err   => { if (err.code !== 'ENOENT') console.warn('Archive warning:', err); });
+      output.on('close', resolve);
+      archive.on('error', reject);
+      archive.pipe(output);
       entries.forEach(({ filepath, photoName }) => archive.file(filepath, { name: photoName }));
       archive.finalize();
     });
 
-    const safeCh = chantier.nom.replace(/[^a-zA-Z0-9-_]/g, '_');
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Length', zipBuffer.length);
-    res.setHeader('Content-Disposition', `attachment; filename="Photos_${safeCh}.zip"`);
-    res.end(zipBuffer);
+    res.download(tmpFile, `Photos_${safeCh}.zip`, (err) => {
+      fs.unlink(tmpFile, () => {});
+      if (err && !res.headersSent) res.status(500).json({ error: 'Erreur envoi ZIP.' });
+    });
 
   } catch (err) {
     console.error('Erreur export photos ZIP:', err);
