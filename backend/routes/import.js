@@ -61,49 +61,77 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
     const SITE_EX_BG = 'FFE8F5E9';
     const SITE_EX_FG = 'FF166534';
 
+    const applyStyle = (cell, style) => Object.assign(cell, style);
+
     // ── Ligne 1 : Titre ──────────────────────────────────────────
     ws.mergeCells('A1:AA1');
-    const tc = ws.getCell('A1');
-    tc.value = 'AVTrack Pro  —  Modèle d\'import chantier';
-    tc.font  = { bold: true, size: 14, color: { argb: HEADER_FG }, name: 'Calibri' };
-    tc.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } };
-    tc.alignment = { horizontal: 'center', vertical: 'middle' };
-    ws.getRow(1).height = 28;
+    applyStyle(ws.getCell('A1'), {
+      value: 'AVTrack Pro  —  Modèle d\'import chantier',
+      font: { bold: true, size: 15, color: { argb: HEADER_FG }, name: 'Calibri' },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+    });
+    ws.getRow(1).height = 34;
 
-    // ── Ligne 2 : Infos chantier (champs à remplir sur une seule ligne) ──
-    ws.getRow(2).height = 24;
-    const lStyle = {
-      font: { bold: true, size: 9, color: { argb: 'FFE8EAF0' } },
+    // ── Ligne 2 : Instructions ────────────────────────────────────
+    ws.mergeCells('A2:AA2');
+    applyStyle(ws.getCell('A2'), {
+      value: 'Remplissez les infos chantier (lignes 4-7), puis les équipements à partir de la ligne 13. Ne pas modifier les en-têtes. NIC 2 = 2ème carte réseau (Dante, AV LAN…)',
+      font: { italic: true, size: 10, color: { argb: GRAY_TEXT } },
       fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: CARD_BG } },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+    });
+    ws.getRow(2).height = 18;
+    ws.getRow(3).height = 10;
+
+    // ── Bloc infos chantier (lignes 4-7) ─────────────────────────
+    const labelStyle = (argb = CARD_BG) => ({
+      font: { bold: true, size: 11, color: { argb: 'FFE8EAF0' } },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb } },
       alignment: { horizontal: 'right', vertical: 'middle' },
-    };
-    const vStyle = {
-      font: { size: 9, color: { argb: 'FF1F2937' } },
+      border: { right: { style: 'thin', color: { argb: GREEN } } },
+    });
+    const inputCellStyle = {
+      font: { size: 11, color: { argb: 'FF1F2937' } },
       fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: YELLOW } },
+      border: { bottom: { style: 'medium', color: { argb: GREEN } } },
       alignment: { vertical: 'middle' },
     };
-    // [col_label, texte, col_val_start, col_val_end]
-    const infoFields = [
-      [1,  'Client :',           2,  3  ],
-      [4,  'Nom du chantier :', 5,  7  ],
-      [8,  'Adresse :',         9,  10 ],
-      [11, 'Date début :',      12, 12 ],
-      [13, 'Date fin :',        14, 14 ],
-      [15, 'Contact :',         16, 17 ],
-      [18, 'Téléphone :',       19, 20 ],
+
+    const infoRows = [
+      [4, 'Client :', 'G4', 'Nom du chantier :'],
+      [5, 'Adresse :', 'G5', 'Date début (JJ/MM/AAAA) :'],
+      [6, 'Contact :', 'G6', 'Date fin (JJ/MM/AAAA) :'],
+      [7, 'Téléphone :', null, null],
     ];
-    infoFields.forEach(([lCol, lText, vStart, vEnd]) => {
-      const lc = ws.getCell(2, lCol);
-      Object.assign(lc, lStyle); lc.value = lText;
-      if (vStart < vEnd) ws.mergeCells(2, vStart, 2, vEnd);
-      const vc = ws.getCell(2, vStart);
-      Object.assign(vc, vStyle);
+
+    infoRows.forEach(([rowNum, leftLabel, rightLabelCell, rightLabel]) => {
+      ws.getRow(rowNum).height = 24;
+      applyStyle(ws.getCell(`A${rowNum}`), labelStyle(CARD_BG));
+      ws.getCell(`A${rowNum}`).value = leftLabel;
+      ws.mergeCells(`B${rowNum}:E${rowNum}`);
+      applyStyle(ws.getCell(`B${rowNum}`), inputCellStyle);
+      if (rightLabelCell && rightLabel) {
+        applyStyle(ws.getCell(`F${rowNum}`), { ...labelStyle(CARD_BG), border: { left: { style: 'thin', color: { argb: GREEN } }, right: { style: 'thin', color: { argb: GREEN } } } });
+        ws.getCell(`F${rowNum}`).value = rightLabel;
+        ws.mergeCells(`G${rowNum}:J${rowNum}`);
+        applyStyle(ws.getCell(`G${rowNum}`), inputCellStyle);
+      }
     });
 
-    // ── Ligne 3 : Séparateur fin ─────────────────────────────────
-    ws.getRow(3).height = 4;
+    ws.getRow(10).height = 10;
 
-    // ── Ligne 4 : En-têtes colonnes ──────────────────────────────
+    // ── Ligne 11 : Séparateur section équipements ─────────────────
+    ws.mergeCells('A11:AA11');
+    applyStyle(ws.getCell('A11'), {
+      value: 'LISTE DES ÉQUIPEMENTS',
+      font: { bold: true, size: 11, color: { argb: HEADER_FG } },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: CARD_BG } },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+    });
+    ws.getRow(11).height = 20;
+
+    // ── Ligne 12 : En-têtes colonnes ──────────────────────────────
     const headers = [
       'Site', 'Salle', 'Étage',
       'Nom Equipement', 'Type Equipement', 'Marque', 'Modèle', 'S/N',
@@ -112,7 +140,7 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
       'Label NIC 2', 'Adresse IP 2', 'Masque 2', 'Passerelle 2', 'DNS 1 (NIC2)', 'DNS 2 (NIC2)', 'Identifiant 2', 'Mot de passe 2',
       'Commentaire',
     ];
-    const headerRow = ws.getRow(4);
+    const headerRow = ws.getRow(12);
     headerRow.height = 30;
     headers.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);
@@ -128,7 +156,7 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
       };
     });
 
-    // ── Lignes d'exemple (5-7) ────────────────────────────────────
+    // ── Lignes d'exemple (13-15) ──────────────────────────────────
     const BDR_EX = { style: 'thin', color: { argb: 'FFD1D5DB' } };
     const examples = [
       ['Bâtiment A', 'Salle Conférence 01', 'RDC',  'Écran 65"',       'TV',             'Samsung', 'QM65B',      'SN-001234', 'A faire', 'O', 'Management', '192.168.1.10', '255.255.255.0', '192.168.1.1', '8.8.8.8', '8.8.4.4', 'admin', '',         '',      '',             '',              '',              '',        '',       '',          'Mur Nord'],
@@ -136,7 +164,7 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
       ['Bâtiment A', 'Salle Réunion 02',    '1er',  'Projecteur laser', 'Videoprojecteur','Epson',   'EB-L615U',   '',          'A faire', 'N', '',            '',             '',              '',            '',        '',        '',      '',         '',      '',             '',              '',              '',        '',       '',          'Plafond'],
     ];
     examples.forEach((data, idx) => {
-      const row = ws.getRow(5 + idx);
+      const row = ws.getRow(13 + idx);
       row.height = 20;
       data.forEach((val, i) => {
         const cell = row.getCell(i + 1);
@@ -150,16 +178,16 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
     });
 
     // ── Note sous les exemples ────────────────────────────────────
-    ws.getRow(8).height = 14;
-    ws.mergeCells('A8:AA8');
-    const noteCell = ws.getCell('A8');
-    noteCell.value = '⬆ Lignes d\'exemple — à supprimer avant import. Réseau : O = Oui, N = Non. États : A faire / En cours / Problème / Terminé. NIC 2 optionnel (Dante, AV LAN, etc.)';
-    noteCell.font  = { italic: true, size: 9, color: { argb: GRAY_TEXT } };
-    noteCell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXAMPLE_BG } };
-    noteCell.alignment = { horizontal: 'center' };
+    ws.getRow(16).height = 14;
+    ws.mergeCells('A16:AA16');
+    applyStyle(ws.getCell('A16'), {
+      value: '⬆ Lignes d\'exemple — à supprimer avant import. Réseau : O = Oui, N = Non. États : A faire / En cours / Problème / Terminé. NIC 2 optionnel (Dante, AV LAN, etc.)',
+      font: { italic: true, size: 9, color: { argb: GRAY_TEXT } },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: EXAMPLE_BG } },
+      alignment: { horizontal: 'center' },
+    });
 
-    // Figer ligne 4 (en-têtes) + 3 premières colonnes (Site/Salle/Étage)
-    ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 4 }];
+    ws.views = [{}];
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="AVTrack_modele_import.xlsx"');
