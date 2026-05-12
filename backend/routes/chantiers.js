@@ -149,7 +149,11 @@ router.get('/:id/export', async (req, res) => {
 
     const sallesResult = await query('SELECT * FROM salles WHERE chantier_id = $1', [req.params.id]);
     const sallesUnsorted = await Promise.all(sallesResult.rows.map(async salle => {
-      const prods = await query('SELECT * FROM produits WHERE salle_id = $1 ORDER BY type_equipement', [salle.id]);
+      const prods = await query(
+        `SELECT * FROM produits WHERE salle_id = $1
+         ORDER BY sur_reseau DESC, (type_equipement ILIKE 'autre'), type_equipement`,
+        [salle.id]
+      );
       return { ...salle, produits: prods.rows };
     }));
     const salles = sallesUnsorted.sort((a, b) =>
@@ -231,7 +235,11 @@ router.get('/:id/export-template', async (req, res) => {
 
     const sallesResult = await query('SELECT * FROM salles WHERE chantier_id = $1', [req.params.id]);
     const sallesRaw = await Promise.all(sallesResult.rows.map(async salle => {
-      const prods = await query('SELECT * FROM produits WHERE salle_id = $1 ORDER BY position_ordre, type_equipement', [salle.id]);
+      const prods = await query(
+        `SELECT * FROM produits WHERE salle_id = $1
+         ORDER BY sur_reseau DESC, (type_equipement ILIKE 'autre'), type_equipement, position_ordre`,
+        [salle.id]
+      );
       return { ...salle, produits: prods.rows };
     }));
     const salles = sallesRaw.sort((a, b) =>
@@ -256,7 +264,7 @@ router.get('/:id/export-template', async (req, res) => {
     const ws = wb.addWorksheet('Chantier');
 
     ws.columns = [
-      { width: 18 }, { width: 22 }, { width: 12 }, { width: 28 },
+      { width: 18 }, { width: 22 }, { width: 12 },
       { width: 20 }, { width: 16 }, { width: 20 }, { width: 22 },
       { width: 14 }, { width: 13 },
       { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
@@ -273,7 +281,7 @@ router.get('/:id/export-template', async (req, res) => {
     const applyStyle = (cell, style) => Object.assign(cell, style);
 
     // Ligne 1 : Titre
-    ws.mergeCells('A1:AA1');
+    ws.mergeCells('A1:Z1');
     applyStyle(ws.getCell('A1'), {
       value: `AVTrack Pro  —  Export chantier : ${chantier.nom}`,
       font: { bold: true, size: 15, color: { argb: HEADER_FG }, name: 'Calibri' },
@@ -283,7 +291,7 @@ router.get('/:id/export-template', async (req, res) => {
     ws.getRow(1).height = 34;
 
     // Ligne 2 : Info
-    ws.mergeCells('A2:AA2');
+    ws.mergeCells('A2:Z2');
     applyStyle(ws.getCell('A2'), {
       value: 'Fichier exporté depuis AVTrack Pro — réimportable tel quel. NIC 2 = 2ème carte réseau (Dante, AV LAN…)',
       font: { italic: true, size: 10, color: { argb: GRAY_TEXT } },
@@ -333,7 +341,7 @@ router.get('/:id/export-template', async (req, res) => {
     ws.getRow(10).height = 10;
 
     // Ligne 11 : Séparateur
-    ws.mergeCells('A11:AA11');
+    ws.mergeCells('A11:Z11');
     applyStyle(ws.getCell('A11'), {
       value: 'LISTE DES ÉQUIPEMENTS',
       font: { bold: true, size: 11, color: { argb: HEADER_FG } },
@@ -345,7 +353,7 @@ router.get('/:id/export-template', async (req, res) => {
     // Ligne 12 : En-têtes
     const headers = [
       'Site', 'Salle', 'Étage',
-      'Nom Equipement', 'Type Equipement', 'Marque', 'Modèle', 'S/N',
+      'Type Equipement', 'Marque', 'Modèle', 'S/N',
       'Etat', 'Réseau (O/N)',
       'Label NIC 1', 'Adresse IP', 'Masque', 'Passerelle', 'DNS 1', 'DNS 2', 'Identifiant', 'Mot de passe',
       'Label NIC 2', 'Adresse IP 2', 'Masque 2', 'Passerelle 2', 'DNS 1 (NIC2)', 'DNS 2 (NIC2)', 'Identifiant 2', 'Mot de passe 2',
@@ -380,7 +388,7 @@ router.get('/:id/export-template', async (req, res) => {
     for (const salle of salles) {
       // ── Bandeau séparateur de salle ──────────────────────────────
       const sepNum = rowIdx++;
-      ws.mergeCells(`A${sepNum}:AA${sepNum}`);
+      ws.mergeCells(`A${sepNum}:Z${sepNum}`);
       ws.getRow(sepNum).height = 22;
       const sepCell = ws.getCell(`A${sepNum}`);
       sepCell.value = `  ▸  ${salle.nom}${salle.etage ? '   —   ' + salle.etage : ''}   (${salle.produits.length} équipement${salle.produits.length !== 1 ? 's' : ''})`;
@@ -411,7 +419,6 @@ router.get('/:id/export-template', async (req, res) => {
           chantier.nom,
           salle.nom,
           salle.etage || '',
-          p.reference || '',
           p.type_equipement || '',
           p.marque || '',
           p.modele || '',

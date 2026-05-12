@@ -44,7 +44,7 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
     const ws = wb.addWorksheet('Chantier');
 
     ws.columns = [
-      { width: 18 }, { width: 22 }, { width: 12 }, { width: 28 },
+      { width: 18 }, { width: 22 }, { width: 12 },
       { width: 20 }, { width: 16 }, { width: 20 }, { width: 22 },
       { width: 14 }, { width: 13 },
       { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
@@ -64,7 +64,7 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
     const applyStyle = (cell, style) => Object.assign(cell, style);
 
     // ── Ligne 1 : Titre ──────────────────────────────────────────
-    ws.mergeCells('A1:AA1');
+    ws.mergeCells('A1:Z1');
     applyStyle(ws.getCell('A1'), {
       value: 'AVTrack Pro  —  Modèle d\'import chantier',
       font: { bold: true, size: 15, color: { argb: HEADER_FG }, name: 'Calibri' },
@@ -74,7 +74,7 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
     ws.getRow(1).height = 34;
 
     // ── Ligne 2 : Instructions ────────────────────────────────────
-    ws.mergeCells('A2:AA2');
+    ws.mergeCells('A2:Z2');
     applyStyle(ws.getCell('A2'), {
       value: 'Remplissez les infos chantier (lignes 4-7), puis les équipements à partir de la ligne 13. Ne pas modifier les en-têtes. NIC 2 = 2ème carte réseau (Dante, AV LAN…)',
       font: { italic: true, size: 10, color: { argb: GRAY_TEXT } },
@@ -122,7 +122,7 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
     ws.getRow(10).height = 10;
 
     // ── Ligne 11 : Séparateur section équipements ─────────────────
-    ws.mergeCells('A11:AA11');
+    ws.mergeCells('A11:Z11');
     applyStyle(ws.getCell('A11'), {
       value: 'LISTE DES ÉQUIPEMENTS',
       font: { bold: true, size: 11, color: { argb: HEADER_FG } },
@@ -134,7 +134,7 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
     // ── Ligne 12 : En-têtes colonnes ──────────────────────────────
     const headers = [
       'Site', 'Salle', 'Étage',
-      'Nom Equipement', 'Type Equipement', 'Marque', 'Modèle', 'S/N',
+      'Type Equipement', 'Marque', 'Modèle', 'S/N',
       'Etat', 'Réseau (O/N)',
       'Label NIC 1', 'Adresse IP', 'Masque', 'Passerelle', 'DNS 1', 'DNS 2', 'Identifiant', 'Mot de passe',
       'Label NIC 2', 'Adresse IP 2', 'Masque 2', 'Passerelle 2', 'DNS 1 (NIC2)', 'DNS 2 (NIC2)', 'Identifiant 2', 'Mot de passe 2',
@@ -159,9 +159,9 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
     // ── Lignes d'exemple (13-15) ──────────────────────────────────
     const BDR_EX = { style: 'thin', color: { argb: 'FFD1D5DB' } };
     const examples = [
-      ['Bâtiment A', 'Salle Conférence 01', 'RDC',  'Écran 65"',       'TV',             'Samsung', 'QM65B',      'SN-001234', 'A faire', 'O', 'Management', '192.168.1.10', '255.255.255.0', '192.168.1.1', '8.8.8.8', '8.8.4.4', 'admin', '',         '',      '',             '',              '',              '',        '',       '',          'Mur Nord'],
-      ['Bâtiment A', 'Salle Conférence 01', '',     'Processeur audio', 'Amplificateur',  'QSC',     'Q-SYS C110', 'SN-002345', 'A faire', 'O', 'Contrôle',   '192.168.1.20', '255.255.255.0', '192.168.1.1', '8.8.8.8', '',        'admin', 'admin123', 'Dante', '192.168.2.20', '255.255.255.0', '192.168.2.1', '8.8.8.8', '8.8.4.4', 'admin', '',          ''],
-      ['Bâtiment A', 'Salle Réunion 02',    '1er',  'Projecteur laser', 'Videoprojecteur','Epson',   'EB-L615U',   '',          'A faire', 'N', '',            '',             '',              '',            '',        '',        '',      '',         '',      '',             '',              '',              '',        '',       '',          'Plafond'],
+      ['Bâtiment A', 'Salle Conférence 01', 'RDC',  'TV',             'Samsung', 'QM65B',      'SN-001234', 'A faire', 'O', 'Management', '192.168.1.10', '255.255.255.0', '192.168.1.1', '8.8.8.8', '8.8.4.4', 'admin', '',         '',      '',             '',              '',              '',        '',       '',          'Mur Nord'],
+      ['Bâtiment A', 'Salle Conférence 01', '',     'Amplificateur',  'QSC',     'Q-SYS C110', 'SN-002345', 'A faire', 'O', 'Contrôle',   '192.168.1.20', '255.255.255.0', '192.168.1.1', '8.8.8.8', '',        'admin', 'admin123', 'Dante', '192.168.2.20', '255.255.255.0', '192.168.2.1', '8.8.8.8', '8.8.4.4', 'admin', '',          ''],
+      ['Bâtiment A', 'Salle Réunion 02',    '1er',  'Videoprojecteur','Epson',   'EB-L615U',   '',          'A faire', 'N', '',            '',             '',              '',            '',        '',        '',      '',         '',      '',             '',              '',              '',        '',       '',          'Plafond'],
     ];
     examples.forEach((data, idx) => {
       const row = ws.getRow(13 + idx);
@@ -179,7 +179,7 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
 
     // ── Note sous les exemples ────────────────────────────────────
     ws.getRow(16).height = 14;
-    ws.mergeCells('A16:AA16');
+    ws.mergeCells('A16:Z16');
     applyStyle(ws.getCell('A16'), {
       value: '⬆ Lignes d\'exemple — à supprimer avant import. Réseau : O = Oui, N = Non. États : A faire / En cours / Problème / Terminé. NIC 2 optionnel (Dante, AV LAN, etc.)',
       font: { italic: true, size: 9, color: { argb: GRAY_TEXT } },
