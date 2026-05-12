@@ -121,11 +121,12 @@ app.listen(PORT, '0.0.0.0', () => {
   dbQuery(`CREATE TABLE IF NOT EXISTS salle_photos (id SERIAL PRIMARY KEY, salle_id INTEGER REFERENCES salles(id) ON DELETE CASCADE, url VARCHAR(500) NOT NULL, created_at TIMESTAMP DEFAULT NOW())`).catch(() => {});
   dbQuery(`CREATE TABLE IF NOT EXISTS salle_videos (id SERIAL PRIMARY KEY, salle_id INTEGER REFERENCES salles(id) ON DELETE CASCADE, url VARCHAR(500) NOT NULL, nom_original VARCHAR(255), taille_bytes INTEGER, created_at TIMESTAMP DEFAULT NOW())`).catch(() => {});
   dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500)`).catch(() => {});
-  dbQuery(`CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, nom VARCHAR(200) NOT NULL, logo_url VARCHAR(500), created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())`).catch(() => {});
-  dbQuery(`CREATE UNIQUE INDEX IF NOT EXISTS clients_nom_unique ON clients (lower(nom))`).catch(() => {});
-  dbQuery(`CREATE TABLE IF NOT EXISTS client_adresses (id SERIAL PRIMARY KEY, client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE, adresse TEXT NOT NULL, is_principale BOOLEAN DEFAULT false)`).catch(() => {});
-  dbQuery(`CREATE TABLE IF NOT EXISTS client_contacts (id SERIAL PRIMARY KEY, client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE, nom VARCHAR(200) NOT NULL DEFAULT '', telephone VARCHAR(50) NOT NULL DEFAULT '')`).catch(() => {});
-  dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL`).catch(() => {});
+  dbQuery(`CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, nom VARCHAR(200) NOT NULL, logo_url VARCHAR(500), created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())`)
+    .then(() => dbQuery(`CREATE UNIQUE INDEX IF NOT EXISTS clients_nom_unique ON clients (lower(nom))`))
+    .then(() => dbQuery(`CREATE TABLE IF NOT EXISTS client_adresses (id SERIAL PRIMARY KEY, client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE, adresse TEXT NOT NULL, is_principale BOOLEAN DEFAULT false)`))
+    .then(() => dbQuery(`CREATE TABLE IF NOT EXISTS client_contacts (id SERIAL PRIMARY KEY, client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE, nom VARCHAR(200) NOT NULL DEFAULT '', telephone VARCHAR(50) NOT NULL DEFAULT '')`))
+    .then(() => dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL`))
+    .catch(e => console.error('Migration clients:', e.message));
 
   // Sauvegarde quotidienne automatique à 2h du matin
   autoBackup();
