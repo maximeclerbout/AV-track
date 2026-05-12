@@ -162,6 +162,10 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
     });
 
     // ── Lignes d'exemple (13-15) ──────────────────────────────────
+    const SITE_EX_BG = 'FFE8F5E9';
+    const SITE_EX_FG = 'FF166534';
+    const BDR_EX_STD = { style: 'thin', color: { argb: 'FFD1D5DB' } };
+    const BDR_EX_GRN = { style: 'medium', color: { argb: 'FF059669' } };
     const examples = [
       ['Bâtiment A', 'Salle Conférence 01', 'RDC',  'Écran 65"',       'TV',             'Samsung', 'QM65B',      'SN-001234', 'A faire', 'O', 'Management', '192.168.1.10', '255.255.255.0', '192.168.1.1', '8.8.8.8', '8.8.4.4', 'admin', '',         '',      '',             '',              '',              '',        '',       '',          'Mur Nord'],
       ['Bâtiment A', 'Salle Conférence 01', '',     'Processeur audio', 'Amplificateur',  'QSC',     'Q-SYS C110', 'SN-002345', 'A faire', 'O', 'Contrôle',   '192.168.1.20', '255.255.255.0', '192.168.1.1', '8.8.8.8', '',        'admin', 'admin123', 'Dante', '192.168.2.20', '255.255.255.0', '192.168.2.1', '8.8.8.8', '8.8.4.4', 'admin', '',          ''],
@@ -173,9 +177,11 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
       data.forEach((val, i) => {
         const cell = row.getCell(i + 1);
         cell.value = val;
-        cell.font = { italic: true, size: 10, color: { argb: 'FF9CA3AF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXAMPLE_BG } };
+        const isSite = i < 3;
+        cell.font      = { italic: true, size: 10, color: { argb: isSite ? SITE_EX_FG : 'FF9CA3AF' } };
+        cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: isSite ? SITE_EX_BG : EXAMPLE_BG } };
         cell.alignment = { vertical: 'middle' };
+        cell.border    = { bottom: BDR_EX_STD, right: i === 2 ? BDR_EX_GRN : BDR_EX_STD };
       });
     });
 
@@ -189,8 +195,8 @@ router.get('/excel/template', requireRole('admin', 'chef'), async (req, res) => 
       alignment: { horizontal: 'center' },
     });
 
-    // Figer la ligne 12 (en-têtes) pour le scroll
-    ws.views = [{ state: 'frozen', ySplit: 12 }];
+    // Figer ligne 12 (en-têtes) + 3 premières colonnes (Site/Salle/Étage)
+    ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 12 }];
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="AVTrack_modele_import.xlsx"');

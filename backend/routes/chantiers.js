@@ -147,11 +147,14 @@ router.get('/:id/export', async (req, res) => {
     if (chResult.rows.length === 0) return res.status(404).json({ error: 'Chantier introuvable.' });
     const chantier = chResult.rows[0];
 
-    const sallesResult = await query('SELECT * FROM salles WHERE chantier_id = $1 ORDER BY nom', [req.params.id]);
-    const salles = await Promise.all(sallesResult.rows.map(async salle => {
+    const sallesResult = await query('SELECT * FROM salles WHERE chantier_id = $1', [req.params.id]);
+    const sallesUnsorted = await Promise.all(sallesResult.rows.map(async salle => {
       const prods = await query('SELECT * FROM produits WHERE salle_id = $1 ORDER BY type_equipement', [salle.id]);
       return { ...salle, produits: prods.rows };
     }));
+    const salles = sallesUnsorted.sort((a, b) =>
+      a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' })
+    );
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'AVTrack Pro';
@@ -226,11 +229,14 @@ router.get('/:id/export-template', async (req, res) => {
     if (chResult.rows.length === 0) return res.status(404).json({ error: 'Chantier introuvable.' });
     const chantier = chResult.rows[0];
 
-    const sallesResult = await query('SELECT * FROM salles WHERE chantier_id = $1 ORDER BY position_ordre, nom', [req.params.id]);
-    const salles = await Promise.all(sallesResult.rows.map(async salle => {
+    const sallesResult = await query('SELECT * FROM salles WHERE chantier_id = $1', [req.params.id]);
+    const sallesRaw = await Promise.all(sallesResult.rows.map(async salle => {
       const prods = await query('SELECT * FROM produits WHERE salle_id = $1 ORDER BY position_ordre, type_equipement', [salle.id]);
       return { ...salle, produits: prods.rows };
     }));
+    const salles = sallesRaw.sort((a, b) =>
+      a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' })
+    );
 
     const mapStatutToExcel = (s) => {
       if (s === 'termine')    return 'Terminé';
@@ -361,21 +367,55 @@ router.get('/:id/export-template', async (req, res) => {
       };
     });
 
+    // Couleurs pour les données
+    const SITE_BG  = 'FFE8F5E9';  // vert pâle pour colonnes Site/Salle/Étage
+    const SITE_FG  = 'FF166534';  // vert foncé pour texte Site/Salle/Étage
+    const SEP_BG   = 'FF14532D';  // vert très foncé pour bandeau salle
+    const ROW_BG_A = 'FFFFFFFF';  // blanc
+    const ROW_BG_B = 'FFF3F4F6';  // gris très clair
+    const BDR_STD  = { style: 'thin', color: { argb: 'FFD1D5DB' } };
+    const BDR_GRN  = { style: 'medium', color: { argb: 'FF059669' } };
+
     // Données équipements à partir de la ligne 13
     let rowIdx = 13;
     for (const salle of salles) {
-      let firstInSalle = true;
-      for (const p of salle.produits) {
+      // ── Bandeau séparateur de salle ──────────────────────────────
+      const sepNum = rowIdx++;
+      ws.mergeCells(`A${sepNum}:AA${sepNum}`);
+      ws.getRow(sepNum).height = 22;
+      const sepCell = ws.getCell(`A${sepNum}`);
+      sepCell.value = `  ▸  ${salle.nom}${salle.etage ? '   —   ' + salle.etage : ''}   (${salle.produits.length} équipement${salle.produits.length !== 1 ? 's' : ''})`;
+      sepCell.font  = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+      sepCell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: SEP_BG } };
+      sepCell.alignment = { vertical: 'middle' };
+
+      if (salle.produits.length === 0) {
         const row = ws.getRow(rowIdx++);
         row.height = 18;
+        [chantier.nom, salle.nom, salle.etage || '', '(aucun équipement)'].forEach((val, i) => {
+          const cell = row.getCell(i + 1);
+          cell.value = val;
+          cell.font  = { size: 10, italic: true, color: { argb: GRAY_TEXT } };
+          cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_BG_A } };
+          cell.border = { bottom: BDR_STD, right: BDR_STD };
+        });
+      }
+
+      for (let pi = 0; pi < salle.produits.length; pi++) {
+        const p = salle.produits[pi];
+        const curNum = rowIdx++;
+        const row    = ws.getRow(curNum);
+        row.height   = 18;
+        const rowBg  = pi % 2 === 0 ? ROW_BG_A : ROW_BG_B;
+
         const vals = [
-          firstInSalle ? chantier.nom : '',
-          firstInSalle ? salle.nom : '',
-          firstInSalle ? (salle.etage || '') : '',
+          chantier.nom,
+          salle.nom,
+          salle.etage || '',
           p.reference || '',
           p.type_equipement || '',
-          '',
-          '',
+          p.marque || '',
+          p.modele || '',
           p.serial_number || '',
           mapStatutToExcel(p.statut_produit),
           p.sur_reseau ? 'O' : 'N',
@@ -397,29 +437,23 @@ router.get('/:id/export-template', async (req, res) => {
           p.mdp2 || '',
           p.description || '',
         ];
+
         vals.forEach((val, i) => {
-          const cell = row.getCell(i + 1);
-          cell.value = val;
-          cell.font = { size: 10 };
-          cell.alignment = { vertical: 'middle' };
-          cell.border = {
-            bottom: { style: 'hair', color: { argb: 'FF2A2D3A' } },
-            right:  { style: 'hair', color: { argb: 'FF2A2D3A' } },
+          const cell      = row.getCell(i + 1);
+          const isSiteCol = i < 3;
+          cell.value      = val;
+          cell.font       = { size: 10, color: { argb: isSiteCol ? SITE_FG : 'FF1F2937' } };
+          cell.fill       = { type: 'pattern', pattern: 'solid', fgColor: { argb: isSiteCol ? SITE_BG : rowBg } };
+          cell.alignment  = { vertical: 'middle' };
+          cell.border     = {
+            bottom: BDR_STD,
+            right:  i === 2 ? BDR_GRN : BDR_STD,
           };
-        });
-        firstInSalle = false;
-      }
-      if (salle.produits.length === 0) {
-        const row = ws.getRow(rowIdx++);
-        row.height = 18;
-        [chantier.nom, salle.nom, salle.etage || ''].forEach((val, i) => {
-          row.getCell(i + 1).value = val;
-          row.getCell(i + 1).font = { size: 10, italic: true, color: { argb: GRAY_TEXT } };
         });
       }
     }
 
-    ws.views = [{ state: 'frozen', ySplit: 12 }];
+    ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 12 }];
 
     const safeName = chantier.nom.replace(/[^a-zA-Z0-9-_]/g, '_');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
