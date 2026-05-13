@@ -94,6 +94,7 @@ export default function Salle() {
   const [showAddProduit, setShowAddProduit] = useState(false)
   const [scannerTarget, setScannerTarget] = useState(null)
   const [showNetworkPanel, setShowNetworkPanel] = useState(false)
+  const [showProgPanel, setShowProgPanel] = useState(false)
   const [editComment, setEditComment] = useState(false)
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
@@ -537,6 +538,84 @@ export default function Salle() {
                 </div>
               </div>
             </div>
+
+            {/* Programme Extron compact — visible si un équipement est de type Controleur */}
+            {(salle?.produits || []).some(p => p.type_equipement?.toLowerCase().includes('controleur') || p.type_equipement?.toLowerCase().includes('contrôleur')) && (
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12, marginTop: 4 }}>
+                <div style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 12, overflow: 'hidden' }}>
+                  <button onClick={() => setShowProgPanel(!showProgPanel)}
+                    style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', color: '#EF4444', fontSize: 13, fontWeight: 600 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Icon d={icons.cpu} size={15} color="#EF4444" />
+                      Programme Extron
+                      <span style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#3d4155', background: 'rgba(239,68,68,0.1)', borderRadius: 20, padding: '1px 7px' }}>
+                        {programmes.length} fichier{programmes.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <label onClick={e => e.stopPropagation()} style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#EF4444', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Icon d={icons.upload} size={12} color="#EF4444" />
+                        {uploadingProg ? '...' : 'Ajouter'}
+                        <input type="file" style={{ display: 'none' }} disabled={uploadingProg}
+                          onChange={async (e) => {
+                            const file = e.target.files[0]; if (!file) return
+                            setUploadingProg(true)
+                            try {
+                              const fd = new FormData(); fd.append('programme', file)
+                              const res = await axios.post('/api/salles/' + sid + '/programmes', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+                              setProgrammes(prev => [res.data, ...prev])
+                            } catch { alert('Erreur upload.') }
+                            finally { setUploadingProg(false); e.target.value = '' }
+                          }} />
+                      </label>
+                      <svg style={{ transform: showProgPanel ? 'rotate(180deg)' : 'none', transition: '.2s' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
+                        <path d="M6 9l6 6 6-6"/>
+                      </svg>
+                    </div>
+                  </button>
+                  {showProgPanel && (
+                    <div style={{ padding: '0 14px 12px' }}>
+                      {programmes.length === 0
+                        ? <div style={{ color: '#4b5063', fontSize: 12, fontStyle: 'italic', textAlign: 'center', padding: '10px 0' }}>Aucun fichier — ajoutez le premier</div>
+                        : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {programmes.map(prog => {
+                              const sizeKb = prog.taille_bytes ? (prog.taille_bytes / 1024).toFixed(1) : null
+                              const date = new Date(prog.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+                              return (
+                                <div key={prog.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '7px 10px' }}>
+                                  <Icon d={icons.file} size={14} color="#EF4444" />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 600, color: '#eef0f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prog.nom_original}</div>
+                                    <div style={{ fontSize: 10, color: '#4b5063' }}>{sizeKb && <span>{sizeKb} Ko · </span>}{date}</div>
+                                  </div>
+                                  <button onClick={async () => {
+                                    try {
+                                      const res = await axios.get('/api/salles/' + sid + '/programmes/' + prog.id + '/download', { responseType: 'blob' })
+                                      const url = window.URL.createObjectURL(new Blob([res.data]))
+                                      const link = document.createElement('a')
+                                      link.href = url; link.setAttribute('download', prog.nom_original)
+                                      document.body.appendChild(link); link.click(); link.remove()
+                                    } catch { alert('Erreur téléchargement.') }
+                                  }} style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', borderRadius: 6, padding: '5px 8px', cursor: 'pointer', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                                    <Icon d={icons.download} size={12} color="#EF4444" /> ↓
+                                  </button>
+                                  <button onClick={async () => {
+                                    if (!window.confirm('Supprimer ce fichier ?')) return
+                                    await axios.delete('/api/salles/' + sid + '/programmes/' + prog.id)
+                                    setProgrammes(prev => prev.filter(p => p.id !== prog.id))
+                                  }} style={{ background: 'none', border: 'none', color: '#4b5063', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
+                                    <Icon d={icons.xmark} size={13} color="#4b5063" />
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                      }
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -976,75 +1055,6 @@ export default function Salle() {
           )
         })}
       </div>
-
-      {/* ── SECTION PROGRAMME EXTRON ── visible si un équipement est de type Controleur */}
-      {(salle?.produits || []).some(p => p.type_equipement?.toLowerCase().includes('controleur') || p.type_equipement?.toLowerCase().includes('contrôleur')) && (
-        <div style={{ marginTop: 28, background: '#181b24', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 16, overflow: 'hidden', borderTop: '3px solid #EF4444' }}>
-          <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon d={icons.cpu} size={18} color="#EF4444" />
-              </div>
-              <div>
-                <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 800, color: '#eef0f6' }}>Programme Extron</div>
-                <div style={{ fontSize: 11, color: '#7b8096' }}>Fichiers de programmation du contrôleur</div>
-              </div>
-            </div>
-            <label style={{ background: 'linear-gradient(135deg,#EF4444,#DC2626)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(239,68,68,0.3)' }}>
-              <Icon d={icons.upload} size={14} color="#fff" />
-              {uploadingProg ? 'Envoi...' : 'Ajouter un fichier'}
-              <input type="file" style={{ display: 'none' }} disabled={uploadingProg}
-                onChange={async (e) => {
-                  const file = e.target.files[0]; if (!file) return
-                  setUploadingProg(true)
-                  try {
-                    const fd = new FormData(); fd.append('programme', file)
-                    const res = await axios.post('/api/salles/' + sid + '/programmes', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-                    setProgrammes(prev => [res.data, ...prev])
-                  } catch { alert('Erreur upload.') }
-                  finally { setUploadingProg(false); e.target.value = '' }
-                }} />
-            </label>
-          </div>
-
-          <div style={{ padding: '14px 22px' }}>
-            {programmes.length === 0
-              ? <div style={{ color: '#4b5063', fontSize: 13, fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>Aucun fichier de programmation — ajoutez le premier</div>
-              : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {programmes.map(prog => {
-                    const sizeKb = prog.taille_bytes ? (prog.taille_bytes / 1024).toFixed(1) : null
-                    const date = new Date(prog.created_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                    return (
-                      <div key={prog.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 14px' }}>
-                        <Icon d={icons.file} size={20} color="#EF4444" />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#eef0f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prog.nom_original}</div>
-                          <div style={{ fontSize: 11, color: '#4b5063', marginTop: 2 }}>
-                            {sizeKb && <span>{sizeKb} Ko · </span>}
-                            {date}
-                            {prog.uploaded_by_nom && <span> · {prog.uploaded_by_nom}</span>}
-                          </div>
-                        </div>
-                        <a href={'/api/salles/' + sid + '/programmes/' + prog.id + '/download'}
-                          style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)', color: '#EF4444', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
-                          <Icon d={icons.download} size={13} color="#EF4444" /> Télécharger
-                        </a>
-                        <button onClick={async () => {
-                          if (!window.confirm('Supprimer ce fichier ?')) return
-                          await axios.delete('/api/salles/' + sid + '/programmes/' + prog.id)
-                          setProgrammes(prev => prev.filter(p => p.id !== prog.id))
-                        }} style={{ background: 'none', border: 'none', color: '#4b5063', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center' }}
-                          title="Supprimer">
-                          <Icon d={icons.xmark} size={15} color="#4b5063" />
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-            }
-          </div>
-        </div>
-      )}
 
       {lightboxPhoto !== null && (
         <div onClick={() => setLightboxPhoto(null)}
