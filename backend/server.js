@@ -127,6 +127,7 @@ app.listen(PORT, '0.0.0.0', () => {
     .then(() => dbQuery(`CREATE TABLE IF NOT EXISTS client_contacts (id SERIAL PRIMARY KEY, client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE, nom VARCHAR(200) NOT NULL DEFAULT '', telephone VARCHAR(50) NOT NULL DEFAULT '')`))
     .then(() => dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL`))
     .catch(e => console.error('Migration clients:', e.message));
+  dbQuery(`CREATE TABLE IF NOT EXISTS salle_programmes (id SERIAL PRIMARY KEY, salle_id INTEGER REFERENCES salles(id) ON DELETE CASCADE, nom_original VARCHAR(300) NOT NULL, chemin VARCHAR(500) NOT NULL, taille_bytes BIGINT, mime_type VARCHAR(100), uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMP DEFAULT NOW())`).catch(e => console.error('Migration salle_programmes:', e.message));
 
   // Sauvegarde quotidienne automatique à 2h du matin
   autoBackup();

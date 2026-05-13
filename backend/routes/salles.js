@@ -1,6 +1,7 @@
 const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
+const fs      = require('fs');
 const { query } = require('../db/pool');
 const { auth }  = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
@@ -23,6 +24,15 @@ const upload = multer({
     else cb(new Error('Seules les images sont acceptees.'));
   }
 });
+
+const progStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, process.env.UPLOAD_DIR || './uploads'),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `extron_prog_${req.params.id}_${Date.now()}${ext}`);
+  }
+});
+const uploadProg = multer({ storage: progStorage, limits: { fileSize: 100 * 1024 * 1024 } });
 
 router.get('/chantiers/:cid/salles', async (req, res) => {
   try {
@@ -286,6 +296,77 @@ router.get('/salles/:id/export', async (req, res) => {
   } catch (err) {
     console.error('Erreur export salle:', err);
     res.status(500).json({ error: 'Erreur export.' });
+  }
+});
+
+// ── PROGRAMMES EXTRON ──────────────────────────────────────────────────────
+
+router.get('/salles/:id/programmes', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT sp.*, u.prenom || ' ' || u.nom AS uploaded_by_nom
+       FROM salle_programmes sp
+       LEFT JOIN users u ON sp.uploaded_by = u.id
+       WHERE sp.salle_id = $1 ORDER BY sp.created_at DESC`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+router.post('/salles/:id/programmes', uploadProg.single('programme'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier reçu.' });
+  try {
+    const url = `/uploads/${req.file.filename}`;
+    const result = await query(
+      `INSERT INTO salle_programmes (salle_id, nom_original, chemin, taille_bytes, mime_type, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.params.id, req.file.originalname, url, req.file.size, req.file.mimetype || 'application/octet-stream', req.user.id]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+router.get('/salles/:id/programmes/:fileId/download', async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT * FROM salle_programmes WHERE id = $1 AND salle_id = $2',
+      [req.params.fileId, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Fichier introuvable.' });
+    const prog = result.rows[0];
+    const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
+    const filepath = path.join(uploadDir, prog.chemin.replace(/^\/uploads\//, ''));
+    if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Fichier manquant sur le disque.' });
+    res.download(filepath, prog.nom_original);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+router.delete('/salles/:id/programmes/:fileId', async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT * FROM salle_programmes WHERE id = $1 AND salle_id = $2',
+      [req.params.fileId, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Fichier introuvable.' });
+    const prog = result.rows[0];
+    const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
+    const filepath = path.join(uploadDir, prog.chemin.replace(/^\/uploads\//, ''));
+    if (fs.existsSync(filepath)) fs.unlink(filepath, () => {});
+    await query('DELETE FROM salle_programmes WHERE id = $1', [req.params.fileId]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
 
