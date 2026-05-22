@@ -15,13 +15,24 @@ L'utilisateur **choisit son thème** dans `Paramètres → Apparence`. Le choix 
 
 ## Fichiers de référence
 
+### V1 « Classique » — références dark (fond sombre, accent vert)
+
 | Fichier | Écran |
 |---------|-------|
-| `AV-Track V2 Spektalis Login.html` | Connexion (V2 split ink/paper avec VU-bars animées) |
-| `AV Dashboard Wireframes.html` | Dashboard V2 (paper, stats avec icônes carrées Sentinel/Signal/Atlas/Synop) |
+| `AV Login Redesign.html` | Connexion V1 (fond sombre, layout centré, logo AV) |
+| `AV Dashboard Redesign.html` | Dashboard V1 (cards sombres, stat grid, liste chantiers) |
+| `AV Chantiers Redesign.html` | Chantiers V1 (liste + détail chantier, dark theme) |
+| `AV Salle Redesign.html` | Salle V1 (équipements, accordion, dark theme) |
+
+### V2 « Spektalis » — références paper (fond crème, accent ambre)
+
+| Fichier | Écran |
+|---------|-------|
+| `AV-Track V2 Spektalis Login.html` | Connexion V2 split ink/paper avec VU-bars animées |
+| `AV-Track V2 Spektalis Dashboard.html` | Dashboard V2 (paper, stats Sentinel/Signal/Atlas/Synop) |
 | `AV-Track V2 Spektalis Chantiers.html` | Liste + détail chantier (tabs, hero card, BL, historique) |
 | `AV-Track V2 Spektalis Salle.html` | Salle + équipements (accordion, types colorés, config réseau) |
-| `AV-Track V2 Spektalis Settings.html` | Paramètres avec switcher de thème (V1 vs V2) |
+| `AV-Track V2 Spektalis Settings.html` | **Paramètres unifié** — 6 sous-sections : Apparence (switcher V1/V2), Notifications, Profil, Sécurité, Catégories, Sauvegardes |
 | `spektalis/colors_and_type.css` | Tokens design Spektalis à importer |
 
 ---
@@ -69,6 +80,7 @@ export function ThemeProvider({ children, user }) {
     if (!THEMES.includes(next)) return
     setTheme(next)
     localStorage.setItem('avtrack-theme', next)
+    // Persist server-side (optional but recommended for multi-device)
     try {
       await axios.patch('/api/me/preferences', { theme: next })
     } catch {}
@@ -279,62 +291,69 @@ Remplacer **toutes** les couleurs hardcodées par des `var(--...)` :
 - Panel commentaire avec « Modifier » ghost
 - Panel réseau collapsible (couleur synop bleu)
 - Section Équipements avec recherche + chips filtres
-- **Groupement par type** avec dot coloré (TV→synop, Vidéoproj→atlas, Matrice→signal, Visio→sentinel, Ampli→portfolio, Controleur→vigie)
+- **Groupement par type** avec dot coloré (TV → synop, Vidéoproj → atlas, Matrice → signal, Visio → sentinel, Ampli → portfolio, Controleur → vigie)
 - Accordion équipements : rangée compacte avec icône carrée colorée type, type chip mono, S/N mono, badge réseau IP en sentinel ou « Hors réseau » en gris
 - Expanded : description + bloc config réseau synop (4 colonnes) + actions
 
-### 6. Paramètres / Apparence (nouvel écran)
+### 6. Paramètres unifié (`pages/Settings.jsx`) — **NOUVEAU**
 
-À créer dans `pages/Settings.jsx` (route `/parametres/apparence`) :
+Une seule page à `/parametres` avec **sous-navigation à gauche** (240px) qui regroupe tous les réglages utilisateur. Architecture inspirée des préférences macOS/Linear.
 
-- 2 cards d'options côte à côte (V1 et V2) avec mini-preview animé
-- Radio visuel à droite de chaque card
-- Sous-section : toggles « Réduire animations » + « Mode compact »
-- Save bar fixe en bas qui apparaît quand dirty
-- Utilise `useTheme()` du contexte
+**Structure :**
+```
+Préférences
+  └─ Apparence       → switcher V1/V2 + toggles (reduce motion, compact)
+  └─ Notifications   → toggles BL, statut, rapport hebdo
 
-```jsx
-import { useTheme } from '../context/ThemeContext'
-import Layout from '../components/Layout'
+Compte
+  └─ Profil          → infos read-only
+  └─ Sécurité        → changement de mot de passe
 
-export default function Settings() {
-  const { theme, setTheme } = useTheme()
-  const [pending, setPending] = useState(null)
-  const active = pending || theme
-  const dirty = pending && pending !== theme
-
-  // Live preview : change theme class temporarily
-  useEffect(() => {
-    document.documentElement.classList.remove('theme-v1', 'theme-v2')
-    document.documentElement.classList.add(`theme-${active}`)
-    return () => {
-      document.documentElement.classList.remove(`theme-${active}`)
-      document.documentElement.classList.add(`theme-${theme}`)
-    }
-  }, [active, theme])
-
-  return (
-    <Layout>
-      {/* ... voir AV-Track V2 Spektalis Settings.html pour le markup complet ... */}
-      <button onClick={() => { setTheme(pending); setPending(null); }}>
-        Appliquer le thème
-      </button>
-    </Layout>
-  )
-}
+Administration (admin only)
+  └─ Catégories      → types d'équipement
+  └─ Sauvegardes     → liste, créer, télécharger, restaurer
 ```
 
-Ajouter dans `App.jsx` :
+**Layout :**
+- Sub-nav 240px blanche avec sections mono uppercase (« Préférences », « Compte », « Administration »)
+- Sub-items actifs avec fond `paper-2` (pas ink) — moins agressif pour navigation interne
+- Content principal en `max-width: 720px`, padding 32px 36px
+- Section head : crumb mono + h1 display + paragraphe descriptif
+- Cards avec head-row (titre + bouton actionable à droite)
+- Save bar collante en bas de card quand des modifs sont en attente
+
+**Switcher de thème :**
+- Deux cards V1/V2 côte à côte avec **mini-previews live** (topbar + stat card + barre progression)
+- Radio visuel à droite, état `on` avec ring ambre (`box-shadow: 0 0 0 3px var(--signal-100)`)
+- Save bar apparaît quand `pending !== theme` — apply via `setTheme(pending)`
+- Utilise `useTheme()` du contexte (cf section précédente)
+
+**Sauvegardes (admin only) :**
+- 3 cards : « Créer », « Sauvegardes disponibles » (liste), « Injecter »
+- Liste avec tag mono « AUTO » (atlas/violet) ou « MANUEL » (signal/ambre)
+- Nom de fichier en mono, taille + date en mono petit
+- Boutons : Télécharger (ghost), Supprimer (danger vigie)
+- Upload restore = label custom avec input file caché
+
+**Catégories (admin only) :**
+- Liste plate des 8 types par défaut + bouton « Ajouter » en haut à droite
+- Chaque ligne : nom + boutons modifier/supprimer
+
+**Routes/navigation à ajouter :**
 ```jsx
+// App.jsx
 <Route path="/parametres" element={<PrivateRoute><Settings /></PrivateRoute>} />
+
+// Layout.jsx — sous l'avatar utilisateur, dans le menu nav
+{ path: '/parametres', icon: ICONS.settings, label: 'Paramètres' }
 ```
 
-Et un lien dans `components/Layout.jsx` sous l'avatar utilisateur :
-```jsx
-<button onClick={() => navigate('/parametres')}>
-  <Icon d="..." /> Paramètres
-</button>
-```
+**Pages à supprimer/migrer :**
+- `pages/Backup.jsx` → contenu déplacé dans `Settings → Sauvegardes`
+- `pages/ChangePassword.jsx` → contenu déplacé dans `Settings → Sécurité`
+- `pages/Categories.jsx` → contenu déplacé dans `Settings → Catégories`
+
+Garder les routes existantes en redirect vers `/parametres?section=backups` etc, ou supprimer les routes et mettre à jour les liens.
 
 ---
 
@@ -374,12 +393,12 @@ V1 conserve les SVG inline existants.
 - ✗ **Pas** de gradients bleu-violet ou vert-bleu
 - ✗ **Pas** de `border-left: 3px solid #color` seul (sauf BL signé/attente)
 - ✗ **Pas** de glassmorphism, blur décoratif
-- ✗ **Pas** d'emoji (utiliser dots colorés `●`)
+- ✗ **Pas** d'emoji (utiliser dots colorés `·`)
 - ✗ **Pas** de glow filter blur
 - ✗ **Pas** de transform: scale au hover (translateY uniquement)
 - ✓ Casing phrase (« En cours », pas « EN COURS » sauf eyebrows mono)
 - ✓ Guillemets français « »
-- ✓ Espace fine avant `:` `;` `?` `!` (espace insécable `&nbsp;` ou `&#8239;`)
+- ✓ Espace fine avant `: ` `; ` `? ` `! ` (espace insécable `&nbsp;` ou `&#8239;`)
 - ✓ Vouvoiement
 - ✓ Tabular-nums sur les chiffres
 
