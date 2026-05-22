@@ -8,7 +8,6 @@ import Chantiers from './pages/Chantiers'
 import Chantier from './pages/Chantier'
 import Salle from './pages/Salle'
 import Utilisateurs from './pages/Utilisateurs'
-import Backup from './pages/Backup'
 import ChangePassword from './pages/ChangePassword'
 import Settings from './pages/Settings'
 
@@ -42,13 +41,14 @@ export default function App() {
       <Route path="/chantiers/:id" element={<PrivateRoute><Chantier /></PrivateRoute>} />
       <Route path="/chantiers/:cid/salles/:sid" element={<PrivateRoute><Salle /></PrivateRoute>} />
       <Route path="/utilisateurs" element={<PrivateRoute><Utilisateurs /></PrivateRoute>} />
-      <Route path="/categories" element={<Navigate to="/utilisateurs" />} />
+      <Route path="/categories" element={<Navigate to="/parametres" replace />} />
       <Route path="*" element={<Navigate to="/" />} />
       <Route path="/import-pdf" element={<PrivateRoute><ImportPDF /></PrivateRoute>} />
       <Route path="/import-xml" element={<PrivateRoute><ImportXML /></PrivateRoute>} />
-      <Route path="/backup" element={<PrivateRoute><Backup /></PrivateRoute>} />
+      <Route path="/backup" element={<Navigate to="/parametres" replace />} />
       <Route path="/change-password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
-      <Route path="/apparence" element={<PrivateRoute><Settings /></PrivateRoute>} />
+      <Route path="/apparence" element={<Navigate to="/parametres" replace />} />
+      <Route path="/parametres" element={<PrivateRoute><Settings /></PrivateRoute>} />
     </Routes>
   )
 }

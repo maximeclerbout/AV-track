@@ -38,9 +38,8 @@ function SidebarLinks({ chantiers, user, logout, navigate, location, setMenuOpen
     { path: '/chantiers', icon: icons.building, label: 'Chantiers' },
   ]
   if (user?.role === 'admin' || user?.role === 'chef') {
-    navLinks.push({ path: '/utilisateurs', icon: icons.cog,    label: 'Paramètres' })
-    navLinks.push({ path: '/backup',       icon: icons.save,   label: 'Sauvegardes' })
-    navLinks.push({ path: '/apparence',    icon: icons.palette, label: 'Apparence' })
+    navLinks.push({ path: '/utilisateurs', icon: icons.users,   label: 'Utilisateurs' })
+    navLinks.push({ path: '/parametres',   icon: icons.cog,     label: 'Paramètres'   })
   }
 
   return (
@@ -124,7 +123,7 @@ function SidebarLinks({ chantiers, user, logout, navigate, location, setMenuOpen
             <div style={{ fontSize: 10, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: .5 }}>{user?.role}</div>
           </div>
         </div>
-        <div onClick={() => { navigate('/change-password'); setMenuOpen(false) }}
+        <div onClick={() => { navigate('/parametres', { state: { section: 'securite' } }); setMenuOpen(false) }}
           style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12, color: 'var(--fg-3)', marginBottom: 6 }}>
           <Icon d={icons.key} size={14} color="var(--fg-3)" /> Changer mon mot de passe
         </div>
