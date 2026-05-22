@@ -1,0 +1,57 @@
+/* ── Spektalis Design Tokens ─────────────────────────────────── */
+
+:root {
+  /* Ink scale */
+  --ink-900: #1C1D2B;
+  --ink-800: #2D2F45;
+  --ink-700: #3E415F;
+  --ink-600: #50547A;
+  --ink-500: #646894;
+  --ink-400: #8085AD;
+  --ink-300: #9DA1C1;
+  --ink-200: #BFC2D6;
+  --ink-100: #DCDEE8;
+  --ink-050: #F0F1F7;
+
+  /* Paper scale */
+  --paper:   #F5F2EB;
+  --paper-2: #EDE9E0;
+  --white:   #FFFFFF;
+
+  /* Signal (amber) */
+  --signal-700: #A8650E;
+  --signal-600: #C87B1E;
+  --signal-500: #E89B2C;
+  --signal-400: #F0B04E;
+  --signal-300: #F5C470;
+  --signal-100: #FDF0D7;
+
+  /* Sentinel (green) */
+  --sentinel-700: #1A8B5C;
+  --sentinel-600: #22A16C;
+  --sentinel-500: #2EAE7B;
+  --sentinel-300: #6ECCAD;
+  --sentinel-100: #D4F4E7;
+
+  /* Vigie (red) */
+  --vigie-600: #C43333;
+  --vigie-500: #E84444;
+  --vigie-100: #FDD8D8;
+
+  /* Synop (blue) */
+  --synop-600: #2E63B8;
+  --synop-500: #3D7BD9;
+  --synop-100: #D3E4F9;
+
+  /* Atlas (purple) */
+  --atlas-600: #5548B8;
+  --atlas-500: #6B5BD6;
+  --atlas-100: #E2DEFA;
+
+  /* Portfolio (orange) */
+  --portfolio-500: #E86B44;
+  --portfolio-100: #FCE0D6;
+
+  /* Focus ring */
+  --ring-focus: rgba(232,155,44,0.25);
+}

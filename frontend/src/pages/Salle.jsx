@@ -30,22 +30,22 @@ const Icon = ({ d, size = 18, color = 'currentColor' }) => (
 )
 
 const STATUS = {
-  a_faire:    { label: 'A faire',    color: '#60A5FA' },
-  en_cours:   { label: 'En cours',   color: '#F59E0B' },
-  a_terminer: { label: 'A terminer', color: '#6366F1' },
-  probleme:   { label: 'Problème',   color: '#EF4444' },
-  termine:    { label: 'Terminé',    color: '#10B981' },
+  a_faire:    { label: 'A faire',    color: 'var(--status-a_faire)'    },
+  en_cours:   { label: 'En cours',   color: 'var(--status-en_cours)'   },
+  a_terminer: { label: 'A terminer', color: 'var(--status-a_terminer)' },
+  probleme:   { label: 'Problème',   color: 'var(--status-probleme)'   },
+  termine:    { label: 'Terminé',    color: 'var(--status-termine)'    },
 }
 
 const TYPE_COLORS_DEFAULT = {
-  'TV':              '#60A5FA',
-  'Videoprojecteur': '#A855F7',
-  'Matrice':         '#F97316',
-  'Visio':           '#10B981',
-  'Amplificateur':   '#F59E0B',
+  'TV':              'var(--synop-500, #60A5FA)',
+  'Videoprojecteur': 'var(--atlas-500, #A855F7)',
+  'Matrice':         'var(--signal-500, #F97316)',
+  'Visio':           'var(--sentinel-500, #10B981)',
+  'Amplificateur':   'var(--status-en_cours, #F59E0B)',
   'Switch AV':       '#06B6D4',
-  'Controleur':      '#EF4444',
-  'Autre':           '#7b8096',
+  'Controleur':      'var(--vigie-500, #EF4444)',
+  'Autre':           'var(--fg-3, #7b8096)',
 }
 
 const TYPES_DEFAULT = ['TV','Videoprojecteur','Matrice','Visio','Amplificateur','Switch AV','Controleur','Autre']
@@ -57,7 +57,7 @@ const Badge = ({ statut }) => {
       display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px',
       borderRadius: 20, fontSize: 11, fontWeight: 600, color: cfg.color,
       background: cfg.color + '1a', border: '1px solid ' + cfg.color + '40',
-      fontFamily: "'Cousine', monospace", textTransform: 'uppercase', letterSpacing: .5
+      fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: .5
     }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
       {cfg.label}
@@ -66,12 +66,12 @@ const Badge = ({ statut }) => {
 }
 
 const inputStyle = {
-  width: '100%', background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10,
-  padding: '10px 14px', color: '#eef0f6', fontSize: 13, outline: 'none'
+  width: '100%', background: 'var(--surface)',
+  border: '1px solid var(--border-2)', borderRadius: 'var(--r-input)',
+  padding: '10px 14px', color: 'var(--fg)', fontSize: 13, outline: 'none'
 }
 const labelStyle = {
-  fontSize: 11, fontWeight: 700, color: '#7b8096', textTransform: 'uppercase',
+  fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase',
   letterSpacing: 1, marginBottom: 6, display: 'block'
 }
 
@@ -82,7 +82,7 @@ export default function Salle() {
   const TYPES = categories.length > 0 ? categories.map(c => c.nom) : TYPES_DEFAULT
   const getTypeColor = (type) => {
     const cat = categories.find(c => c.nom === type)
-    return (cat?.couleur) || TYPE_COLORS_DEFAULT[type] || '#7b8096'
+    return (cat?.couleur) || TYPE_COLORS_DEFAULT[type] || 'var(--fg-3)'
   }
 
   const [salle, setSalle] = useState(null)
@@ -341,10 +341,10 @@ export default function Salle() {
     return (a.type_equipement || '').localeCompare(b.type_equipement || '')
   })
 
-  if (loading) return <Layout chantiers={chantiers}><div style={{ textAlign: 'center', color: '#7b8096', padding: '60px 0' }}>Chargement...</div></Layout>
+  if (loading) return <Layout chantiers={chantiers}><div style={{ textAlign: 'center', color: 'var(--fg-3)', padding: '60px 0' }}>Chargement...</div></Layout>
   if (!salle) return null
 
-  const salleStatusColor = STATUS[salle.statut]?.color || '#7b8096'
+  const salleStatusColor = STATUS[salle.statut]?.color || 'var(--fg-3)'
   const newTypeColor = getTypeColor(newProduit.type_equipement)
 
   const slideAnim = slide.dir === 'next'
@@ -371,14 +371,14 @@ export default function Salle() {
         }}>
           <button onClick={() => { if (prevSalle) { sessionStorage.setItem('swipeDir','prev'); navigate('/chantiers/' + cid + '/salles/' + prevSalle.id) }}}
             disabled={!prevSalle}
-            style={{ background: 'none', border: 'none', color: prevSalle ? '#eef0f6' : '#3d4155', cursor: prevSalle ? 'pointer' : 'default', fontSize: 22, lineHeight: 1, padding: '2px 8px', flexShrink: 0 }}>‹</button>
+            style={{ background: 'none', border: 'none', color: prevSalle ? 'var(--fg)' : 'var(--fg-mute)', cursor: prevSalle ? 'pointer' : 'default', fontSize: 22, lineHeight: 1, padding: '2px 8px', flexShrink: 0 }}>‹</button>
           <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: 13, color: '#eef0f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{salle.nom}</div>
-            <div style={{ fontSize: 10, color: '#4b5063', fontFamily: "'Cousine', monospace" }}>{currentSalleIdx + 1} / {sortedSalles.length}</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 13, color: 'var(--fg)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{salle.nom}</div>
+            <div style={{ fontSize: 10, color: '#4b5063', fontFamily: 'var(--font-mono)' }}>{currentSalleIdx + 1} / {sortedSalles.length}</div>
           </div>
           <button onClick={() => { if (nextSalle) { sessionStorage.setItem('swipeDir','next'); navigate('/chantiers/' + cid + '/salles/' + nextSalle.id) }}}
             disabled={!nextSalle}
-            style={{ background: 'none', border: 'none', color: nextSalle ? '#eef0f6' : '#3d4155', cursor: nextSalle ? 'pointer' : 'default', fontSize: 22, lineHeight: 1, padding: '2px 8px', flexShrink: 0 }}>›</button>
+            style={{ background: 'none', border: 'none', color: nextSalle ? 'var(--fg)' : 'var(--fg-mute)', cursor: nextSalle ? 'pointer' : 'default', fontSize: 22, lineHeight: 1, padding: '2px 8px', flexShrink: 0 }}>›</button>
         </div>
       )}
 
@@ -387,26 +387,26 @@ export default function Salle() {
         onTouchEnd={handleTouchEnd}>
 
         {/* Breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 12, color: '#7b8096', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 12, color: 'var(--fg-3)', flexWrap: 'wrap' }}>
           <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>Tableau de bord</span>
           <span>›</span>
           <span style={{ cursor: 'pointer' }} onClick={() => navigate('/chantiers/' + cid)}>{chantierNom}</span>
           <span>›</span>
-          <span style={{ color: '#eef0f6' }}>{salle.nom}</span>
+          <span style={{ color: 'var(--fg)' }}>{salle.nom}</span>
         </div>
 
         {/* Hero card */}
-        <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderTop: `4px solid ${salleStatusColor}` }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderTop: `4px solid ${salleStatusColor}` }}>
           <div style={{ padding: 24 }}>
             <div className="salle-hero-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
 
               {/* Left: photo + status */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 900, color: '#eef0f6' }}>{salle.nom}</h1>
+                  <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 900, color: 'var(--fg)' }}>{salle.nom}</h1>
                   <Badge statut={salle.statut} />
                 </div>
-                <div style={{ fontSize: 12, color: '#7b8096', marginBottom: 16 }}>{salle.etage} · {chantierNom}</div>
+                <div style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 16 }}>{salle.etage} · {chantierNom}</div>
 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
                   <select value={salle.statut} onChange={e => updateStatut(e.target.value)}
@@ -414,7 +414,7 @@ export default function Salle() {
                     {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                   <button onClick={exportSalle}
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Icon d={icons.download} size={14} /> Export
                   </button>
                 </div>
@@ -430,7 +430,7 @@ export default function Salle() {
                           style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,0.85)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1 }}>×</button>
                       </div>
                     ))}
-                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, height: photos.length === 1 ? 140 : 80, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 8, cursor: 'pointer', color: '#7b8096', background: 'rgba(255,255,255,0.02)', minWidth: photos.length === 1 ? 60 : 'auto' }}
+                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, height: photos.length === 1 ? 140 : 80, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 8, cursor: 'pointer', color: 'var(--fg-3)', background: 'rgba(255,255,255,0.02)', minWidth: photos.length === 1 ? 60 : 'auto' }}
                       onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(16,185,129,0.5)'}
                       onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}>
                       {uploadingPhoto ? <span style={{ fontSize: 10 }}>...</span> : <>
@@ -441,7 +441,7 @@ export default function Salle() {
                     </label>
                   </div>
                 ) : (
-                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, height: 140, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 12, cursor: 'pointer', color: '#7b8096', fontSize: 13, background: 'rgba(255,255,255,0.02)', position: 'relative', transition: 'border .2s' }}
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, height: 140, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 12, cursor: 'pointer', color: 'var(--fg-3)', fontSize: 13, background: 'rgba(255,255,255,0.02)', position: 'relative', transition: 'border .2s' }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(16,185,129,0.5)'}
                     onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}>
                     {uploadingPhoto ? <span>Upload en cours...</span> : (
@@ -456,7 +456,7 @@ export default function Salle() {
 
                 {/* Section vidéos */}
                 <div style={{ marginTop: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#7b8096', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Vidéos</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Vidéos</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {videos.map((v, idx) => (
                       <div key={v.id} style={{ display: 'flex', gap: 3 }}>
@@ -466,7 +466,7 @@ export default function Salle() {
                           style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#EF4444', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', fontSize: 12 }}>✕</button>
                       </div>
                     ))}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.12)', color: '#7b8096', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 12 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.12)', color: 'var(--fg-3)', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 12 }}>
                       {uploadingVideo ? '...' : '🎥 +'}
                       <input type="file" accept="video/*" onChange={uploadVideo} style={{ display: 'none' }} />
                     </label>
@@ -481,7 +481,7 @@ export default function Salle() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <div style={labelStyle}>Commentaire</div>
                     {!editComment && (
-                      <button onClick={() => setEditComment(true)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 8, padding: '4px 8px', cursor: 'pointer' }}>
+                      <button onClick={() => setEditComment(true)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '4px 8px', cursor: 'pointer' }}>
                         <Icon d={icons.edit} size={12} />
                       </button>
                     )}
@@ -491,25 +491,25 @@ export default function Salle() {
                       <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3}
                         style={{ ...inputStyle, resize: 'vertical', minHeight: 70 }} />
                       <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
-                        <button onClick={() => setEditComment(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>Annuler</button>
-                        <button onClick={saveComment} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>Sauvegarder</button>
+                        <button onClick={() => setEditComment(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>Annuler</button>
+                        <button onClick={saveComment} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>Sauvegarder</button>
                       </div>
                     </div>
                   ) : (
-                    <div style={{ fontSize: 13, color: salle.commentaire ? '#eef0f6' : '#3d4155', fontStyle: !salle.commentaire ? 'italic' : 'normal', lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 13, color: salle.commentaire ? 'var(--fg)' : 'var(--fg-mute)', fontStyle: !salle.commentaire ? 'italic' : 'normal', lineHeight: 1.5 }}>
                       {salle.commentaire || 'Aucun commentaire'}
                     </div>
                   )}
                 </div>
 
                 {/* Network panel */}
-                <div style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ background: 'var(--accent-soft)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 12, overflow: 'hidden' }}>
                   <button onClick={() => setShowNetworkPanel(!showNetworkPanel)}
                     style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', color: '#06B6D4', fontSize: 13, fontWeight: 600 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Icon d={icons.network} size={15} color="#06B6D4" />
                       Réseau salle
-                      <span style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#3d4155', background: 'rgba(6,182,212,0.1)', borderRadius: 20, padding: '1px 7px' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-mute)', background: 'rgba(6,182,212,0.1)', borderRadius: 20, padding: '1px 7px' }}>
                         {(salle.produits || []).filter(p => p.sur_reseau).length} app.
                       </span>
                     </div>
@@ -548,7 +548,7 @@ export default function Salle() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Icon d={icons.cpu} size={15} color="#EF4444" />
                       Programme Extron
-                      <span style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#3d4155', background: 'rgba(239,68,68,0.1)', borderRadius: 20, padding: '1px 7px' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-mute)', background: 'rgba(239,68,68,0.1)', borderRadius: 20, padding: '1px 7px' }}>
                         {programmes.length} fichier{programmes.length !== 1 ? 's' : ''}
                       </span>
                     </div>
@@ -585,7 +585,7 @@ export default function Salle() {
                                 <div key={prog.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '7px 10px' }}>
                                   <Icon d={icons.file} size={14} color="#EF4444" />
                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: 12, fontWeight: 600, color: '#eef0f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prog.nom_original}</div>
+                                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prog.nom_original}</div>
                                     <div style={{ fontSize: 10, color: '#4b5063' }}>{sizeKb && <span>{sizeKb} Ko · </span>}{date}</div>
                                   </div>
                                   <button onClick={async () => {
@@ -621,13 +621,13 @@ export default function Salle() {
 
         {/* Equipment section */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 900, color: '#eef0f6', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 900, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon d={icons.monitor} size={18} color="#10B981" />
             Équipements
-            <span style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#7b8096', fontWeight: 400 }}>({produitsFiltres.length}/{salle.produits?.length || 0})</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-3)', fontWeight: 400 }}>({produitsFiltres.length}/{salle.produits?.length || 0})</span>
           </h2>
           <button onClick={() => setShowAddProduit(!showAddProduit)}
-            style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
+            style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
             <Icon d={icons.plus} size={14} color="#fff" /> Ajouter
           </button>
         </div>
@@ -644,7 +644,7 @@ export default function Salle() {
           </div>
           {['tous','reseau','hors_reseau'].map(f => (
             <button key={f} onClick={() => setFiltreReseau(f)}
-              style={{ background: filtreReseau === f ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (filtreReseau === f ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.1)'), color: filtreReseau === f ? '#10B981' : '#7b8096', borderRadius: 20, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+              style={{ background: filtreReseau === f ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (filtreReseau === f ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.1)'), color: filtreReseau === f ? '#10B981' : 'var(--fg-3)', borderRadius: 20, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
               {f === 'tous' ? 'Tous' : f === 'reseau' ? 'Sur réseau' : 'Hors réseau'}
             </button>
           ))}
@@ -652,8 +652,8 @@ export default function Salle() {
 
         {/* Add produit form */}
         {showAddProduit && (
-          <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20, marginBottom: 16, borderTop: `3px solid ${newTypeColor}` }}>
-            <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, marginBottom: 14, fontSize: 15, color: '#eef0f6' }}>Nouvel équipement</div>
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20, marginBottom: 16, borderTop: `3px solid ${newTypeColor}` }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, marginBottom: 14, fontSize: 15, color: 'var(--fg)' }}>Nouvel équipement</div>
             <div className="add-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <label style={labelStyle}>Type</label>
@@ -690,7 +690,7 @@ export default function Salle() {
                 <div style={{ width: 40, height: 22, borderRadius: 11, background: newProduit.sur_reseau ? '#10B981' : 'rgba(255,255,255,0.1)', position: 'relative', transition: '.2s', flexShrink: 0 }}>
                   <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: newProduit.sur_reseau ? 21 : 3, transition: 'left .2s' }} />
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#eef0f6' }}>Appareil sur le réseau</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>Appareil sur le réseau</span>
               </div>
             </div>
             {newProduit.sur_reseau && (
@@ -704,7 +704,7 @@ export default function Salle() {
                     {[['ip','Adresse IP','192.168.1.x'],['masque','Masque','255.255.255.0'],['gateway','Passerelle','192.168.1.1'],['dns','DNS Primaire','8.8.8.8'],['dns_alt','DNS Secondaire','8.8.4.4']].map(([key, label, ph]) => (
                       <div key={key}>
                         <label style={{ ...labelStyle, color: '#06B6D4' }}>{label}</label>
-                        <input value={newProduit[key]} onChange={e => setNewProduit({ ...newProduit, [key]: e.target.value })} placeholder={ph} style={{ ...inputStyle, fontFamily: "'Cousine', monospace" }} />
+                        <input value={newProduit[key]} onChange={e => setNewProduit({ ...newProduit, [key]: e.target.value })} placeholder={ph} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
                       </div>
                     ))}
                     <div>
@@ -730,13 +730,13 @@ export default function Salle() {
                         <input value={newProduit.label_reseau2} onChange={e => setNewProduit({ ...newProduit, label_reseau2: e.target.value })} placeholder="ex: Dante / AV LAN" style={{ ...inputStyle, flex: 1, fontSize: 12, padding: '5px 10px' }} />
                       </div>
                       <button onClick={() => { setShowNic2Add(false); setNewProduit(p => ({ ...p, ip2: '', masque2: '', gateway2: '', dns2: '', mdp2: '', label_reseau2: '' })) }}
-                        style={{ background: 'none', border: 'none', color: '#7b8096', cursor: 'pointer', fontSize: 18, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                        style={{ background: 'none', border: 'none', color: 'var(--fg-3)', cursor: 'pointer', fontSize: 18, lineHeight: 1, flexShrink: 0 }}>✕</button>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       {[['ip2','Adresse IP','192.168.2.x'],['masque2','Masque','255.255.255.0'],['gateway2','Passerelle','192.168.2.1'],['dns2','DNS Primaire','8.8.8.8'],['dns2_alt','DNS Secondaire','8.8.4.4']].map(([key, label, ph]) => (
                         <div key={key}>
                           <label style={{ ...labelStyle, color: '#8B5CF6' }}>{label}</label>
-                          <input value={newProduit[key]} onChange={e => setNewProduit({ ...newProduit, [key]: e.target.value })} placeholder={ph} style={{ ...inputStyle, fontFamily: "'Cousine', monospace" }} />
+                          <input value={newProduit[key]} onChange={e => setNewProduit({ ...newProduit, [key]: e.target.value })} placeholder={ph} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
                         </div>
                       ))}
                       <div>
@@ -755,15 +755,15 @@ export default function Salle() {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
               {/* Quantité */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, color: '#7b8096', fontWeight: 600 }}>Quantité :</span>
+                <span style={{ fontSize: 12, color: 'var(--fg-3)', fontWeight: 600 }}>Quantité :</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, overflow: 'hidden' }}>
                   <button onClick={() => setAddQuantite(q => Math.max(1, q - 1))}
-                    style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', padding: '6px 12px', fontSize: 16, lineHeight: 1 }}>−</button>
+                    style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', padding: '6px 12px', fontSize: 16, lineHeight: 1 }}>−</button>
                   <input type="number" min="1" max="50" value={addQuantite}
                     onChange={e => setAddQuantite(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
-                    style={{ width: 40, background: 'none', border: 'none', color: '#eef0f6', textAlign: 'center', fontSize: 14, fontWeight: 700, outline: 'none', padding: '6px 0' }} />
+                    style={{ width: 40, background: 'none', border: 'none', color: 'var(--fg)', textAlign: 'center', fontSize: 14, fontWeight: 700, outline: 'none', padding: '6px 0' }} />
                   <button onClick={() => setAddQuantite(q => Math.min(50, q + 1))}
-                    style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', padding: '6px 12px', fontSize: 16, lineHeight: 1 }}>+</button>
+                    style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', padding: '6px 12px', fontSize: 16, lineHeight: 1 }}>+</button>
                 </div>
                 {addQuantite > 1 && (
                   <span style={{ fontSize: 11, color: '#F59E0B', fontStyle: 'italic' }}>
@@ -772,8 +772,8 @@ export default function Salle() {
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => { setShowAddProduit(false); setAddQuantite(1) }} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
-                <button onClick={addProduit} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                <button onClick={() => { setShowAddProduit(false); setAddQuantite(1) }} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+                <button onClick={addProduit} disabled={saving} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
                   {saving ? 'Ajout...' : addQuantite > 1 ? `Ajouter ${addQuantite} exemplaires` : "Ajouter l'équipement"}
                 </button>
               </div>
@@ -784,10 +784,10 @@ export default function Salle() {
         {/* Edit produit modal */}
         {editProduit && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 800, color: '#eef0f6' }}>Modifier l'équipement</div>
-                <button onClick={() => setEditProduit(null)} style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', fontSize: 20 }}>✕</button>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>Modifier l'équipement</div>
+                <button onClick={() => setEditProduit(null)} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20 }}>✕</button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div>
@@ -825,7 +825,7 @@ export default function Salle() {
                   <div style={{ width: 40, height: 22, borderRadius: 11, background: editProduitForm.sur_reseau ? '#10B981' : 'rgba(255,255,255,0.1)', position: 'relative', transition: '.2s', flexShrink: 0 }}>
                     <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: editProduitForm.sur_reseau ? 21 : 3, transition: 'left .2s' }} />
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#eef0f6' }}>Appareil sur le réseau</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>Appareil sur le réseau</span>
                 </div>
               </div>
               {editProduitForm.sur_reseau && (
@@ -839,7 +839,7 @@ export default function Salle() {
                       {[['ip','Adresse IP'],['masque','Masque'],['gateway','Passerelle'],['dns','DNS Primaire'],['dns_alt','DNS Secondaire']].map(([key, label]) => (
                         <div key={key}>
                           <label style={{ ...labelStyle, color: '#06B6D4' }}>{label}</label>
-                          <input value={editProduitForm[key] || ''} onChange={e => setEditProduitForm({ ...editProduitForm, [key]: e.target.value })} style={{ ...inputStyle, fontFamily: "'Cousine', monospace" }} />
+                          <input value={editProduitForm[key] || ''} onChange={e => setEditProduitForm({ ...editProduitForm, [key]: e.target.value })} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
                         </div>
                       ))}
                       <div>
@@ -865,13 +865,13 @@ export default function Salle() {
                           <input value={editProduitForm.label_reseau2 || ''} onChange={e => setEditProduitForm({ ...editProduitForm, label_reseau2: e.target.value })} placeholder="ex: Dante / AV LAN" style={{ ...inputStyle, flex: 1, fontSize: 12, padding: '5px 10px' }} />
                         </div>
                         <button onClick={() => { setShowNic2Edit(false); setEditProduitForm(f => ({ ...f, ip2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', mdp2: '', label_reseau2: '' })) }}
-                          style={{ background: 'none', border: 'none', color: '#7b8096', cursor: 'pointer', fontSize: 18, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                          style={{ background: 'none', border: 'none', color: 'var(--fg-3)', cursor: 'pointer', fontSize: 18, lineHeight: 1, flexShrink: 0 }}>✕</button>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                         {[['ip2','Adresse IP'],['masque2','Masque'],['gateway2','Passerelle'],['dns2','DNS Primaire'],['dns2_alt','DNS Secondaire']].map(([key, label]) => (
                           <div key={key}>
                             <label style={{ ...labelStyle, color: '#8B5CF6' }}>{label}</label>
-                            <input value={editProduitForm[key] || ''} onChange={e => setEditProduitForm({ ...editProduitForm, [key]: e.target.value })} style={{ ...inputStyle, fontFamily: "'Cousine', monospace" }} />
+                            <input value={editProduitForm[key] || ''} onChange={e => setEditProduitForm({ ...editProduitForm, [key]: e.target.value })} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
                           </div>
                         ))}
                         <div>
@@ -888,8 +888,8 @@ export default function Salle() {
                 </div>
               )}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button onClick={() => setEditProduit(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
-                <button onClick={saveEditProduit} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                <button onClick={() => setEditProduit(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+                <button onClick={saveEditProduit} disabled={saving} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
                   {saving ? 'Sauvegarde...' : 'Sauvegarder'}
                 </button>
               </div>
@@ -898,7 +898,7 @@ export default function Salle() {
         )}
 
         {produitsFiltres.length === 0 && !showAddProduit && (
-          <div style={{ textAlign: 'center', color: '#3d4155', padding: '40px 0', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12 }}>
+          <div style={{ textAlign: 'center', color: 'var(--fg-mute)', padding: '40px 0', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12 }}>
             {searchProduit || filtreReseau !== 'tous' ? 'Aucun équipement ne correspond au filtre' : 'Aucun équipement dans cette salle'}
           </div>
         )}
@@ -908,7 +908,7 @@ export default function Salle() {
           const isExpanded = expandedProduit === produit.id
           const typeColor = getTypeColor(produit.type_equipement)
           return (
-            <div key={produit.id} style={{ marginBottom: 8, background: '#181b24', border: '1px solid ' + (isExpanded ? typeColor + '40' : 'rgba(255,255,255,0.07)'), borderRadius: 14, overflow: 'hidden', transition: 'all .2s', position: 'relative' }}>
+            <div key={produit.id} style={{ marginBottom: 8, background: 'var(--surface)', border: '1px solid ' + (isExpanded ? typeColor + '40' : 'var(--border)'), borderRadius: 14, overflow: 'hidden', transition: 'all .2s', position: 'relative' }}>
               {/* Type color bar */}
               <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: typeColor }} />
 
@@ -920,21 +920,21 @@ export default function Salle() {
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 14, fontWeight: 700, color: '#eef0f6' }}>{produit.reference}</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: typeColor + '18', color: typeColor, border: '1px solid ' + typeColor + '35', fontFamily: "'Cousine', monospace" }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>{produit.reference}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: typeColor + '18', color: typeColor, border: '1px solid ' + typeColor + '35', fontFamily: 'var(--font-mono)' }}>
                         {produit.type_equipement}
                       </span>
                     </div>
-                    <div style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#3d4155' }}>S/N: {produit.serial_number || '—'}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-mute)' }}>S/N: {produit.serial_number || '—'}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {produit.sur_reseau ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 20, fontSize: 11, background: 'rgba(16,185,129,0.12)', color: '#10B981', border: '1px solid rgba(16,185,129,0.2)', fontFamily: "'Cousine', monospace" }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 20, fontSize: 11, background: 'rgba(16,185,129,0.12)', color: '#10B981', border: '1px solid rgba(16,185,129,0.2)', fontFamily: 'var(--font-mono)' }}>
                       <Icon d={icons.wifi} size={11} color="#10B981" /> {produit.ip}
                     </span>
                   ) : (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 20, fontSize: 11, background: 'rgba(107,114,128,0.12)', color: '#7b8096', border: '1px solid rgba(107,114,128,0.2)', fontFamily: "'Cousine', monospace" }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 20, fontSize: 11, background: 'rgba(107,114,128,0.12)', color: 'var(--fg-3)', border: '1px solid rgba(107,114,128,0.2)', fontFamily: 'var(--font-mono)' }}>
                       Hors réseau
                     </span>
                   )}
@@ -947,7 +947,7 @@ export default function Salle() {
               {isExpanded && (
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.12)', padding: '14px 20px' }}>
                   {produit.description && (
-                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#7b8096', marginBottom: 12, lineHeight: 1.5 }}>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: 'var(--fg-3)', marginBottom: 12, lineHeight: 1.5 }}>
                       {produit.description}
                     </div>
                   )}
@@ -959,26 +959,26 @@ export default function Salle() {
                       <div className="equip-net-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
                         {[['IP', produit.ip],['Masque', produit.masque],['Passerelle', produit.gateway],['DNS 1', produit.dns]].map(([lbl, val]) => (
                           <div key={lbl}>
-                            <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>{lbl}</div>
-                            <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#eef0f6' }}>{val || '—'}</div>
+                            <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>{lbl}</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{val || '—'}</div>
                           </div>
                         ))}
                         {produit.dns_alt && (
                           <div>
-                            <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>DNS 2</div>
-                            <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#eef0f6' }}>{produit.dns_alt}</div>
+                            <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>DNS 2</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{produit.dns_alt}</div>
                           </div>
                         )}
                         {produit.login && (
                           <div>
-                            <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>Identifiant</div>
-                            <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#eef0f6' }}>{produit.login}</div>
+                            <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>Identifiant</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{produit.login}</div>
                           </div>
                         )}
                         {produit.mdp && (
                           <div>
-                            <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>Mot de passe</div>
-                            <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#eef0f6' }}>{'•'.repeat(10)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>Mot de passe</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{'•'.repeat(10)}</div>
                           </div>
                         )}
                       </div>
@@ -992,26 +992,26 @@ export default function Salle() {
                       <div className="equip-net-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
                         {[['IP', produit.ip2],['Masque', produit.masque2],['Passerelle', produit.gateway2],['DNS 1', produit.dns2]].map(([lbl, val]) => (
                           <div key={lbl}>
-                            <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>{lbl}</div>
-                            <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#eef0f6' }}>{val || '—'}</div>
+                            <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>{lbl}</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{val || '—'}</div>
                           </div>
                         ))}
                         {produit.dns2_alt && (
                           <div>
-                            <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>DNS 2</div>
-                            <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#eef0f6' }}>{produit.dns2_alt}</div>
+                            <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>DNS 2</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{produit.dns2_alt}</div>
                           </div>
                         )}
                         {produit.login2 && (
                           <div>
-                            <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>Identifiant</div>
-                            <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#eef0f6' }}>{produit.login2}</div>
+                            <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>Identifiant</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{produit.login2}</div>
                           </div>
                         )}
                         {produit.mdp2 && (
                           <div>
-                            <div style={{ fontSize: 10, color: '#7b8096', fontWeight: 600, marginBottom: 3 }}>Mot de passe</div>
-                            <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, color: '#eef0f6' }}>{'•'.repeat(10)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>Mot de passe</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{'•'.repeat(10)}</div>
                           </div>
                         )}
                       </div>
@@ -1021,7 +1021,7 @@ export default function Salle() {
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 10, padding: '8px 12px', marginBottom: 4 }}>
                       <span style={{ fontSize: 12, color: '#8B5CF6', fontWeight: 600, whiteSpace: 'nowrap' }}>🔀 Vers :</span>
                       <select value={moveTarget} onChange={e => setMoveTarget(e.target.value)}
-                        style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: '#eef0f6', fontSize: 12, outline: 'none', cursor: 'pointer' }}>
+                        style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: 'var(--fg)', fontSize: 12, outline: 'none', cursor: 'pointer' }}>
                         <option value="">Choisir une salle...</option>
                         {sallesChantier.filter(s => s.id !== parseInt(sid)).sort((a, b) => a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' })).map(s => (
                           <option key={s.id} value={s.id}>{s.nom}{s.etage ? ` — ${s.etage}` : ''}</option>
@@ -1032,7 +1032,7 @@ export default function Salle() {
                         Déplacer
                       </button>
                       <button onClick={() => { setMovingProduit(null); setMoveTarget('') }}
-                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', fontSize: 12 }}>
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', fontSize: 12 }}>
                         ✕
                       </button>
                     </div>
@@ -1042,7 +1042,7 @@ export default function Salle() {
                       style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', color: '#8B5CF6', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                       🔀 Déplacer
                     </button>
-                    <button onClick={() => startEditProduit(produit)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button onClick={() => startEditProduit(produit)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Icon d={icons.edit} size={13} /> Modifier
                     </button>
                     <button onClick={() => deleteProduit(produit.id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1060,7 +1060,7 @@ export default function Salle() {
         <div onClick={() => setLightboxPhoto(null)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.93)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <button onClick={() => setLightboxPhoto(null)}
-            style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', borderRadius: '50%', width: 42, height: 42, cursor: 'pointer', fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            style={{ position: 'absolute', top: 20, right: 20, background: 'var(--border-2)', border: 'none', color: '#fff', borderRadius: '50%', width: 42, height: 42, cursor: 'pointer', fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           {lightboxPhoto?.type === 'video' ? (
             <video src={lightboxPhoto.url} controls autoPlay onClick={e => e.stopPropagation()}
               style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 8, outline: 'none' }} />
@@ -1068,13 +1068,13 @@ export default function Salle() {
             <>
               {lightboxPhoto > 0 && (
                 <button onClick={e => { e.stopPropagation(); setLightboxPhoto(i => i - 1); }}
-                  style={{ position: 'absolute', left: 16, background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', fontSize: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+                  style={{ position: 'absolute', left: 16, background: 'var(--border-2)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', fontSize: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
               )}
               <img src={photos[lightboxPhoto]?.url} alt="" onClick={e => e.stopPropagation()}
                 style={{ maxWidth: '92vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }} />
               {lightboxPhoto < photos.length - 1 && (
                 <button onClick={e => { e.stopPropagation(); setLightboxPhoto(i => i + 1); }}
-                  style={{ position: 'absolute', right: 16, background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', fontSize: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+                  style={{ position: 'absolute', right: 16, background: 'var(--border-2)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', fontSize: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
               )}
               {photos.length > 1 && (
                 <div style={{ position: 'absolute', bottom: 20, color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{lightboxPhoto + 1} / {photos.length}</div>

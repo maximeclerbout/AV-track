@@ -12,11 +12,11 @@ const Icon = ({ d, size = 18, color = 'currentColor' }) => (
 )
 
 const STATUS = {
-  a_faire:    { label: 'A faire',    color: '#60A5FA' },
-  en_cours:   { label: 'En cours',   color: '#F59E0B' },
-  a_terminer: { label: 'A terminer', color: '#6366F1' },
-  probleme:   { label: 'Problème',   color: '#EF4444' },
-  termine:    { label: 'Terminé',    color: '#10B981' },
+  a_faire:    { label: 'A faire',    color: 'var(--status-a_faire)'    },
+  en_cours:   { label: 'En cours',   color: 'var(--status-en_cours)'   },
+  a_terminer: { label: 'A terminer', color: 'var(--status-a_terminer)' },
+  probleme:   { label: 'Problème',   color: 'var(--status-probleme)'   },
+  termine:    { label: 'Terminé',    color: 'var(--status-termine)'    },
 }
 
 const icons = {
@@ -40,7 +40,7 @@ const Badge = ({ statut }) => {
       display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px',
       borderRadius: 20, fontSize: 11, fontWeight: 600, color: cfg.color,
       background: cfg.color + '1a', border: '1px solid ' + cfg.color + '40',
-      fontFamily: "'Cousine', monospace", textTransform: 'uppercase', letterSpacing: .5
+      fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: .5
     }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
       {cfg.label}
@@ -91,24 +91,24 @@ function PDFViewer({ url, title, canSign, onSign, onClose }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#0d0f14', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#181b24', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0, gap: 8 }}>
-        <div style={{ fontWeight: 700, fontSize: 13, color: '#eef0f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: 'var(--surface)', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0, gap: 8 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
           📄 {title}
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           {canSign && (
-            <button onClick={onSign} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>
+            <button onClick={onSign} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>
               ✍️ Signer
             </button>
           )}
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' }}>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' }}>
             ✕ Fermer
           </button>
         </div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', background: '#1a1d27' }}>
         {loading && (
-          <div style={{ color: '#7b8096', fontSize: 14, paddingTop: 60, textAlign: 'center' }}>
+          <div style={{ color: 'var(--fg-3)', fontSize: 14, paddingTop: 60, textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>
             Chargement du PDF...
           </div>
@@ -156,7 +156,7 @@ function BLSignatureModal({ bl, onClose, onSigned }) {
       const ctx = canvas.getContext('2d')
       const pos = getP(e)
       ctx.lineTo(pos.x, pos.y)
-      ctx.strokeStyle = '#10B981'
+      ctx.strokeStyle = 'var(--accent)'
       ctx.lineWidth = 2
       ctx.lineCap = 'round'
       ctx.stroke()
@@ -206,17 +206,17 @@ function BLSignatureModal({ bl, onClose, onSigned }) {
     }
   }
 
-  const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 14px', color: '#eef0f6', fontSize: 13, outline: 'none' }
-  const labelStyle = { fontSize: 11, fontWeight: 700, color: '#7b8096', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' }
+  const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 14px', color: 'var(--fg)', fontSize: 13, outline: 'none' }
+  const labelStyle = { fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 16, width: '100%', maxWidth: 560, maxHeight: '95vh', overflowY: 'auto' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 16, width: '100%', maxWidth: 560, maxHeight: '95vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 800, color: '#eef0f6' }}>Signer le bon de livraison</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', fontSize: 20 }}>✕</button>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>Signer le bon de livraison</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20 }}>✕</button>
         </div>
-        <div style={{ fontSize: 12, color: '#7b8096', marginBottom: 16 }}>{decodeURIComponent(escape(bl.nom_original))}</div>
+        <div style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 16 }}>{decodeURIComponent(escape(bl.nom_original))}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
           <div><label style={labelStyle}>Nom du signataire *</label><input value={nomSignataire} onChange={e => setNomSignataire(e.target.value)} placeholder="Prénom Nom" style={inputStyle} /></div>
           <div><label style={labelStyle}>Date *</label><input type="date" value={dateSignature} onChange={e => setDateSignature(e.target.value)} style={{ ...inputStyle, maxWidth: 180 }} /></div>
@@ -225,16 +225,16 @@ function BLSignatureModal({ bl, onClose, onSigned }) {
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <label style={labelStyle}>Signature *</label>
-            <button onClick={clearSignature} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>Effacer</button>
+            <button onClick={clearSignature} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>Effacer</button>
           </div>
           <canvas ref={canvasRef}
             style={{ width: '100%', height: 200, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, cursor: 'crosshair', touchAction: 'none', display: 'block' }}
           />
-          <div style={{ fontSize: 11, color: '#3d4155', marginTop: 4, textAlign: 'center' }}>Signez avec votre doigt ou la souris</div>
+          <div style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 4, textAlign: 'center' }}>Signez avec votre doigt ou la souris</div>
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
-          <button onClick={handleSave} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+          <button onClick={handleSave} disabled={saving} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Icon d={icons.check} size={14} color="#fff" /> {saving ? 'Signature...' : 'Valider la signature'}
           </button>
         </div>
@@ -434,29 +434,29 @@ export default function Chantier() {
     } catch (err) { alert('Erreur suppression BL.') }
   }
 
-  if (loading) return <Layout chantiers={chantiers}><div style={{ textAlign: 'center', color: '#7b8096', padding: '60px 0' }}>Chargement...</div></Layout>
+  if (loading) return <Layout chantiers={chantiers}><div style={{ textAlign: 'center', color: 'var(--fg-3)', padding: '60px 0' }}>Chargement...</div></Layout>
   if (!chantier) return null
 
   const done = chantier.salles ? chantier.salles.filter(s => s.statut === 'termine').length : 0
   const total = chantier.salles ? chantier.salles.length : 0
   const pct = total ? Math.round((done / total) * 100) : 0
-  const statusColor = STATUS[chantier.statut]?.color || '#7b8096'
+  const statusColor = STATUS[chantier.statut]?.color || 'var(--fg-3)'
 
   const tabStyle = (t) => ({
     background: 'none', border: 'none', cursor: 'pointer',
     padding: '10px 16px', fontSize: 13, fontWeight: 600,
-    color: tab === t ? '#10B981' : '#7b8096',
+    color: tab === t ? 'var(--accent)' : 'var(--fg-3)',
     borderBottom: tab === t ? '2px solid #10B981' : '2px solid transparent',
     display: 'flex', alignItems: 'center', gap: 6,
     transition: '.2s', marginBottom: -1
   })
 
-  const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 14px', color: '#eef0f6', fontSize: 13, outline: 'none' }
-  const labelStyle = { fontSize: 11, fontWeight: 700, color: '#7b8096', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' }
+  const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 14px', color: 'var(--fg)', fontSize: 13, outline: 'none' }
+  const labelStyle = { fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' }
 
   const BL_STATUT = {
     en_attente: { label: 'En attente', color: '#F59E0B' },
-    signe: { label: 'Signé', color: '#10B981' },
+    signe: { label: 'Signé', color: 'var(--accent)' },
   }
 
   return (
@@ -464,16 +464,16 @@ export default function Chantier() {
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         {/* Breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 12, color: '#7b8096', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 12, color: 'var(--fg-3)', flexWrap: 'wrap' }}>
           <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>Tableau de bord</span>
           <span>›</span>
           <span style={{ cursor: 'pointer' }} onClick={() => navigate('/chantiers')}>Chantiers</span>
           <span>›</span>
-          <span style={{ color: '#eef0f6' }}>{chantier.nom}</span>
+          <span style={{ color: 'var(--fg)' }}>{chantier.nom}</span>
         </div>
 
         {/* Hero card */}
-        <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderTop: `4px solid ${statusColor}` }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderTop: `4px solid ${statusColor}` }}>
           {chantier.photo_url ? (
             <div style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
               <img src={chantier.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -487,7 +487,7 @@ export default function Chantier() {
               </div>
             </div>
           ) : (
-            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 56, borderBottom: '1px dashed rgba(255,255,255,0.07)', cursor: 'pointer', color: '#3d4155', fontSize: 12, transition: 'background .2s' }}
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 56, borderBottom: '1px dashed rgba(255,255,255,0.07)', cursor: 'pointer', color: 'var(--fg-mute)', fontSize: 12, transition: 'background .2s' }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
               {uploadingChantierPhoto ? 'Upload...' : <><span>📷</span><span>Ajouter une photo d'en-tête</span></>}
@@ -498,19 +498,19 @@ export default function Chantier() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 26, fontWeight: 900, color: '#eef0f6' }}>{chantier.nom}</h1>
+                  <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 900, color: 'var(--fg)' }}>{chantier.nom}</h1>
                   <Badge statut={chantier.statut} />
                   <button onClick={openEditInfo} title="Modifier les informations"
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: '#7b8096', display: 'flex', alignItems: 'center' }}>
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: 'var(--fg-3)', display: 'flex', alignItems: 'center' }}>
                     <Icon d={icons.pen} size={13} color="#7b8096" />
                   </button>
                 </div>
-                {chantier.client && <div style={{ fontSize: 13, color: '#7b8096', marginBottom: 4 }}>{chantier.client}</div>}
+                {chantier.client && <div style={{ fontSize: 13, color: 'var(--fg-3)', marginBottom: 4 }}>{chantier.client}</div>}
                 {(chantier.nom_contact || chantier.telephone) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                    {chantier.nom_contact && <span style={{ fontSize: 12, color: '#7b8096' }}>👤 {chantier.nom_contact}</span>}
+                    {chantier.nom_contact && <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>👤 {chantier.nom_contact}</span>}
                     {chantier.telephone && (
-                      <a href={'tel:' + chantier.telephone} style={{ fontSize: 12, color: '#10B981', textDecoration: 'none' }}>
+                      <a href={'tel:' + chantier.telephone} style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}>
                         📞 {chantier.telephone}
                       </a>
                     )}
@@ -519,15 +519,15 @@ export default function Chantier() {
                 {chantier.adresse && (
                   <div style={{ position: 'relative', marginBottom: 4 }}>
                     <div onClick={() => setShowMapsMenu(v => !v)}
-                      style={{ fontSize: 12, color: '#3d4155', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      style={{ fontSize: 12, color: 'var(--fg-mute)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       📍 {chantier.adresse}
                     </div>
                     {showMapsMenu && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 30, background: '#181b24', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: 8, display: 'flex', gap: 6, marginTop: 4, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>
+                      <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 30, background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: 8, display: 'flex', gap: 6, marginTop: 4, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>
                         <a href={'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(chantier.adresse)}
                           target="_blank" rel="noopener noreferrer"
                           onClick={() => setShowMapsMenu(false)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: '#eef0f6', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: 'var(--fg)', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>
                           🗺️ Google Maps
                         </a>
                         <a href={'https://waze.com/ul?q=' + encodeURIComponent(chantier.adresse)}
@@ -541,7 +541,7 @@ export default function Chantier() {
                   </div>
                 )}
                 {(chantier.date_debut || chantier.date_fin) && (
-                  <div style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#3d4155' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-mute)' }}>
                     {chantier.date_debut?.slice(0, 10)} {chantier.date_debut && chantier.date_fin ? '→' : ''} {chantier.date_fin?.slice(0, 10)}
                   </div>
                 )}
@@ -552,7 +552,7 @@ export default function Chantier() {
                   {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
                 <button onClick={exportExcel}
-                  style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
+                  style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
                   <Icon d={icons.download} size={14} color="#fff" /> Export Excel
                 </button>
                 <button onClick={exportTemplate}
@@ -576,16 +576,16 @@ export default function Chantier() {
                 { label: 'Terminées', val: done },
               ].map(s => (
                 <div key={s.label} style={{ padding: '12px 16px', textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
-                  <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 900, color: '#eef0f6' }}>{s.val}</div>
-                  <div style={{ fontSize: 11, color: '#7b8096', marginTop: 2 }}>{s.label}</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 900, color: 'var(--fg)' }}>{s.val}</div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-3)', marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
             </div>
 
             {/* Progress */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: '#7b8096' }}>{done}/{total} salles terminées</span>
-              <span style={{ fontFamily: "'Cousine', monospace", fontSize: 13, fontWeight: 700, color: pct === 100 ? '#10B981' : statusColor }}>{pct}%</span>
+              <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>{done}/{total} salles terminées</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: pct === 100 ? 'var(--accent)' : statusColor }}>{pct}%</span>
             </div>
             <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: pct + '%', background: `linear-gradient(90deg,${statusColor},${statusColor}bb)`, borderRadius: 99, transition: '.5s' }} />
@@ -596,24 +596,24 @@ export default function Chantier() {
         {/* Tabs */}
         <div className="tabs-bar" style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.07)', flexWrap: 'wrap' }}>
           <button onClick={() => setTab('salles')} style={tabStyle('salles')}>
-            <Icon d={icons.layers} size={14} color={tab === 'salles' ? '#10B981' : '#7b8096'} /> Salles
-            <span style={{ fontFamily: "'Cousine', monospace", fontSize: 10, background: tab === 'salles' ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.08)', color: tab === 'salles' ? '#10B981' : '#7b8096', borderRadius: 20, padding: '1px 7px', fontWeight: 700 }}>
+            <Icon d={icons.layers} size={14} color={tab === 'salles' ? 'var(--accent)' : 'var(--fg-3)'} /> Salles
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: tab === 'salles' ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.08)', color: tab === 'salles' ? 'var(--accent)' : 'var(--fg-3)', borderRadius: 20, padding: '1px 7px', fontWeight: 700 }}>
               {chantier.salles?.length || 0}
             </span>
           </button>
           <button onClick={() => setTab('bl')} style={tabStyle('bl')}>
-            <Icon d={icons.truck} size={14} color={tab === 'bl' ? '#10B981' : '#7b8096'} /> Bons de livraison
+            <Icon d={icons.truck} size={14} color={tab === 'bl' ? 'var(--accent)' : 'var(--fg-3)'} /> Bons de livraison
             {bls.filter(b => b.statut === 'en_attente').length > 0 && (
-              <span style={{ fontFamily: "'Cousine', monospace", background: 'rgba(245,158,11,0.2)', color: '#F59E0B', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', background: 'rgba(245,158,11,0.2)', color: '#F59E0B', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
                 {bls.filter(b => b.statut === 'en_attente').length}
               </span>
             )}
           </button>
           <button onClick={() => setTab('docs')} style={tabStyle('docs')}>
-            <Icon d={icons.file} size={14} color={tab === 'docs' ? '#10B981' : '#7b8096'} /> Documents
+            <Icon d={icons.file} size={14} color={tab === 'docs' ? 'var(--accent)' : 'var(--fg-3)'} /> Documents
           </button>
           <button onClick={() => setTab('historique')} style={tabStyle('historique')}>
-            <Icon d={icons.history} size={14} color={tab === 'historique' ? '#10B981' : '#7b8096'} /> Historique
+            <Icon d={icons.history} size={14} color={tab === 'historique' ? 'var(--accent)' : 'var(--fg-3)'} /> Historique
           </button>
         </div>
 
@@ -621,16 +621,16 @@ export default function Chantier() {
         {tab === 'salles' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 14, color: '#7b8096' }}>{chantier.salles ? chantier.salles.length : 0} salle(s)</div>
+              <div style={{ fontSize: 14, color: 'var(--fg-3)' }}>{chantier.salles ? chantier.salles.length : 0} salle(s)</div>
               <button onClick={() => setShowAddSalle(!showAddSalle)}
-                style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
+                style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
                 <Icon d={icons.plus} size={14} color="#fff" /> Ajouter salle
               </button>
             </div>
 
             {showAddSalle && (
-              <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20, marginBottom: 16, borderTop: '3px solid #10B981' }}>
-                <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, marginBottom: 14, fontSize: 15, color: '#eef0f6' }}>Nouvelle salle</div>
+              <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20, marginBottom: 16, borderTop: '3px solid #10B981' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, marginBottom: 14, fontSize: 15, color: 'var(--fg)' }}>Nouvelle salle</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div><label style={labelStyle}>Nom *</label><input value={newSalle.nom} onChange={e => setNewSalle({ ...newSalle, nom: e.target.value })} placeholder="Ex: Salle Conférence A" style={inputStyle} /></div>
                   <div><label style={labelStyle}>Étage / Zone</label><input value={newSalle.etage} onChange={e => setNewSalle({ ...newSalle, etage: e.target.value })} placeholder="Ex: 2ème" style={inputStyle} /></div>
@@ -641,8 +641,8 @@ export default function Chantier() {
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button onClick={() => setShowAddSalle(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
-                  <button onClick={addSalle} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                  <button onClick={() => setShowAddSalle(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+                  <button onClick={addSalle} disabled={saving} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
                     {saving ? 'Création...' : 'Créer la salle'}
                   </button>
                 </div>
@@ -651,10 +651,10 @@ export default function Chantier() {
 
             {editSalle && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
+                <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 800, color: '#eef0f6' }}>Modifier la salle</div>
-                    <button onClick={() => setEditSalle(null)} style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', fontSize: 20 }}>✕</button>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>Modifier la salle</div>
+                    <button onClick={() => setEditSalle(null)} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20 }}>✕</button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                     <div><label style={labelStyle}>Nom *</label><input value={editSalleForm.nom || ''} onChange={e => setEditSalleForm({ ...editSalleForm, nom: e.target.value })} style={inputStyle} /></div>
@@ -670,8 +670,8 @@ export default function Chantier() {
                     <div><label style={labelStyle}>DNS</label><input value={editSalleForm.net_dns || ''} onChange={e => setEditSalleForm({ ...editSalleForm, net_dns: e.target.value })} style={inputStyle} /></div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                    <button onClick={() => setEditSalle(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
-                    <button onClick={saveEditSalle} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                    <button onClick={() => setEditSalle(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+                    <button onClick={saveEditSalle} disabled={saving} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
                       {saving ? 'Sauvegarde...' : 'Sauvegarder'}
                     </button>
                   </div>
@@ -700,45 +700,45 @@ export default function Chantier() {
                     </div>
                     {etages.length > 1 && etages.map(e => (
                       <button key={e} onClick={() => setFiltreEtage(e)}
-                        style={{ background: filtreEtage === e ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (filtreEtage === e ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.1)'), color: filtreEtage === e ? '#10B981' : '#7b8096', borderRadius: 20, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        style={{ background: filtreEtage === e ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (filtreEtage === e ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.1)'), color: filtreEtage === e ? 'var(--accent)' : 'var(--fg-3)', borderRadius: 20, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
                         {e === 'tous' ? 'Tous les étages' : e}
                       </button>
                     ))}
                   </div>
                   {sallesFiltrees.length === 0 && (
-                    <div style={{ textAlign: 'center', color: '#3d4155', padding: '30px 0', fontSize: 13 }}>
+                    <div style={{ textAlign: 'center', color: 'var(--fg-mute)', padding: '30px 0', fontSize: 13 }}>
                       Aucune salle ne correspond à la recherche
                     </div>
                   )}
             <div className="salles-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 12 }}>
               {sallesFiltrees.map(salle => {
-                const sc = STATUS[salle.statut]?.color || '#7b8096'
+                const sc = STATUS[salle.statut]?.color || 'var(--fg-3)'
                 return (
                   <div key={salle.id}
                     onClick={() => navigate('/chantiers/' + id + '/salles/' + salle.id)}
-                    style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: 'all .2s', borderTop: `3px solid ${sc}` }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = sc + '45'; e.currentTarget.style.background = '#1d2030'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.background = '#181b24'; e.currentTarget.style.transform = 'none' }}>
+                    style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: 'all .2s', borderTop: `3px solid ${sc}` }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = sc + '45'; e.currentTarget.style.background = 'var(--surface-elev)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.transform = 'none' }}>
                     <div style={{ padding: '14px 16px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                         <div>
-                          <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: 14, marginBottom: 2, color: '#eef0f6' }}>{salle.nom}</div>
-                          <div style={{ fontSize: 11, color: '#7b8096' }}>{salle.etage}</div>
+                          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 14, marginBottom: 2, color: 'var(--fg)' }}>{salle.nom}</div>
+                          <div style={{ fontSize: 11, color: 'var(--fg-3)' }}>{salle.etage}</div>
                         </div>
                         <Badge statut={salle.statut} />
                       </div>
-                      <div style={{ fontSize: 12, color: '#7b8096', marginBottom: salle.commentaire ? 8 : 0 }}>
+                      <div style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: salle.commentaire ? 8 : 0 }}>
                         {salle.produits ? salle.produits.length : 0} équipement(s)
                       </div>
                       {salle.commentaire && (
-                        <div style={{ fontSize: 11, color: '#7b8096', fontStyle: 'italic', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--fg-3)', fontStyle: 'italic', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
                           "{salle.commentaire}"
                         </div>
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 4, padding: '0 12px 10px', justifyContent: 'flex-end' }}
                       onClick={e => e.stopPropagation()}>
-                      <button onClick={() => startEditSalle(salle)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#7b8096', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>✏️</button>
+                      <button onClick={() => startEditSalle(salle)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg-3)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>✏️</button>
                       <button onClick={() => deleteSalle(salle.id, salle.nom)} style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)', color: '#EF4444', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>🗑️</button>
                     </div>
                   </div>
@@ -755,7 +755,7 @@ export default function Chantier() {
         {tab === 'bl' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 14, color: '#7b8096' }}>{bls.length} bon(s) de livraison</div>
+              <div style={{ fontSize: 14, color: 'var(--fg-3)' }}>{bls.length} bon(s) de livraison</div>
               <label style={{ background: 'linear-gradient(135deg,#F59E0B,#D97706)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Icon d={icons.plus} size={14} color="#fff" /> {uploadingBL ? 'Upload...' : 'Ajouter un BL'}
                 <input type="file" accept="application/pdf" onChange={uploadBL} style={{ display: 'none' }} />
@@ -763,49 +763,49 @@ export default function Chantier() {
             </div>
 
             {bls.length === 0 && (
-              <div style={{ textAlign: 'center', color: '#3d4155', padding: '40px 0', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12 }}>
+              <div style={{ textAlign: 'center', color: 'var(--fg-mute)', padding: '40px 0', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12 }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>📦</div>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, color: '#7b8096' }}>Aucun bon de livraison</div>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, color: 'var(--fg-3)' }}>Aucun bon de livraison</div>
                 <div style={{ fontSize: 13 }}>Ajoutez le BL PDF pour permettre la signature électronique</div>
               </div>
             )}
 
             {bls.map(bl => {
               const cfg = BL_STATUT[bl.statut] || BL_STATUT.en_attente
-              const blBorderColor = bl.statut === 'signe' ? '#10B981' : '#F59E0B'
+              const blBorderColor = bl.statut === 'signe' ? 'var(--accent)' : '#F59E0B'
               return (
-                <div key={bl.id} style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '16px 20px', marginBottom: 10, borderLeft: `3px solid ${blBorderColor}` }}>
+                <div key={bl.id} style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '16px 20px', marginBottom: 10, borderLeft: `3px solid ${blBorderColor}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#eef0f6' }}>📄 {bl.nom_original}</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, color: cfg.color, background: cfg.color + '1a', fontFamily: "'Cousine', monospace" }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>📄 {bl.nom_original}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, color: cfg.color, background: cfg.color + '1a', fontFamily: 'var(--font-mono)' }}>
                           {cfg.label}
                         </span>
                       </div>
-                      <div style={{ fontSize: 12, color: '#7b8096' }}>
+                      <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
                         Uploadé le {new Date(bl.created_at).toLocaleDateString('fr-FR')}
                         {bl.uploaded_by_name && ' par ' + bl.uploaded_by_name}
                       </div>
                       {bl.statut === 'signe' && (
-                        <div style={{ fontSize: 12, color: '#10B981', marginTop: 4 }}>
+                        <div style={{ fontSize: 12, color: 'var(--accent)', marginTop: 4 }}>
                           ✓ Signé par {bl.nom_signataire} le {new Date(bl.date_signature).toLocaleDateString('fr-FR')}
                           {bl.commentaire && ' — ' + bl.commentaire}
                         </div>
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <button onClick={() => viewBL(bl)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>👁️ Voir</button>
-                      <button onClick={() => downloadBL(bl)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
+                      <button onClick={() => viewBL(bl)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>👁️ Voir</button>
+                      <button onClick={() => downloadBL(bl)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
                         <Icon d={icons.download} size={12} />
                       </button>
                       {bl.statut === 'signe' && (
-                        <button onClick={() => downloadBL(bl, true)} style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#10B981', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
+                        <button onClick={() => downloadBL(bl, true)} style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: 'var(--accent)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
                           <Icon d={icons.download} size={12} color="#10B981" /> BL signé
                         </button>
                       )}
                       {bl.statut === 'en_attente' && (
-                        <button onClick={() => setSigningBL(bl)} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button onClick={() => setSigningBL(bl)} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Icon d={icons.pen} size={12} color="#fff" /> Signer
                         </button>
                       )}
@@ -840,8 +840,8 @@ export default function Chantier() {
                   {i < chantier.historique.length - 1 && <div style={{ width: 1, flex: 1, background: 'rgba(255,255,255,0.06)', marginTop: 4 }} />}
                 </div>
                 <div style={{ paddingTop: 4 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2, color: '#eef0f6' }}>{h.action}</div>
-                  <div style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#7b8096' }}>{h.user_nom} · {new Date(h.created_at).toLocaleString('fr-FR')}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2, color: 'var(--fg)' }}>{h.action}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)' }}>{h.user_nom} · {new Date(h.created_at).toLocaleString('fr-FR')}</div>
                 </div>
               </div>
             ))}
@@ -852,10 +852,10 @@ export default function Chantier() {
 
       {editInfo && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 800, color: '#eef0f6' }}>Modifier le chantier</div>
-              <button onClick={() => setEditInfo(false)} style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>Modifier le chantier</div>
+              <button onClick={() => setEditInfo(false)} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20 }}>✕</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div><label style={labelStyle}>Nom du chantier *</label><input value={editInfoForm.nom} onChange={e => setEditInfoForm(f => ({ ...f, nom: e.target.value }))} style={inputStyle} /></div>
@@ -870,8 +870,8 @@ export default function Chantier() {
               <div><label style={labelStyle}>Description</label><textarea value={editInfoForm.description} onChange={e => setEditInfoForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...inputStyle, resize: 'vertical' }} /></div>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => setEditInfo(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
-              <button onClick={saveEditInfo} disabled={saving} style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+              <button onClick={() => setEditInfo(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+              <button onClick={saveEditInfo} disabled={saving} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
                 {saving ? 'Sauvegarde...' : 'Sauvegarder'}
               </button>
             </div>

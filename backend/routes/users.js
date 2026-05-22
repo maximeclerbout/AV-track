@@ -65,4 +65,22 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
+// GET /me/preferences
+router.get('/me/preferences', async (req, res) => {
+  try {
+    const result = await query('SELECT theme FROM users WHERE id = $1', [req.user.id]);
+    res.json({ theme: result.rows[0]?.theme || 'v1' });
+  } catch { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
+// PATCH /me/preferences
+router.patch('/me/preferences', async (req, res) => {
+  const { theme } = req.body;
+  if (!['v1', 'v2'].includes(theme)) return res.status(400).json({ error: 'Thème invalide.' });
+  try {
+    await query('UPDATE users SET theme = $1 WHERE id = $2', [theme, req.user.id]);
+    res.json({ theme });
+  } catch { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
 module.exports = router;

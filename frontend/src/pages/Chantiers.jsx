@@ -12,11 +12,11 @@ const Icon = ({ d, size = 18, color = 'currentColor' }) => (
 )
 
 const STATUS = {
-  a_faire:    { label: 'A faire',    color: '#60A5FA' },
-  en_cours:   { label: 'En cours',   color: '#F59E0B' },
-  a_terminer: { label: 'A terminer', color: '#6366F1' },
-  probleme:   { label: 'Problème',   color: '#EF4444' },
-  termine:    { label: 'Terminé',    color: '#10B981' },
+  a_faire:    { label: 'A faire',    color: 'var(--status-a_faire)'    },
+  en_cours:   { label: 'En cours',   color: 'var(--status-en_cours)'   },
+  a_terminer: { label: 'A terminer', color: 'var(--status-a_terminer)' },
+  probleme:   { label: 'Problème',   color: 'var(--status-probleme)'   },
+  termine:    { label: 'Terminé',    color: 'var(--status-termine)'    },
 }
 
 const Badge = ({ statut }) => {
@@ -26,7 +26,7 @@ const Badge = ({ statut }) => {
       display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px',
       borderRadius: 20, fontSize: 11, fontWeight: 600, color: cfg.color,
       background: cfg.color + '1a', border: '1px solid ' + cfg.color + '40',
-      fontFamily: "'Cousine', monospace", textTransform: 'uppercase', letterSpacing: .5
+      fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: .5
     }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
       {cfg.label}
@@ -35,12 +35,12 @@ const Badge = ({ statut }) => {
 }
 
 const inputStyle = {
-  width: '100%', background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10,
-  padding: '10px 14px', color: '#eef0f6', fontSize: 13, outline: 'none'
+  width: '100%', background: 'var(--surface)',
+  border: '1px solid var(--border-2)', borderRadius: 'var(--r-input)',
+  padding: '10px 14px', color: 'var(--fg)', fontSize: 13, outline: 'none'
 }
 const labelStyle = {
-  fontSize: 11, fontWeight: 700, color: '#7b8096', textTransform: 'uppercase',
+  fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase',
   letterSpacing: 1, marginBottom: 6, display: 'block'
 }
 
@@ -95,14 +95,14 @@ function ClientAutocomplete({ value, onChange, onClientSelect, style }) {
       {open && suggestions.length > 0 && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-          background: '#1d2030', border: '1px solid rgba(255,255,255,0.12)',
+          background: 'var(--surface-elev)', border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: 10, marginTop: 4, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
         }}>
           {suggestions.map(c => (
             <div key={c.id} onMouseDown={() => pick(c)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-                cursor: 'pointer', fontSize: 13, color: '#eef0f6',
+                cursor: 'pointer', fontSize: 13, color: 'var(--fg)',
                 borderBottom: '1px solid rgba(255,255,255,0.05)'
               }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(16,185,129,0.08)'}
@@ -221,8 +221,8 @@ export default function Chantiers() {
         {/* Header */}
         <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 900, marginBottom: 4, color: '#eef0f6' }}>Chantiers</h1>
-            <p style={{ color: '#7b8096', fontSize: 14 }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 900, marginBottom: 4, color: 'var(--fg)' }}>Chantiers</h1>
+            <p style={{ color: 'var(--fg-3)', fontSize: 14 }}>
               {loading ? '…' : chantiers.length} chantier{chantiers.length !== 1 ? 's' : ''} au total
             </p>
           </div>
@@ -230,13 +230,13 @@ export default function Chantiers() {
             {/* Import dropdown */}
             <div ref={importMenuRef} style={{ position: 'relative' }}>
               <button onClick={() => setShowImportMenu(v => !v)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#eef0f6', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--fg)', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6" size={14} /> Importer ▾
               </button>
               {showImportMenu && (
-                <div className="import-dropdown" style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#1d2030', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', padding: 6, zIndex: 20, minWidth: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+                <div className="import-dropdown" style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: 'var(--surface-elev)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', padding: 6, zIndex: 20, minWidth: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
                   <div onClick={() => { setShowImportMenu(false); setShowImport(true) }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#10B981' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: 'var(--accent)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(16,185,129,0.08)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5" size={14} color="#10B981" />
@@ -260,7 +260,7 @@ export default function Chantiers() {
               )}
             </div>
             <button onClick={() => setShowAdd(true)}
-              style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 18px rgba(16,185,129,0.40)' }}>
+              style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 18px rgba(16,185,129,0.40)' }}>
               <Icon d="M12 5v14M5 12h14" size={14} color="#fff" /> Nouveau chantier
             </button>
           </div>
@@ -282,13 +282,13 @@ export default function Chantiers() {
           <div className="filter-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {[{ key: 'tous', label: 'Tous' }, ...Object.entries(STATUS).map(([k, v]) => ({ key: k, label: v.label, color: v.color }))].map(f => {
               const isActive = filterStatut === f.key
-              const col = f.color || '#7b8096'
+              const col = f.color || 'var(--fg-3)'
               return (
                 <button key={f.key} onClick={() => setFilterStatut(f.key)}
                   style={{
                     background: isActive ? col + '18' : 'rgba(255,255,255,0.04)',
                     border: '1px solid ' + (isActive ? col + '60' : 'rgba(255,255,255,0.1)'),
-                    color: isActive ? col : '#7b8096',
+                    color: isActive ? col : 'var(--fg-3)',
                     borderRadius: 20, padding: '5px 14px', cursor: 'pointer',
                     fontSize: 12, fontWeight: 600, transition: 'all .15s'
                   }}>
@@ -301,8 +301,8 @@ export default function Chantiers() {
 
         {/* Inline add form */}
         {showAdd && (
-          <div style={{ background: '#181b24', borderRadius: 16, padding: 24, marginBottom: 24, borderTop: '3px solid #10B981', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 800, marginBottom: 20, color: '#eef0f6' }}>Nouveau chantier</div>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, padding: 24, marginBottom: 24, borderTop: '3px solid #10B981', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, marginBottom: 20, color: 'var(--fg)' }}>Nouveau chantier</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div style={{ gridColumn: '1/-1' }}>
                 <label style={labelStyle}>Nom du chantier *</label>
@@ -355,7 +355,7 @@ export default function Chantiers() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <label style={labelStyle}>Salles</label>
                 <button onClick={() => setFormSalles(s => [...s, ''])}
-                  style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10B981', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: 'var(--accent)', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                   + Ajouter une salle
                 </button>
               </div>
@@ -384,11 +384,11 @@ export default function Chantiers() {
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => { setShowAdd(false); setFormSalles(['']) }}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
                 Annuler
               </button>
               <button onClick={createChantier} disabled={saving}
-                style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
+                style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
                 {saving ? 'Création...' : `Créer le chantier${formSalles.filter(s => s.trim()).length ? ` (${formSalles.filter(s => s.trim()).length} salle${formSalles.filter(s => s.trim()).length > 1 ? 's' : ''})` : ''}`}
               </button>
             </div>
@@ -398,10 +398,10 @@ export default function Chantiers() {
         {/* Edit modal */}
         {editChantier && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 800, color: '#eef0f6' }}>Modifier le chantier</div>
-                <button onClick={() => setEditChantier(null)} style={{ background: 'none', border: 'none', color: '#eef0f6', cursor: 'pointer', fontSize: 20 }}>✕</button>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>Modifier le chantier</div>
+                <button onClick={() => setEditChantier(null)} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20 }}>✕</button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div style={{ gridColumn: '1/-1' }}>
@@ -447,11 +447,11 @@ export default function Chantiers() {
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button onClick={() => setEditChantier(null)}
-                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
                   Annuler
                 </button>
                 <button onClick={saveEdit} disabled={saving}
-                  style={{ background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                  style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
                   {saving ? 'Sauvegarde...' : 'Sauvegarder'}
                 </button>
               </div>
@@ -461,9 +461,9 @@ export default function Chantiers() {
 
         {/* Cards list */}
         {loading ? (
-          <div style={{ textAlign: 'center', color: '#7b8096', padding: '40px 0' }}>Chargement...</div>
+          <div style={{ textAlign: 'center', color: 'var(--fg-3)', padding: '40px 0' }}>Chargement...</div>
         ) : chantiersFiltres.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#3d4155', padding: '40px 0', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12 }}>
+          <div style={{ textAlign: 'center', color: 'var(--fg-mute)', padding: '40px 0', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12 }}>
             {search || filterStatut !== 'tous' ? 'Aucun chantier ne correspond à la recherche' : 'Aucun chantier'}
           </div>
         ) : (
@@ -472,28 +472,28 @@ export default function Chantiers() {
               const done = parseInt(c.nb_salles_terminees || 0)
               const total = parseInt(c.nb_salles || 0)
               const pct = total ? Math.round((done / total) * 100) : 0
-              const statusColor = STATUS[c.statut]?.color || '#7b8096'
+              const statusColor = STATUS[c.statut]?.color || 'var(--fg-3)'
               return (
                 <div key={c.id}
-                  style={{ background: '#181b24', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', cursor: 'pointer', transition: 'all .2s', borderTop: `3px solid ${statusColor}` }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = statusColor + '45'; e.currentTarget.style.background = '#1d2030'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.background = '#181b24'; e.currentTarget.style.transform = 'none' }}>
+                  style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', cursor: 'pointer', transition: 'all .2s', borderTop: `3px solid ${statusColor}` }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = statusColor + '45'; e.currentTarget.style.background = 'var(--surface-elev)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.transform = 'none' }}>
 
                   <div style={{ padding: '16px 18px 14px' }} onClick={() => navigate('/chantiers/' + c.id)}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                       <div style={{ flex: 1, minWidth: 0, marginRight: 10 }}>
-                        <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: 15, marginBottom: 2, color: '#eef0f6' }}>{c.nom}</div>
-                        <div style={{ fontSize: 12, color: '#7b8096' }}>{c.client}</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, marginBottom: 2, color: 'var(--fg)' }}>{c.nom}</div>
+                        <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>{c.client}</div>
                       </div>
                       <Badge statut={c.statut} />
                     </div>
 
                     {c.adresse && (
-                      <div style={{ fontSize: 12, color: '#3d4155', marginBottom: 10 }}>📍 {c.adresse}</div>
+                      <div style={{ fontSize: 12, color: 'var(--fg-mute)', marginBottom: 10 }}>📍 {c.adresse}</div>
                     )}
 
                     {(c.date_debut || c.date_fin) && (
-                      <div style={{ fontFamily: "'Cousine', monospace", fontSize: 11, color: '#3d4155', marginBottom: 10 }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-mute)', marginBottom: 10 }}>
                         {c.date_debut?.slice(0, 10)} {c.date_debut && c.date_fin ? '→' : ''} {c.date_fin?.slice(0, 10)}
                       </div>
                     )}
@@ -505,8 +505,8 @@ export default function Chantiers() {
                         { label: 'Avancement', val: pct + '%' },
                       ].map(s => (
                         <div key={s.label} style={{ padding: '8px 10px', textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
-                          <div style={{ fontFamily: "'Cousine', monospace", fontSize: 13, fontWeight: 700, color: '#eef0f6' }}>{s.val}</div>
-                          <div style={{ fontSize: 10, color: '#7b8096', marginTop: 2 }}>{s.label}</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{s.val}</div>
+                          <div style={{ fontSize: 10, color: 'var(--fg-3)', marginTop: 2 }}>{s.label}</div>
                         </div>
                       ))}
                     </div>
@@ -519,11 +519,11 @@ export default function Chantiers() {
                   <div style={{ display: 'flex', gap: 6, padding: '0 18px 14px' }}
                     onClick={e => e.stopPropagation()}>
                     <button onClick={() => navigate('/chantiers/' + c.id)}
-                      style={{ flex: 1, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10B981', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                      style={{ flex: 1, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: 'var(--accent)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                       Ouvrir
                     </button>
                     <button onClick={() => startEdit(c)}
-                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#eef0f6', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
                       ✏️
                     </button>
                     <button onClick={() => deleteChantier(c.id, c.nom)}

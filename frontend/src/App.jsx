@@ -10,18 +10,19 @@ import Salle from './pages/Salle'
 import Utilisateurs from './pages/Utilisateurs'
 import Backup from './pages/Backup'
 import ChangePassword from './pages/ChangePassword'
+import Settings from './pages/Settings'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
   const location = useLocation()
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0C0E14' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 800, letterSpacing: 3, marginBottom: 12 }}>
-          <span style={{ color: '#00D4FF' }}>AV</span>
-          <span style={{ color: '#fff' }}>TRACK</span>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, letterSpacing: 3, marginBottom: 12 }}>
+          <span style={{ color: 'var(--accent)' }}>AV</span>
+          <span style={{ color: 'var(--fg)' }}>TRACK</span>
         </div>
-        <div style={{ fontSize: 13, color: '#6B7280' }}>Chargement...</div>
+        <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>Chargement...</div>
       </div>
     </div>
   )
@@ -47,6 +48,7 @@ export default function App() {
       <Route path="/import-xml" element={<PrivateRoute><ImportXML /></PrivateRoute>} />
       <Route path="/backup" element={<PrivateRoute><Backup /></PrivateRoute>} />
       <Route path="/change-password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
+      <Route path="/apparence" element={<PrivateRoute><Settings /></PrivateRoute>} />
     </Routes>
   )
 }
