@@ -306,7 +306,7 @@ router.post('/excel', requireRole('admin', 'chef'), upload.single('fichier'), as
 
       const salleKey = (site + '___' + salle).toLowerCase();
       if (!sallesMap[salleKey]) {
-        sallesMap[salleKey] = { nom: salle || site || 'Salle principale', etage, produits: [] };
+        sallesMap[salleKey] = { nom: salle || site || 'Salle principale', etage, statut: 'a_faire', produits: [] };
       }
 
       const marque    = clean(col.marque  >= 0 ? row[col.marque]  : '');
@@ -315,6 +315,8 @@ router.post('/excel', requireRole('admin', 'chef'), upload.single('fichier'), as
       const typeEquip = clean(col.type    >= 0 ? row[col.type]    : '') || 'Autre';
       const surReseau = mapReseau(col.reseau >= 0 ? row[col.reseau] : '');
       const etat      = clean(col.etat    >= 0 ? row[col.etat]    : '');
+      const statutSalle = mapStatut(etat);
+      if (statutSalle !== 'a_faire') sallesMap[salleKey].statut = statutSalle;
 
       const hasNic2 = surReseau && col.ip2 >= 0 && clean(row[col.ip2]);
       sallesMap[salleKey].produits.push({
@@ -363,8 +365,8 @@ router.post('/excel', requireRole('admin', 'chef'), upload.single('fichier'), as
 
       for (const salle of salles) {
         const sRes = await dbClient.query(
-          `INSERT INTO salles (chantier_id, nom, etage, statut) VALUES ($1,$2,$3,'a_faire') RETURNING id`,
-          [chantier.id, salle.nom, salle.etage || null]
+          `INSERT INTO salles (chantier_id, nom, etage, statut) VALUES ($1,$2,$3,$4) RETURNING id`,
+          [chantier.id, salle.nom, salle.etage || null, salle.statut || 'a_faire']
         );
         const salleId = sRes.rows[0].id;
         for (const p of salle.produits) {

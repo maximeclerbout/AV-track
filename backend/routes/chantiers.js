@@ -488,7 +488,7 @@ router.get('/:id/export-template', async (req, res) => {
           p.marque || '',
           p.modele || '',
           p.serial_number || '',
-          mapStatutToExcel(p.statut_produit),
+          mapStatutToExcel(salle.statut),
           p.sur_reseau ? 'O' : 'N',
           p.label_reseau1 || '',
           p.ip || '',
