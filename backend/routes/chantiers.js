@@ -797,7 +797,7 @@ router.get('/:id/export-complet', async (req, res) => {
           const filename = (prog.chemin || '').replace(/^\/uploads\//, '');
           const filepath = path.join(uploadDir, filename);
           if (fs.existsSync(filepath)) {
-            archive.file(filepath, { name: `${folder}/Programmes/${prog.nom_original}` });
+            archive.file(filepath, { name: `${folder}/${prog.nom_original}` });
           }
         });
       });
