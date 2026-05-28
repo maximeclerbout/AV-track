@@ -7,7 +7,6 @@ import Dashboard from './pages/Dashboard'
 import Chantiers from './pages/Chantiers'
 import Chantier from './pages/Chantier'
 import Salle from './pages/Salle'
-import Utilisateurs from './pages/Utilisateurs'
 import ChangePassword from './pages/ChangePassword'
 import Settings from './pages/Settings'
 
@@ -40,7 +39,7 @@ export default function App() {
       <Route path="/chantiers" element={<PrivateRoute><Chantiers /></PrivateRoute>} />
       <Route path="/chantiers/:id" element={<PrivateRoute><Chantier /></PrivateRoute>} />
       <Route path="/chantiers/:cid/salles/:sid" element={<PrivateRoute><Salle /></PrivateRoute>} />
-      <Route path="/utilisateurs" element={<PrivateRoute><Utilisateurs /></PrivateRoute>} />
+      <Route path="/utilisateurs" element={<Navigate to="/parametres" replace />} />
       <Route path="/categories" element={<Navigate to="/parametres" replace />} />
       <Route path="*" element={<Navigate to="/" />} />
       <Route path="/import-pdf" element={<PrivateRoute><ImportPDF /></PrivateRoute>} />

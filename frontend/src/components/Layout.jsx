@@ -38,8 +38,7 @@ function SidebarLinks({ chantiers, user, logout, navigate, location, setMenuOpen
     { path: '/chantiers', icon: icons.building, label: 'Chantiers' },
   ]
   if (user?.role === 'admin' || user?.role === 'chef') {
-    navLinks.push({ path: '/utilisateurs', icon: icons.users,   label: 'Utilisateurs' })
-    navLinks.push({ path: '/parametres',   icon: icons.cog,     label: 'Paramètres'   })
+    navLinks.push({ path: '/parametres', icon: icons.cog, label: 'Paramètres' })
   }
 
   return (
