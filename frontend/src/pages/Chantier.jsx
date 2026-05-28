@@ -397,6 +397,17 @@ export default function Chantier() {
     } catch (err) { alert('Erreur lors de l\'export') }
   }
 
+  const exportComplet = async () => {
+    try {
+      const res = await axios.get('/api/chantiers/' + id + '/export-complet', { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', (chantier?.nom || id) + '_complet.zip')
+      document.body.appendChild(link); link.click(); link.remove()
+    } catch { alert('Erreur lors de l\'export complet.') }
+  }
+
   const downloadPhotos = async () => {
     try {
       const res = await axios.get('/api/chantiers/' + id + '/photos-zip', { responseType: 'blob' })
@@ -578,6 +589,11 @@ export default function Chantier() {
                   title="Export complet équipements + état, réimportable"
                   style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)', color: '#00D4FF', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Icon d={icons.download} size={14} color="#00D4FF" /> Rapport client
+                </button>
+                <button onClick={exportComplet}
+                  title="ZIP complet : rapport client + photos + programmes par salle"
+                  style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.3)', color: '#A855F7', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon d={icons.download} size={14} color="#A855F7" /> Dossier complet
                 </button>
                 <button onClick={downloadPhotos}
                   title="Télécharger toutes les photos des salles en ZIP"

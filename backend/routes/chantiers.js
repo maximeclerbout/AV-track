@@ -534,6 +534,125 @@ router.get('/:id/export-template', async (req, res) => {
   }
 });
 
+// ── helpers partagés ─────────────────────────────────────────────
+const mapStatutToExcel = (s) => {
+  if (s === 'termine')    return 'Terminé';
+  if (s === 'en_cours')   return 'En cours';
+  if (s === 'a_terminer') return 'A terminer';
+  if (s === 'probleme')   return 'Problème';
+  return 'A faire';
+};
+const fmtDate = (d) => {
+  if (!d) return '';
+  const dt = new Date(d);
+  return [String(dt.getDate()).padStart(2,'0'), String(dt.getMonth()+1).padStart(2,'0'), dt.getFullYear()].join('/');
+};
+
+async function buildRapportClientBuffer(chantier, salles) {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'AVTrack Pro';
+  const ws = wb.addWorksheet('Chantier');
+
+  ws.columns = [
+    { width: 18 }, { width: 22 }, { width: 12 },
+    { width: 20 }, { width: 16 }, { width: 20 }, { width: 22 },
+    { width: 14 }, { width: 13 },
+    { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
+    { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
+    { width: 30 },
+  ];
+
+  const GREEN = 'FF059669', CARD_BG = 'FF181B24', YELLOW = 'FFFFFDE7';
+  const HEADER_FG = 'FFFFFFFF', GRAY_TEXT = 'FF9CA3AF';
+  const applyStyle = (cell, style) => Object.assign(cell, style);
+
+  ws.mergeCells('A1:Z1');
+  applyStyle(ws.getCell('A1'), { value: `AVTrack Pro  —  Rapport client : ${chantier.nom}`, font: { bold: true, size: 15, color: { argb: HEADER_FG }, name: 'Calibri' }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } }, alignment: { horizontal: 'center', vertical: 'middle' } });
+  ws.getRow(1).height = 34;
+
+  ws.mergeCells('A2:Z2');
+  applyStyle(ws.getCell('A2'), { value: 'Rapport client généré par AVTrack Pro — NIC 2 = 2ème carte réseau (Dante, AV LAN…)', font: { italic: true, size: 10, color: { argb: GRAY_TEXT } }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: CARD_BG } }, alignment: { horizontal: 'center', vertical: 'middle' } });
+  ws.getRow(2).height = 18;
+  ws.getRow(3).height = 10;
+
+  const labelStyle = { font: { bold: true, size: 11, color: { argb: 'FFE8EAF0' } }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: CARD_BG } }, alignment: { horizontal: 'right', vertical: 'middle' }, border: { right: { style: 'thin', color: { argb: GREEN } } } };
+  const valueStyle = { font: { size: 11, color: { argb: 'FF1F2937' } }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: YELLOW } }, border: { bottom: { style: 'medium', color: { argb: GREEN } } }, alignment: { vertical: 'middle' } };
+
+  [
+    [4, 'Client :', chantier.client || '', 'Nom du chantier :', chantier.nom || ''],
+    [5, 'Adresse :', chantier.adresse || '', 'Date début (JJ/MM/AAAA) :', fmtDate(chantier.date_debut)],
+    [6, 'Contact :', chantier.nom_contact || '', 'Date fin (JJ/MM/AAAA) :', fmtDate(chantier.date_fin)],
+    [7, 'Téléphone :', chantier.telephone || '', null, null],
+  ].forEach(([rowNum, lLabel, lVal, rLabel, rVal]) => {
+    ws.getRow(rowNum).height = 24;
+    applyStyle(ws.getCell(`A${rowNum}`), labelStyle); ws.getCell(`A${rowNum}`).value = lLabel;
+    ws.mergeCells(`B${rowNum}:E${rowNum}`); applyStyle(ws.getCell(`B${rowNum}`), valueStyle); ws.getCell(`B${rowNum}`).value = lVal;
+    if (rLabel !== null) {
+      applyStyle(ws.getCell(`F${rowNum}`), { ...labelStyle, border: { left: { style: 'thin', color: { argb: GREEN } }, right: { style: 'thin', color: { argb: GREEN } } } }); ws.getCell(`F${rowNum}`).value = rLabel;
+      ws.mergeCells(`G${rowNum}:J${rowNum}`); applyStyle(ws.getCell(`G${rowNum}`), valueStyle); ws.getCell(`G${rowNum}`).value = rVal;
+    }
+  });
+
+  ws.getRow(10).height = 10;
+  ws.mergeCells('A11:Z11');
+  applyStyle(ws.getCell('A11'), { value: 'LISTE DES ÉQUIPEMENTS', font: { bold: true, size: 11, color: { argb: HEADER_FG } }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: CARD_BG } }, alignment: { horizontal: 'center', vertical: 'middle' } });
+  ws.getRow(11).height = 20;
+
+  const headers = ['Site','Salle','Étage','Type Equipement','Marque','Modèle','S/N','Etat','Réseau (O/N)','Label NIC 1','Adresse IP','Masque','Passerelle','DNS 1','DNS 2','Identifiant','Mot de passe','Label NIC 2','Adresse IP 2','Masque 2','Passerelle 2','DNS 1 (NIC2)','DNS 2 (NIC2)','Identifiant 2','Mot de passe 2','Commentaire'];
+  const headerRow = ws.getRow(12); headerRow.height = 30;
+  headers.forEach((h, i) => {
+    const cell = headerRow.getCell(i + 1);
+    cell.value = h; cell.font = { bold: true, size: 10, color: { argb: HEADER_FG } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = { top: { style: 'thin', color: { argb: 'FF10B981' } }, bottom: { style: 'medium', color: { argb: 'FF10B981' } }, left: { style: 'thin', color: { argb: 'FF10B981' } }, right: { style: 'thin', color: { argb: 'FF10B981' } } };
+  });
+
+  const SITE_BG = 'FFE8F5E9', SITE_FG = 'FF166534', SEP_BG = 'FF14532D';
+  const ROW_BG_A = 'FFFFFFFF', ROW_BG_B = 'FFF3F4F6';
+  const BDR_STD = { style: 'thin', color: { argb: 'FFD1D5DB' } };
+
+  let rowIdx = 13;
+  for (const salle of salles) {
+    const sepNum = rowIdx++;
+    ws.mergeCells(`A${sepNum}:Z${sepNum}`); ws.getRow(sepNum).height = 22;
+    const sepCell = ws.getCell(`A${sepNum}`);
+    sepCell.value = `  ▸  ${salle.nom}${salle.etage ? '   —   ' + salle.etage : ''}   (${salle.produits.length} équipement${salle.produits.length !== 1 ? 's' : ''})`;
+    sepCell.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+    sepCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SEP_BG } };
+    sepCell.alignment = { vertical: 'middle' };
+
+    if (salle.produits.length === 0) {
+      const row = ws.getRow(rowIdx++); row.height = 18;
+      [chantier.nom, salle.nom, salle.etage || '', '(aucun équipement)'].forEach((val, i) => {
+        const cell = row.getCell(i + 1); cell.value = val;
+        cell.font = { size: 10, italic: true, color: { argb: GRAY_TEXT } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_BG_A } };
+        cell.border = { bottom: BDR_STD, right: BDR_STD };
+      });
+    }
+
+    for (let pi = 0; pi < salle.produits.length; pi++) {
+      const p = salle.produits[pi];
+      const curNum = rowIdx++; const row = ws.getRow(curNum); row.height = 18;
+      const rowBg = pi % 2 === 0 ? ROW_BG_A : ROW_BG_B;
+      [chantier.nom, salle.nom, salle.etage || '', p.type_equipement || '', p.marque || '', p.modele || '', p.serial_number || '',
+       mapStatutToExcel(salle.statut), p.sur_reseau ? 'O' : 'N',
+       p.label_reseau1 || '', p.ip || '', p.masque || '', p.gateway || '', p.dns || '', p.dns_alt || '', p.login || '', p.mdp || '',
+       p.label_reseau2 || '', p.ip2 || '', p.masque2 || '', p.gateway2 || '', p.dns2 || '', p.dns2_alt || '', p.login2 || '', p.mdp2 || '',
+       p.description || '',
+      ].forEach((val, i) => {
+        const cell = row.getCell(i + 1); const isSite = i < 3;
+        cell.value = val; cell.font = { size: 10, color: { argb: isSite ? SITE_FG : 'FF1F2937' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isSite ? SITE_BG : rowBg } };
+        cell.alignment = { vertical: 'middle' }; cell.border = { bottom: BDR_STD, right: BDR_STD };
+      });
+    }
+  }
+  ws.views = [{}];
+  return wb.xlsx.writeBuffer();
+}
+
 router.get('/:id/photos-zip', async (req, res) => {
   try {
     const chResult = await query('SELECT * FROM chantiers WHERE id = $1', [req.params.id]);
@@ -596,6 +715,89 @@ router.get('/:id/photos-zip', async (req, res) => {
 
   } catch (err) {
     console.error('Erreur export photos ZIP:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Erreur génération ZIP.' });
+  }
+});
+
+router.get('/:id/export-complet', async (req, res) => {
+  try {
+    const chResult = await query('SELECT * FROM chantiers WHERE id = $1', [req.params.id]);
+    if (chResult.rows.length === 0) return res.status(404).json({ error: 'Chantier introuvable.' });
+    const chantier = chResult.rows[0];
+
+    const sallesResult = await query('SELECT * FROM salles WHERE chantier_id = $1', [req.params.id]);
+    const sallesRaw = sallesResult.rows.sort((a, b) =>
+      a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' })
+    );
+
+    const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
+
+    const salles = await Promise.all(sallesRaw.map(async salle => {
+      const prods = await query(
+        `SELECT * FROM produits WHERE salle_id = $1 ORDER BY sur_reseau DESC, (type_equipement ILIKE 'autre'), type_equipement, position_ordre`,
+        [salle.id]
+      );
+      let photosResult = await query('SELECT * FROM salle_photos WHERE salle_id = $1 ORDER BY created_at ASC', [salle.id]);
+      let photos = photosResult.rows;
+      if (photos.length === 0) {
+        const legacy = await query('SELECT photo_url FROM salles WHERE id = $1', [salle.id]);
+        if (legacy.rows[0]?.photo_url) photos = [{ url: legacy.rows[0].photo_url }];
+      }
+      const docs = await query('SELECT * FROM documents WHERE salle_id = $1 ORDER BY created_at ASC', [salle.id]);
+      return { ...salle, produits: prods.rows, photos, documents: docs.rows };
+    }));
+
+    // Rapport client Excel en buffer
+    const excelBuffer = await buildRapportClientBuffer(chantier, salles);
+
+    const safeCh  = chantier.nom.replace(/[^a-zA-Z0-9-_]/g, '_');
+    const tmpFile = path.join(os.tmpdir(), `avtrack_complet_${Date.now()}.zip`);
+
+    await new Promise((resolve, reject) => {
+      const output  = fs.createWriteStream(tmpFile);
+      const archive = archiver('zip', { zlib: { level: 5 } });
+      output.on('close', resolve);
+      archive.on('error', reject);
+      archive.pipe(output);
+
+      // Rapport client à la racine
+      archive.append(Buffer.from(excelBuffer), { name: `Rapport_Client_${safeCh}.xlsx` });
+
+      // Un dossier par salle
+      salles.forEach((salle, idx) => {
+        const prefix = String(idx + 1).padStart(2, '0');
+        const safeSalle = salle.nom.replace(/[^a-zA-Z0-9-_À-ɏ]/g, '_');
+        const folder = `${prefix}_${safeSalle}`;
+
+        // Photos
+        salle.photos.forEach((photo, i) => {
+          const filename = (photo.url || '').replace(/^\/uploads\//, '');
+          const filepath = path.join(uploadDir, filename);
+          const ext = path.extname(filename) || '.jpg';
+          if (fs.existsSync(filepath)) {
+            archive.file(filepath, { name: `${folder}/Photos/photo_${i + 1}${ext}` });
+          }
+        });
+
+        // Documents (programmes Extron, plans, etc.)
+        salle.documents.forEach(doc => {
+          const filepath = path.resolve(uploadDir, path.basename(doc.chemin));
+          if (fs.existsSync(filepath)) {
+            archive.file(filepath, { name: `${folder}/Documents/${doc.nom_original}` });
+          }
+        });
+      });
+
+      archive.finalize();
+    });
+
+    res.download(tmpFile, `${safeCh}_complet.zip`, (err) => {
+      fs.unlink(tmpFile, () => {});
+      if (err && !res.headersSent) res.status(500).json({ error: 'Erreur envoi ZIP.' });
+    });
+
+  } catch (err) {
+    console.error('Erreur export complet:', err);
     if (!res.headersSent) res.status(500).json({ error: 'Erreur génération ZIP.' });
   }
 });
