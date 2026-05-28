@@ -91,6 +91,47 @@ router.patch('/salles/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
 });
 
+router.post('/salles/:id/duplicate', async (req, res) => {
+  const { nom } = req.body;
+  try {
+    const salleResult = await query('SELECT * FROM salles WHERE id = $1', [req.params.id]);
+    if (salleResult.rows.length === 0) return res.status(404).json({ error: 'Salle introuvable.' });
+    const src = salleResult.rows[0];
+
+    const newNom = nom?.trim() || `${src.nom} - Copie`;
+
+    const newSalleResult = await query(
+      `INSERT INTO salles (chantier_id, nom, etage, statut, commentaire, net_masque, net_gateway, net_dns, position_ordre)
+       VALUES ($1,$2,$3,'a_faire',$4,$5,$6,$7,$8) RETURNING *`,
+      [src.chantier_id, newNom, src.etage, src.commentaire, src.net_masque, src.net_gateway, src.net_dns, src.position_ordre]
+    );
+    const salle = newSalleResult.rows[0];
+
+    const prodsResult = await query('SELECT * FROM produits WHERE salle_id = $1 ORDER BY position_ordre', [src.id]);
+    const produits = [];
+    for (const p of prodsResult.rows) {
+      const newProd = await query(
+        `INSERT INTO produits (salle_id, type_equipement, reference, serial_number, description,
+           sur_reseau, ip, masque, gateway, dns, dns_alt, login, mdp,
+           label_reseau1, label_reseau2, ip2, masque2, gateway2, dns2, dns2_alt, login2, mdp2,
+           marque, modele, position_ordre, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) RETURNING *`,
+        [salle.id, p.type_equipement, p.reference, p.serial_number, p.description,
+         p.sur_reseau, p.ip, p.masque, p.gateway, p.dns, p.dns_alt, p.login, p.mdp,
+         p.label_reseau1, p.label_reseau2, p.ip2, p.masque2, p.gateway2, p.dns2, p.dns2_alt, p.login2, p.mdp2,
+         p.marque, p.modele, p.position_ordre, req.user.id]
+      );
+      produits.push(newProd.rows[0]);
+    }
+
+    await audit(src.chantier_id, req.user, `Salle "${src.nom}" dupliquee en "${newNom}"`, 'salle', salle.id);
+    res.status(201).json({ ...salle, produits, nb_produits: produits.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 router.post('/salles/:id/apply-network', async (req, res) => {
   try {
     const salleResult = await query('SELECT * FROM salles WHERE id = $1', [req.params.id]);

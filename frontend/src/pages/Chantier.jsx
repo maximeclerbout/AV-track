@@ -267,6 +267,8 @@ export default function Chantier() {
   const [editInfoForm, setEditInfoForm] = useState({})
   const [uploadingChantierPhoto, setUploadingChantierPhoto] = useState(false)
   const [lightboxChantier, setLightboxChantier] = useState(false)
+  const [duplicateSalle, setDuplicateSalle] = useState(null)
+  const [duplicateSalleNom, setDuplicateSalleNom] = useState('')
 
   useEffect(() => {
     axios.get('/api/chantiers').then(res => setChantiers(res.data))
@@ -344,6 +346,18 @@ export default function Chantier() {
       await axios.delete('/api/salles/' + salleId)
       setChantier(prev => ({ ...prev, salles: prev.salles.filter(s => s.id !== salleId) }))
     } catch (err) { alert('Erreur lors de la suppression.') }
+  }
+
+  const handleDuplicateSalle = async () => {
+    if (!duplicateSalleNom.trim()) return
+    setSaving(true)
+    try {
+      const res = await axios.post('/api/salles/' + duplicateSalle.id + '/duplicate', { nom: duplicateSalleNom })
+      setChantier(prev => ({ ...prev, salles: [...prev.salles, res.data] }))
+      setDuplicateSalle(null)
+      setDuplicateSalleNom('')
+    } catch (err) { alert('Erreur lors de la duplication.') }
+    finally { setSaving(false) }
   }
 
   const startEditSalle = (s) => {
@@ -739,6 +753,7 @@ export default function Chantier() {
                     <div style={{ display: 'flex', gap: 4, padding: '0 12px 10px', justifyContent: 'flex-end' }}
                       onClick={e => e.stopPropagation()}>
                       <button onClick={() => startEditSalle(salle)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg-3)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>✏️</button>
+                      <button onClick={() => { setDuplicateSalle(salle); setDuplicateSalleNom(salle.nom + ' - Copie') }} style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)', color: '#818CF8', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }} title="Dupliquer">⧉</button>
                       <button onClick={() => deleteSalle(salle.id, salle.nom)} style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)', color: '#EF4444', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>🗑️</button>
                     </div>
                   </div>
@@ -908,6 +923,32 @@ export default function Chantier() {
           onSign={() => { const bl = viewingBL; setViewingBL(null); setBlObjectUrl(null); setTimeout(() => setSigningBL(bl), 50) }}
           onClose={() => { setViewingBL(null); setBlObjectUrl(null) }}
         />
+      )}
+
+      {duplicateSalle && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 420 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>Dupliquer la salle</div>
+              <button onClick={() => setDuplicateSalle(null)} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20 }}>✕</button>
+            </div>
+            <div style={{ color: 'var(--fg-3)', fontSize: 13, marginBottom: 16 }}>Copie de "{duplicateSalle.nom}" avec tous ses équipements.</div>
+            <label style={labelStyle}>Nom de la nouvelle salle</label>
+            <input
+              value={duplicateSalleNom}
+              onChange={e => setDuplicateSalleNom(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleDuplicateSalle()}
+              autoFocus
+              style={inputStyle}
+            />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setDuplicateSalle(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+              <button onClick={handleDuplicateSalle} disabled={saving || !duplicateSalleNom.trim()} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                {saving ? 'Duplication...' : 'Dupliquer'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </Layout>

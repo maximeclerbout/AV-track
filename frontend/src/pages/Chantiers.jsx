@@ -133,6 +133,8 @@ export default function Chantiers() {
   const [formSalles, setFormSalles] = useState([''])
   const [editChantier, setEditChantier] = useState(null)
   const [editForm, setEditForm] = useState({})
+  const [duplicateChantier, setDuplicateChantier] = useState(null)
+  const [duplicateChantierNom, setDuplicateChantierNom] = useState('')
   const navigate = useNavigate()
   const importMenuRef = useRef(null)
 
@@ -175,6 +177,21 @@ export default function Chantiers() {
       setChantiers(prev => prev.filter(c => c.id !== id))
     } catch (err) {
       alert('Erreur lors de la suppression.')
+    }
+  }
+
+  const handleDuplicateChantier = async () => {
+    if (!duplicateChantierNom.trim()) return
+    setSaving(true)
+    try {
+      const res = await axios.post('/api/chantiers/' + duplicateChantier.id + '/duplicate', { nom: duplicateChantierNom })
+      setChantiers(prev => [res.data, ...prev])
+      setDuplicateChantier(null)
+      setDuplicateChantierNom('')
+    } catch (err) {
+      alert('Erreur lors de la duplication.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -526,6 +543,10 @@ export default function Chantiers() {
                       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
                       ✏️
                     </button>
+                    <button onClick={() => { setDuplicateChantier(c); setDuplicateChantierNom(c.nom + ' - Copie') }}
+                      style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', color: '#818CF8', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }} title="Dupliquer">
+                      ⧉
+                    </button>
                     <button onClick={() => deleteChantier(c.id, c.nom)}
                       style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
                       🗑️
@@ -538,6 +559,34 @@ export default function Chantiers() {
         )}
       </div>
       {showImport && <ImportExcel onClose={() => setShowImport(false)} />}
+
+      {duplicateChantier && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 480 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>Dupliquer le chantier</div>
+              <button onClick={() => setDuplicateChantier(null)} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20 }}>✕</button>
+            </div>
+            <div style={{ color: 'var(--fg-3)', fontSize: 13, marginBottom: 16 }}>
+              Copie complète de "{duplicateChantier.nom}" avec toutes ses salles et équipements.
+            </div>
+            <label style={labelStyle}>Nom du nouveau chantier</label>
+            <input
+              value={duplicateChantierNom}
+              onChange={e => setDuplicateChantierNom(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleDuplicateChantier()}
+              autoFocus
+              style={inputStyle}
+            />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setDuplicateChantier(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+              <button onClick={handleDuplicateChantier} disabled={saving || !duplicateChantierNom.trim()} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                {saving ? 'Duplication...' : 'Dupliquer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }
