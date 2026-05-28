@@ -577,7 +577,7 @@ export default function Chantier() {
                 <button onClick={exportTemplate}
                   title="Export complet équipements + état, réimportable"
                   style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)', color: '#00D4FF', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Icon d={icons.download} size={14} color="#00D4FF" /> Fiche terrain
+                  <Icon d={icons.download} size={14} color="#00D4FF" /> Rapport client
                 </button>
                 <button onClick={downloadPhotos}
                   title="Télécharger toutes les photos des salles en ZIP"
