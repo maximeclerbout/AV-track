@@ -453,7 +453,12 @@ export default function Chantier() {
 
   const done = chantier.salles ? chantier.salles.filter(s => s.statut === 'termine').length : 0
   const total = chantier.salles ? chantier.salles.length : 0
-  const pct = total ? Math.round((done / total) * 100) : 0
+  const score = chantier.salles ? chantier.salles.reduce((acc, s) => {
+    if (s.statut === 'termine') return acc + 1
+    if (s.statut === 'a_terminer') return acc + 0.8
+    return acc
+  }, 0) : 0
+  const pct = total ? Math.round((score / total) * 100) : 0
   const statusColor = STATUS[chantier.statut]?.color || 'var(--fg-3)'
 
   const tabStyle = (t) => ({

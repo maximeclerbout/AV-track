@@ -487,8 +487,9 @@ export default function Chantiers() {
           <div className="cards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
             {chantiersFiltres.map(c => {
               const done = parseInt(c.nb_salles_terminees || 0)
+              const aTerminer = parseInt(c.nb_salles_a_terminer || 0)
               const total = parseInt(c.nb_salles || 0)
-              const pct = total ? Math.round((done / total) * 100) : 0
+              const pct = total ? Math.round(((done + aTerminer * 0.8) / total) * 100) : 0
               const statusColor = STATUS[c.statut]?.color || 'var(--fg-3)'
               return (
                 <div key={c.id}

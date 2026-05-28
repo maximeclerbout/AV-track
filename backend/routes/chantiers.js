@@ -26,7 +26,8 @@ router.get('/', async (req, res) => {
         c.*,
         COUNT(DISTINCT s.id) AS nb_salles,
         COUNT(DISTINCT p.id) AS nb_produits,
-        COUNT(DISTINCT s2.id) FILTER (WHERE s2.statut = 'termine') AS nb_salles_terminees
+        COUNT(DISTINCT s2.id) FILTER (WHERE s2.statut = 'termine') AS nb_salles_terminees,
+        COUNT(DISTINCT s2.id) FILTER (WHERE s2.statut = 'a_terminer') AS nb_salles_a_terminer
       FROM chantiers c
       LEFT JOIN salles s ON s.chantier_id = c.id
       LEFT JOIN produits p ON p.salle_id = s.id
