@@ -572,12 +572,12 @@ export default function Chantier() {
                 </select>
                 <button onClick={exportExcel}
                   style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
-                  <Icon d={icons.download} size={14} color="#fff" /> Export Excel
+                  <Icon d={icons.download} size={14} color="#fff" /> Récap chantier
                 </button>
                 <button onClick={exportTemplate}
-                  title="Exporter au format du modèle d'import (réimportable)"
+                  title="Export complet équipements + état, réimportable"
                   style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)', color: '#00D4FF', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Icon d={icons.download} size={14} color="#00D4FF" /> Export modèle
+                  <Icon d={icons.download} size={14} color="#00D4FF" /> Fiche terrain
                 </button>
                 <button onClick={downloadPhotos}
                   title="Télécharger toutes les photos des salles en ZIP"
