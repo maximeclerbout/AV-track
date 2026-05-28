@@ -732,6 +732,7 @@ router.get('/:id/export-complet', async (req, res) => {
 
     const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
 
+    // Produits + photos + programmes Extron par salle
     const salles = await Promise.all(sallesRaw.map(async salle => {
       const prods = await query(
         `SELECT * FROM produits WHERE salle_id = $1 ORDER BY sur_reseau DESC, (type_equipement ILIKE 'autre'), type_equipement, position_ordre`,
@@ -743,9 +744,13 @@ router.get('/:id/export-complet', async (req, res) => {
         const legacy = await query('SELECT photo_url FROM salles WHERE id = $1', [salle.id]);
         if (legacy.rows[0]?.photo_url) photos = [{ url: legacy.rows[0].photo_url }];
       }
-      const docs = await query('SELECT * FROM documents WHERE salle_id = $1 ORDER BY created_at ASC', [salle.id]);
-      return { ...salle, produits: prods.rows, photos, documents: docs.rows };
+      const progs = await query('SELECT * FROM salle_programmes WHERE salle_id = $1 ORDER BY created_at ASC', [salle.id]);
+      return { ...salle, produits: prods.rows, photos, programmes: progs.rows };
     }));
+
+    // Documents du chantier (plans, contrats, etc.)
+    const docsResult = await query('SELECT * FROM documents WHERE chantier_id = $1 ORDER BY created_at ASC', [req.params.id]);
+    const chantierDocs = docsResult.rows;
 
     // Rapport client Excel en buffer
     const excelBuffer = await buildRapportClientBuffer(chantier, salles);
@@ -763,11 +768,19 @@ router.get('/:id/export-complet', async (req, res) => {
       // Rapport client à la racine
       archive.append(Buffer.from(excelBuffer), { name: `Rapport_Client_${safeCh}.xlsx` });
 
+      // Dossier Documents/ — tous les documents du chantier
+      chantierDocs.forEach(doc => {
+        const filepath = path.resolve(uploadDir, path.basename(doc.chemin));
+        if (fs.existsSync(filepath)) {
+          archive.file(filepath, { name: `Documents/${doc.nom_original}` });
+        }
+      });
+
       // Un dossier par salle
       salles.forEach((salle, idx) => {
-        const prefix = String(idx + 1).padStart(2, '0');
+        const prefix    = String(idx + 1).padStart(2, '0');
         const safeSalle = salle.nom.replace(/[^a-zA-Z0-9-_À-ɏ]/g, '_');
-        const folder = `${prefix}_${safeSalle}`;
+        const folder    = `${prefix}_${safeSalle}`;
 
         // Photos
         salle.photos.forEach((photo, i) => {
@@ -779,11 +792,12 @@ router.get('/:id/export-complet', async (req, res) => {
           }
         });
 
-        // Documents (programmes Extron, plans, etc.)
-        salle.documents.forEach(doc => {
-          const filepath = path.resolve(uploadDir, path.basename(doc.chemin));
+        // Programmes Extron
+        salle.programmes.forEach(prog => {
+          const filename = (prog.chemin || '').replace(/^\/uploads\//, '');
+          const filepath = path.join(uploadDir, filename);
           if (fs.existsSync(filepath)) {
-            archive.file(filepath, { name: `${folder}/Documents/${doc.nom_original}` });
+            archive.file(filepath, { name: `${folder}/Programmes/${prog.nom_original}` });
           }
         });
       });
