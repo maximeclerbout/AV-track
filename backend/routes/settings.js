@@ -17,12 +17,13 @@ router.get('/', requireRole('admin'), async (req, res) => {
 });
 
 router.patch('/', requireRole('admin'), async (req, res) => {
-  const allowed = ['adv_email','app_url','smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure'];
+  const allowed = ['adv_email','app_url','smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure','warevia_url','warevia_token'];
   try {
     for (const key of allowed) {
       if (req.body[key] === undefined) continue;
       // Ne pas écraser le mot de passe si on reçoit les bullets
-      if (key === 'smtp_pass' && req.body[key].startsWith('•')) continue;
+      if (key === 'smtp_pass'     && req.body[key].startsWith('•')) continue;
+      if (key === 'warevia_token' && req.body[key].startsWith('•')) continue;
       await query(
         `INSERT INTO app_settings (key, value) VALUES ($1, $2)
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,

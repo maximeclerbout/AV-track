@@ -110,6 +110,8 @@ export default function Salle() {
   const [newFourniture, setNewFourniture] = useState({ designation: '', quantite: 1, unite: '' })
   const [editFournitureId, setEditFournitureId] = useState(null)
   const [editFournitureForm, setEditFournitureForm] = useState({})
+  const [wareviaResults, setWareviaResults] = useState([])
+  const wareviaTimer = useRef(null)
   const [editProduit, setEditProduit] = useState(null)
   const [editProduitForm, setEditProduitForm] = useState({})
   const [filtreReseau, setFiltreReseau] = useState('tous')
@@ -288,6 +290,17 @@ export default function Salle() {
       setEditProduit(null)
     } catch (err) { alert('Erreur modification.') }
     finally { setSaving(false) }
+  }
+
+  const searchWarevia = (q) => {
+    clearTimeout(wareviaTimer.current)
+    if (!q || q.length < 2) { setWareviaResults([]); return }
+    wareviaTimer.current = setTimeout(async () => {
+      try {
+        const r = await axios.get('/api/warevia/search', { params: { q } })
+        setWareviaResults(r.data?.produits || [])
+      } catch { setWareviaResults([]) }
+    }, 300)
   }
 
   const addFourniture = async () => {
@@ -670,11 +683,40 @@ export default function Salle() {
           <div>
             {/* Formulaire d'ajout */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ flex: 1, minWidth: 180, position: 'relative' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5 }}>Désignation</div>
-                <input value={newFourniture.designation} onChange={e => setNewFourniture(f => ({ ...f, designation: e.target.value }))}
-                  onKeyDown={e => { if (e.key === 'Enter' && newFourniture.designation.trim()) addFourniture() }}
-                  placeholder="Ex: HDMI 5m, RJ45 Cat6…" style={inputStyle} />
+                <input value={newFourniture.designation}
+                  onChange={e => { setNewFourniture(f => ({ ...f, designation: e.target.value })); searchWarevia(e.target.value) }}
+                  onKeyDown={e => { if (e.key === 'Enter' && newFourniture.designation.trim()) { setWareviaResults([]); addFourniture() } if (e.key === 'Escape') setWareviaResults([]) }}
+                  onFocus={() => { if (newFourniture.designation) searchWarevia(newFourniture.designation) }}
+                  placeholder="Ex: HDMI 5m, RJ45 Cat6… (suggestions Warevia)" style={inputStyle} />
+                {wareviaResults.length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--surface)', border: '1px solid var(--border-2)', borderRadius: 'var(--r-card)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', maxHeight: 280, overflowY: 'auto', marginTop: 4 }}>
+                    {wareviaResults.map(p => {
+                      const stock = parseInt(p.quantite)
+                      const stockColor = stock === 0 ? '#EF4444' : stock <= p.quantite_min ? '#F59E0B' : 'var(--accent)'
+                      return (
+                        <div key={p.code_barre}
+                          onClick={() => { setNewFourniture(f => ({ ...f, designation: p.nom, unite: p.unite || '' })); setWareviaResults([]) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--border)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nom}</div>
+                            {p.description && <div style={{ fontSize: 11, color: 'var(--fg-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.description}</div>}
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: stockColor, fontFamily: 'var(--font-mono)' }}>{stock} {p.unite}</div>
+                            {p.emplacement && <div style={{ fontSize: 10, color: 'var(--fg-mute)' }}>{p.emplacement}</div>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div style={{ padding: '6px 14px', fontSize: 10, color: 'var(--fg-mute)', fontStyle: 'italic', borderTop: '1px solid var(--border)' }}>
+                      Stock Warevia — {wareviaResults.length} résultat{wareviaResults.length > 1 ? 's' : ''}
+                    </div>
+                  </div>
+                )}
               </div>
               <div style={{ width: 90 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5 }}>Qté</div>

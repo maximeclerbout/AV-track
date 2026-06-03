@@ -55,7 +55,8 @@ const importPdfRoutes = require('./routes/import-pdf');
 const importXmlRoutes = require('./routes/import-xml');
 const blRoutes = require('./routes/bons-livraison');
 const marquesRoutes = require('./routes/marques');
-const clientsRoutes = require('./routes/clients');
+const clientsRoutes  = require('./routes/clients');
+const wareviaRoutes  = require('./routes/warevia');
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', app: 'AVTrack Pro', version: '1.0.0', timestamp: new Date().toISOString() });
@@ -74,6 +75,7 @@ app.use('/api/import-pdf', importPdfRoutes);
 app.use('/api/import-xml', importXmlRoutes);
 app.use('/api/marques',    marquesRoutes);
 app.use('/api/clients',    clientsRoutes);
+app.use('/api/warevia',    wareviaRoutes);
 app.use('/api/produits',   produitsRoutes);
 app.use('/api',            produitsRoutes);
 app.use('/api',            sallesRoutes);

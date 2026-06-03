@@ -907,6 +907,79 @@ function SectionEmail() {
   )
 }
 
+// ── Section Warevia ───────────────────────────────────────────────
+function SectionWarevia() {
+  const [cfg, setCfg]     = useState({ warevia_url: '', warevia_token: '' })
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState(null)
+  const [msg, setMsg]       = useState('')
+
+  useEffect(() => {
+    axios.get('/api/settings').then(r => {
+      setCfg({ warevia_url: r.data.warevia_url || '', warevia_token: r.data.warevia_token || '' })
+    }).catch(() => {})
+  }, [])
+
+  const save = async () => {
+    setSaving(true); setMsg(''); setStatus(null)
+    try {
+      await axios.patch('/api/settings', cfg)
+      setMsg('✅ Configuration sauvegardée.')
+    } catch { setMsg('❌ Erreur lors de la sauvegarde.') }
+    finally { setSaving(false) }
+  }
+
+  const test = async () => {
+    setSaving(true); setStatus(null); setMsg('')
+    try {
+      const r = await axios.get('/api/warevia/status')
+      setStatus(r.data)
+    } catch { setStatus({ ok: false, reason: 'Erreur réseau' }) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--fg)', marginBottom: 4 }}>Intégration Warevia</h2>
+        <p style={{ color: 'var(--fg-3)', fontSize: 13 }}>Connectez AVTrack à votre stock Warevia pour suggérer des fournitures</p>
+      </div>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border-2)', borderRadius: 'var(--r-card)', padding: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
+          <div>
+            <label style={labSt}>URL du serveur Warevia</label>
+            <input value={cfg.warevia_url} onChange={e => setCfg(c => ({ ...c, warevia_url: e.target.value }))}
+              placeholder="http://192.168.1.x:5000" style={inSt} />
+            <div style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 4 }}>Adresse IP locale du conteneur Warevia sur Proxmox</div>
+          </div>
+          <div>
+            <label style={labSt}>Token API Warevia</label>
+            <input value={cfg.warevia_token} onChange={e => setCfg(c => ({ ...c, warevia_token: e.target.value }))}
+              placeholder="Token défini dans WAREVIA_API_TOKEN" style={inSt} />
+            <div style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 4 }}>Doit correspondre à la variable d'env <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>WAREVIA_API_TOKEN</code> sur le serveur Warevia</div>
+          </div>
+        </div>
+
+        {status && (
+          <div style={{ background: status.ok ? 'var(--accent-soft)' : 'rgba(239,68,68,0.1)', border: '1px solid ' + (status.ok ? 'var(--accent)' : 'rgba(239,68,68,0.3)'), borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: status.ok ? 'var(--accent)' : '#EF4444' }}>
+            {status.ok ? `✅ Connexion OK — ${status.nb_produits} produit(s) dans le stock` : `❌ Connexion échouée : ${status.reason}`}
+          </div>
+        )}
+        {msg && (
+          <div style={{ background: msg.startsWith('✅') ? 'var(--accent-soft)' : 'rgba(239,68,68,0.1)', border: '1px solid ' + (msg.startsWith('✅') ? 'var(--accent)' : 'rgba(239,68,68,0.3)'), borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: msg.startsWith('✅') ? 'var(--accent)' : '#EF4444' }}>{msg}</div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={test} disabled={saving} style={ghostBtn}>Tester la connexion</button>
+          <button onClick={save} disabled={saving} style={primBtn}>
+            <Icon d={icons.save} size={13} color="var(--accent-fg)" />{saving ? 'Sauvegarde…' : 'Sauvegarder'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Page principale ───────────────────────────────────────────────
 export default function Settings() {
   const { theme, setTheme } = useTheme()
@@ -940,7 +1013,10 @@ export default function Settings() {
         { id: 'categories',   label: 'Catégories',   icon: icons.tag      },
         { id: 'marques',      label: 'Marques',      icon: icons.box      },
         { id: 'sauvegardes',  label: 'Sauvegardes',  icon: icons.save     },
-        ...(isAdmin ? [{ id: 'email', label: 'Email SMTP', icon: icons.mail }] : []),
+        ...(isAdmin ? [
+          { id: 'email',    label: 'Email SMTP', icon: icons.mail    },
+          { id: 'warevia',  label: 'Warevia',    icon: icons.box     },
+        ] : []),
       ],
     }] : []),
   ]
@@ -985,6 +1061,7 @@ export default function Settings() {
             {section === 'marques'       && <SectionMarques />}
             {section === 'sauvegardes'   && <SectionSauvegardes user={user} />}
             {section === 'email'         && <SectionEmail />}
+            {section === 'warevia'       && <SectionWarevia />}
           </div>
         </div>
       </div>
