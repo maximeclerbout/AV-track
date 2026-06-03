@@ -248,7 +248,7 @@ export default function Dashboard() {
 
   const chantiersActifs   = chantiers.filter(c => c.statut !== 'termine')
   const chantiersTermines = chantiers.filter(c => c.statut === 'termine')
-  const ordre = { en_cours: 0, probleme: 1, a_terminer: 2, a_faire: 3 }
+  const ordre = { probleme: 0, a_terminer: 1, en_cours: 2, a_faire: 3 }
   const chantiersActifsTries = [...chantiersActifs].sort((a, b) => (ordre[a.statut] ?? 9) - (ordre[b.statut] ?? 9))
 
   const STAT_COLORS = ['var(--accent)', 'var(--status-en_cours)', 'var(--status-a_terminer)', '#A855F7']
@@ -360,7 +360,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <>
-              {['en_cours', 'probleme', 'a_terminer', 'a_faire'].map(statut => {
+              {['probleme', 'a_terminer', 'en_cours', 'a_faire'].map(statut => {
                 const group = chantiersActifsTries.filter(c => c.statut === statut)
                 if (!group.length) return null
                 return (

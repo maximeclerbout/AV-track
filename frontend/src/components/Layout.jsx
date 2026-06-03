@@ -87,7 +87,7 @@ function SidebarLinks({ chantiers, user, logout, navigate, location, setMenuOpen
             Chantiers actifs
           </div>
           {chantiers.filter(c => c.statut !== 'termine').sort((a, b) => {
-            const order = { en_cours: 0, a_faire: 1, a_terminer: 2, probleme: 3 }
+            const order = { probleme: 0, a_terminer: 1, en_cours: 2, a_faire: 3 }
             return (order[a.statut] ?? 9) - (order[b.statut] ?? 9)
           }).map(c => {
             const dotColor = STATUS_COLORS[c.statut] || 'var(--fg-3)'
