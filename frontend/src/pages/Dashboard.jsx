@@ -151,13 +151,6 @@ function ModalBesoinsStock({ onClose }) {
   )
 }
 
-const Icon = ({ d, size = 18, color = 'currentColor' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-    <path d={d} />
-  </svg>
-)
-
 const STATUS = {
   a_faire:    { label: 'A faire',    color: 'var(--status-a_faire)'    },
   en_cours:   { label: 'En cours',   color: 'var(--status-en_cours)'   },
