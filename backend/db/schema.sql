@@ -85,6 +85,17 @@ CREATE TABLE documents (
   created_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE salle_fournitures (
+  id              SERIAL PRIMARY KEY,
+  salle_id        INTEGER NOT NULL REFERENCES salles(id) ON DELETE CASCADE,
+  designation     VARCHAR(300) NOT NULL,
+  quantite        NUMERIC(10,2) NOT NULL DEFAULT 1,
+  unite           VARCHAR(50),
+  position_ordre  INTEGER DEFAULT 0,
+  created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE historique (
   id           SERIAL PRIMARY KEY,
   chantier_id  INTEGER REFERENCES chantiers(id) ON DELETE CASCADE,

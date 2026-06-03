@@ -105,6 +105,11 @@ export default function Salle() {
   const [uploadingVideo, setUploadingVideo] = useState(false)
   const [programmes, setProgrammes] = useState([])
   const [uploadingProg, setUploadingProg] = useState(false)
+  const [activeTab, setActiveTab] = useState('equipements')
+  const [fournitures, setFournitures] = useState([])
+  const [newFourniture, setNewFourniture] = useState({ designation: '', quantite: 1, unite: '' })
+  const [editFournitureId, setEditFournitureId] = useState(null)
+  const [editFournitureForm, setEditFournitureForm] = useState({})
   const [editProduit, setEditProduit] = useState(null)
   const [editProduitForm, setEditProduitForm] = useState({})
   const [filtreReseau, setFiltreReseau] = useState('tous')
@@ -143,6 +148,7 @@ export default function Salle() {
         axios.get('/api/salles/' + sid + '/photos').then(r => setPhotos(r.data)).catch(() => {})
         axios.get('/api/salles/' + sid + '/videos').then(r => setVideos(r.data)).catch(() => {})
         axios.get('/api/salles/' + sid + '/programmes').then(r => setProgrammes(r.data)).catch(() => {})
+        axios.get('/api/salles/' + sid + '/fournitures').then(r => setFournitures(r.data)).catch(() => {})
       })
       .finally(() => setLoading(false))
   }, [cid, sid])
@@ -282,6 +288,31 @@ export default function Salle() {
       setEditProduit(null)
     } catch (err) { alert('Erreur modification.') }
     finally { setSaving(false) }
+  }
+
+  const addFourniture = async () => {
+    if (!newFourniture.designation.trim()) return
+    try {
+      const res = await axios.post('/api/salles/' + sid + '/fournitures', newFourniture)
+      setFournitures(prev => [...prev, res.data])
+      setNewFourniture({ designation: '', quantite: 1, unite: '' })
+    } catch { alert('Erreur ajout fourniture.') }
+  }
+
+  const saveFourniture = async (id) => {
+    try {
+      const res = await axios.patch('/api/salles/' + sid + '/fournitures/' + id, editFournitureForm)
+      setFournitures(prev => prev.map(f => f.id === id ? { ...f, ...res.data } : f))
+      setEditFournitureId(null)
+    } catch { alert('Erreur modification fourniture.') }
+  }
+
+  const deleteFourniture = async (id) => {
+    if (!window.confirm('Supprimer cette fourniture ?')) return
+    try {
+      await axios.delete('/api/salles/' + sid + '/fournitures/' + id)
+      setFournitures(prev => prev.filter(f => f.id !== id))
+    } catch { alert('Erreur suppression.') }
   }
 
   const exportSalle = async () => {
@@ -619,8 +650,93 @@ export default function Salle() {
           </div>
         </div>
 
+        {/* Barre d'onglets */}
+        <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+          {[
+            { id: 'equipements', label: 'Équipements', count: salle.produits?.length || 0, icon: icons.monitor },
+            { id: 'fournitures', label: 'Fournitures',  count: fournitures.length,          icon: "M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM1 7l4-4h14l4 4M1 17l4 4h14l4-4" },
+          ].map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 18px', fontSize: 13, fontWeight: 600, color: activeTab === t.id ? 'var(--accent)' : 'var(--fg-3)', borderBottom: activeTab === t.id ? '2px solid var(--accent)' : '2px solid transparent', display: 'flex', alignItems: 'center', gap: 8, marginBottom: -1, transition: 'all .15s' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon}/></svg>
+              {t.label}
+              <span style={{ background: activeTab === t.id ? 'var(--accent-soft)' : 'var(--border)', color: activeTab === t.id ? 'var(--accent)' : 'var(--fg-3)', borderRadius: 20, padding: '1px 8px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{t.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Onglet Fournitures */}
+        {activeTab === 'fournitures' && (
+          <div>
+            {/* Formulaire d'ajout */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5 }}>Désignation</div>
+                <input value={newFourniture.designation} onChange={e => setNewFourniture(f => ({ ...f, designation: e.target.value }))}
+                  onKeyDown={e => { if (e.key === 'Enter' && newFourniture.designation.trim()) addFourniture() }}
+                  placeholder="Ex: HDMI 5m, RJ45 Cat6…" style={inputStyle} />
+              </div>
+              <div style={{ width: 90 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5 }}>Qté</div>
+                <input type="number" min="0.5" step="0.5" value={newFourniture.quantite} onChange={e => setNewFourniture(f => ({ ...f, quantite: e.target.value }))} style={inputStyle} />
+              </div>
+              <div style={{ width: 90 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5 }}>Unité</div>
+                <input value={newFourniture.unite} onChange={e => setNewFourniture(f => ({ ...f, unite: e.target.value }))}
+                  placeholder="m, pcs…" style={inputStyle} />
+              </div>
+              <button onClick={addFourniture} disabled={!newFourniture.designation.trim()}
+                style={{ background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 'var(--r-input)', padding: '10px 18px', cursor: newFourniture.designation.trim() ? 'pointer' : 'not-allowed', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, opacity: newFourniture.designation.trim() ? 1 : 0.5 }}>
+                <Icon d={icons.plus} size={14} color="var(--accent-fg)" /> Ajouter
+              </button>
+            </div>
+
+            {/* Liste */}
+            {fournitures.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 0', border: '1px dashed var(--border-2)', borderRadius: 'var(--r-card)', color: 'var(--fg-3)', fontSize: 13 }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>📦</div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>Aucune fourniture</div>
+                <div style={{ fontSize: 12, color: 'var(--fg-mute)' }}>Ajoutez câbles, connecteurs et consommables ci-dessus</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {fournitures.map((f, idx) => (
+                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '1px solid var(--border-2)', borderRadius: 'var(--r-card)', padding: '10px 14px' }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--accent-soft)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{idx + 1}</span>
+
+                    {editFournitureId === f.id ? (
+                      <>
+                        <input value={editFournitureForm.designation || ''} onChange={e => setEditFournitureForm(x => ({ ...x, designation: e.target.value }))} style={{ ...inputStyle, flex: 1 }} />
+                        <input type="number" min="0.5" step="0.5" value={editFournitureForm.quantite || ''} onChange={e => setEditFournitureForm(x => ({ ...x, quantite: e.target.value }))} style={{ ...inputStyle, width: 80, flexShrink: 0 }} />
+                        <input value={editFournitureForm.unite || ''} onChange={e => setEditFournitureForm(x => ({ ...x, unite: e.target.value }))} placeholder="unité" style={{ ...inputStyle, width: 80, flexShrink: 0 }} />
+                        <button onClick={() => saveFourniture(f.id)} style={{ background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 'var(--r-input)', padding: '7px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>OK</button>
+                        <button onClick={() => setEditFournitureId(null)} style={{ background: 'var(--border)', border: 'none', borderRadius: 'var(--r-input)', padding: '7px 10px', cursor: 'pointer', color: 'var(--fg-3)', fontSize: 12 }}>✕</button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{f.designation}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 800, color: 'var(--accent)', flexShrink: 0 }}>×{parseFloat(f.quantite) % 1 === 0 ? parseInt(f.quantite) : f.quantite}</span>
+                        {f.unite && <span style={{ fontSize: 12, color: 'var(--fg-3)', flexShrink: 0 }}>{f.unite}</span>}
+                        <button onClick={() => { setEditFournitureId(f.id); setEditFournitureForm({ designation: f.designation, quantite: f.quantite, unite: f.unite || '' }) }}
+                          style={{ background: 'none', border: '1px solid var(--border-2)', borderRadius: 6, padding: '5px 9px', cursor: 'pointer', color: 'var(--fg-3)', fontSize: 12 }}>✏️</button>
+                        <button onClick={() => deleteFourniture(f.id)}
+                          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '5px 9px', cursor: 'pointer', color: '#EF4444', fontSize: 12 }}>
+                          <Icon d={icons.trash} size={13} color="#EF4444" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, fontSize: 12, color: 'var(--fg-3)', fontFamily: 'var(--font-mono)' }}>
+                  {fournitures.length} article{fournitures.length > 1 ? 's' : ''}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Equipment section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        {activeTab === 'equipements' && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 900, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon d={icons.monitor} size={18} color="#10B981" />
             Équipements
@@ -1054,7 +1170,7 @@ export default function Salle() {
             </div>
           )
         })}
-      </div>
+      </div>}
 
       {lightboxPhoto !== null && (
         <div onClick={() => setLightboxPhoto(null)}

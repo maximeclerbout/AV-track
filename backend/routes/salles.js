@@ -411,4 +411,52 @@ router.delete('/salles/:id/programmes/:fileId', async (req, res) => {
   }
 });
 
+// ── FOURNITURES ────────────────────────────────────────────────────────────
+
+router.get('/salles/:id/fournitures', async (req, res) => {
+  try {
+    const r = await query(
+      'SELECT * FROM salle_fournitures WHERE salle_id = $1 ORDER BY position_ordre, created_at ASC',
+      [req.params.id]
+    );
+    res.json(r.rows);
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
+router.post('/salles/:id/fournitures', async (req, res) => {
+  const { designation, quantite, unite } = req.body;
+  if (!designation?.trim()) return res.status(400).json({ error: 'Désignation requise.' });
+  try {
+    const r = await query(
+      `INSERT INTO salle_fournitures (salle_id, designation, quantite, unite, created_by)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [req.params.id, designation.trim(), parseFloat(quantite) || 1, unite?.trim() || null, req.user.id]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
+router.patch('/salles/:id/fournitures/:fid', async (req, res) => {
+  const { designation, quantite, unite } = req.body;
+  try {
+    const r = await query(
+      `UPDATE salle_fournitures
+       SET designation = COALESCE($1, designation),
+           quantite    = COALESCE($2, quantite),
+           unite       = $3
+       WHERE id = $4 AND salle_id = $5 RETURNING *`,
+      [designation?.trim() || null, quantite != null ? parseFloat(quantite) : null, unite?.trim() || null, req.params.fid, req.params.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Introuvable.' });
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
+router.delete('/salles/:id/fournitures/:fid', async (req, res) => {
+  try {
+    await query('DELETE FROM salle_fournitures WHERE id = $1 AND salle_id = $2', [req.params.fid, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
 module.exports = router;
