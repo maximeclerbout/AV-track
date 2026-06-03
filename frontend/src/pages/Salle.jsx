@@ -65,6 +65,22 @@ const Badge = ({ statut }) => {
   )
 }
 
+// Palette AVTrack — couleur déterministe depuis le nom de catégorie
+const CAT_PALETTE = [
+  '#6366F1','#F59E0B','#10B981','#06B6D4','#8B5CF6',
+  '#EC4899','#EF4444','#F97316','#14B8A6','#A855F7',
+  '#60A5FA','#34D399','#FBBF24','#F87171','#818CF8',
+]
+function getCategoryColor(categorie) {
+  if (!categorie) return null
+  let hash = 0
+  for (let i = 0; i < categorie.length; i++) {
+    hash = ((hash << 5) - hash) + categorie.charCodeAt(i)
+    hash |= 0
+  }
+  return CAT_PALETTE[Math.abs(hash) % CAT_PALETTE.length]
+}
+
 const inputStyle = {
   width: '100%', background: 'var(--surface)',
   border: '1px solid var(--border-2)', borderRadius: 'var(--r-input)',
@@ -293,6 +309,15 @@ export default function Salle() {
     finally { setSaving(false) }
   }
 
+  // Recharge les stocks Warevia automatiquement quand la liste de fournitures change
+  useEffect(() => {
+    const codes = fournitures.map(f => f.warevia_code).filter(Boolean)
+    if (!codes.length) { setWareviaStocks({}); return }
+    axios.get('/api/warevia/stocks', { params: { codes: codes.join(',') } })
+      .then(r => setWareviaStocks(r.data || {}))
+      .catch(() => {})
+  }, [fournitures])
+
   const searchWarevia = (q) => {
     clearTimeout(wareviaTimer.current)
     if (!q || q.length < 2) { setWareviaResults([]); return }
@@ -308,21 +333,9 @@ export default function Salle() {
     if (!newFourniture.designation.trim()) return
     try {
       const res = await axios.post('/api/salles/' + sid + '/fournitures', newFourniture)
-      const added = res.data
-      setFournitures(prev => [...prev, added])
-      setNewFourniture({ designation: '', quantite: 1, unite: '', warevia_code: null, warevia_couleur: null, warevia_categorie: null })
-      // Recharger les stocks Warevia si ce produit a un code
-      if (added.warevia_code) fetchWareviaStocks([...fournitures, added])
+      setFournitures(prev => [...prev, res.data])
+      setNewFourniture({ designation: '', quantite: 1, unite: '', warevia_code: null, warevia_categorie: null })
     } catch { alert('Erreur ajout fourniture.') }
-  }
-
-  const fetchWareviaStocks = async (liste) => {
-    const codes = liste.map(f => f.warevia_code).filter(Boolean)
-    if (!codes.length) return
-    try {
-      const r = await axios.get('/api/warevia/stocks', { params: { codes: codes.join(',') } })
-      setWareviaStocks(r.data || {})
-    } catch { /* fail silently */ }
   }
 
   const saveFourniture = async (id) => {
@@ -710,7 +723,7 @@ export default function Salle() {
                       const stockColor = stock === 0 ? '#EF4444' : stock <= p.quantite_min ? '#F59E0B' : 'var(--accent)'
                       return (
                         <div key={p.code_barre}
-                          onClick={() => { setNewFourniture(f => ({ ...f, designation: p.nom, unite: p.unite || '', warevia_code: p.code_barre, warevia_couleur: p.couleur || '#10B981', warevia_categorie: p.categorie || '' })); setWareviaResults([]) }}
+                          onClick={() => { setNewFourniture(f => ({ ...f, designation: p.nom, unite: p.unite || '', warevia_code: p.code_barre, warevia_categorie: p.categorie || '' })); setWareviaResults([]) }}
                           style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--border)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -756,7 +769,7 @@ export default function Salle() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {fournitures.map((f, idx) => {
-                  const couleur = f.warevia_couleur || 'var(--border-strong)'
+                  const couleur = getCategoryColor(f.warevia_categorie) || 'var(--border-strong)'
                   const ws = f.warevia_code ? wareviaStocks[f.warevia_code] : null
                   const stockInsuff = ws && parseFloat(f.quantite) > ws.quantite
                   const stockOk     = ws && parseFloat(f.quantite) <= ws.quantite
