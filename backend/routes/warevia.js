@@ -68,6 +68,71 @@ router.get('/stocks', async (req, res) => {
   }
 });
 
+// GET /api/warevia/besoins — agrège toutes les fournitures des chantiers actifs et compare au stock
+router.get('/besoins', async (req, res) => {
+  try {
+    const { url, token } = await getWareviaConfig();
+
+    // Agréger fournitures des chantiers non terminés groupées par produit Warevia
+    const r = await require('../db/pool').query(`
+      SELECT
+        sf.warevia_code,
+        sf.warevia_categorie,
+        sf.designation,
+        sf.unite,
+        SUM(sf.quantite) AS total_requis,
+        json_agg(DISTINCT c.nom ORDER BY c.nom) AS chantiers
+      FROM salle_fournitures sf
+      JOIN salles s  ON sf.salle_id     = s.id
+      JOIN chantiers c ON s.chantier_id = c.id
+      WHERE sf.warevia_code IS NOT NULL
+        AND c.statut = 'en_cours'
+      GROUP BY sf.warevia_code, sf.warevia_categorie, sf.designation, sf.unite
+      ORDER BY sf.designation
+    `);
+
+    if (!r.rows.length) return res.json([]);
+
+    // Si Warevia pas configuré → retourner les besoins sans comparaison stock
+    if (!url || !token) {
+      return res.json(r.rows.map(row => ({ ...row, total_requis: parseFloat(row.total_requis), stock_warevia: null, alerte: false })));
+    }
+
+    // Récupérer les stocks pour chaque code Warevia en parallèle
+    const codes = r.rows.map(row => row.warevia_code);
+    const base  = url.replace(/\/$/, '');
+    const stockMap = {};
+
+    await Promise.all(codes.map(async (code) => {
+      try {
+        const resp = await fetch(`${base}/api/public/stock?token=${encodeURIComponent(token)}&q=${encodeURIComponent(code)}`, { signal: AbortSignal.timeout(4000) });
+        if (!resp.ok) return;
+        const results = await resp.json();
+        if (Array.isArray(results)) {
+          const match = results.find(p => p.code_barre === code);
+          if (match) stockMap[code] = { quantite: match.quantite, unite: match.unite };
+        }
+      } catch { /* ignore */ }
+    }));
+
+    const besoins = r.rows.map(row => {
+      const totalReq  = parseFloat(row.total_requis);
+      const stockInfo = stockMap[row.warevia_code];
+      return {
+        ...row,
+        total_requis:  totalReq,
+        stock_warevia: stockInfo?.quantite ?? null,
+        alerte:        stockInfo !== undefined && totalReq > stockInfo.quantite,
+      };
+    });
+
+    res.json(besoins);
+  } catch (err) {
+    console.error('[Warevia] Besoins error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/warevia/status — vérifie que la connexion fonctionne
 router.get('/status', async (req, res) => {
   try {
