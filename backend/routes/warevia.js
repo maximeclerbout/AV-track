@@ -86,7 +86,7 @@ router.get('/besoins', async (req, res) => {
       JOIN salles s  ON sf.salle_id     = s.id
       JOIN chantiers c ON s.chantier_id = c.id
       WHERE sf.warevia_code IS NOT NULL
-        AND c.statut = 'en_cours'
+        AND c.statut != 'termine'
       GROUP BY sf.warevia_code, sf.warevia_categorie, sf.designation, sf.unite
       ORDER BY sf.designation
     `);
