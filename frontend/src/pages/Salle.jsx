@@ -736,8 +736,7 @@ export default function Salle() {
         )}
 
         {/* Equipment section */}
-        {activeTab === 'equipements' && (
-        <div style={{ display: 'contents' }}>
+        <div style={{ display: activeTab === 'equipements' ? 'block' : 'none' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 900, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon d={icons.monitor} size={18} color="#10B981" />
@@ -1174,7 +1173,6 @@ export default function Salle() {
         })}
       </div>
         </div>
-        )}
 
       {lightboxPhoto !== null && (
         <div onClick={() => setLightboxPhoto(null)}
