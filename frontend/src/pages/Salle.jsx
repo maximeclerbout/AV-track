@@ -723,7 +723,11 @@ export default function Salle() {
                       const stockColor = stock === 0 ? '#EF4444' : stock <= p.quantite_min ? '#F59E0B' : 'var(--accent)'
                       return (
                         <div key={p.code_barre}
-                          onClick={() => { setNewFourniture(f => ({ ...f, designation: p.nom, unite: p.unite || '', warevia_code: p.code_barre, warevia_categorie: p.categorie || '' })); setWareviaResults([]) }}
+                          onClick={() => {
+                            setNewFourniture(f => ({ ...f, designation: p.nom, unite: p.unite || '', warevia_code: p.code_barre, warevia_categorie: p.categorie || '' }))
+                            setWareviaStocks(prev => ({ ...prev, [p.code_barre]: { quantite: p.quantite, quantite_min: p.quantite_min, unite: p.unite } }))
+                            setWareviaResults([])
+                          }}
                           style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--border)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
