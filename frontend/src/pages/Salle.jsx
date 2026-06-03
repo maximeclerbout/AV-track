@@ -111,6 +111,7 @@ export default function Salle() {
   const [editFournitureId, setEditFournitureId] = useState(null)
   const [editFournitureForm, setEditFournitureForm] = useState({})
   const [wareviaResults, setWareviaResults] = useState([])
+  const [wareviaStocks, setWareviaStocks] = useState({})
   const wareviaTimer = useRef(null)
   const [editProduit, setEditProduit] = useState(null)
   const [editProduitForm, setEditProduitForm] = useState({})
@@ -150,7 +151,7 @@ export default function Salle() {
         axios.get('/api/salles/' + sid + '/photos').then(r => setPhotos(r.data)).catch(() => {})
         axios.get('/api/salles/' + sid + '/videos').then(r => setVideos(r.data)).catch(() => {})
         axios.get('/api/salles/' + sid + '/programmes').then(r => setProgrammes(r.data)).catch(() => {})
-        axios.get('/api/salles/' + sid + '/fournitures').then(r => setFournitures(r.data)).catch(() => {})
+        axios.get('/api/salles/' + sid + '/fournitures').then(r => { setFournitures(r.data); fetchWareviaStocks(r.data) }).catch(() => {})
       })
       .finally(() => setLoading(false))
   }, [cid, sid])
@@ -307,9 +308,21 @@ export default function Salle() {
     if (!newFourniture.designation.trim()) return
     try {
       const res = await axios.post('/api/salles/' + sid + '/fournitures', newFourniture)
-      setFournitures(prev => [...prev, res.data])
-      setNewFourniture({ designation: '', quantite: 1, unite: '' })
+      const added = res.data
+      setFournitures(prev => [...prev, added])
+      setNewFourniture({ designation: '', quantite: 1, unite: '', warevia_code: null, warevia_couleur: null, warevia_categorie: null })
+      // Recharger les stocks Warevia si ce produit a un code
+      if (added.warevia_code) fetchWareviaStocks([...fournitures, added])
     } catch { alert('Erreur ajout fourniture.') }
+  }
+
+  const fetchWareviaStocks = async (liste) => {
+    const codes = liste.map(f => f.warevia_code).filter(Boolean)
+    if (!codes.length) return
+    try {
+      const r = await axios.get('/api/warevia/stocks', { params: { codes: codes.join(',') } })
+      setWareviaStocks(r.data || {})
+    } catch { /* fail silently */ }
   }
 
   const saveFourniture = async (id) => {
@@ -697,7 +710,7 @@ export default function Salle() {
                       const stockColor = stock === 0 ? '#EF4444' : stock <= p.quantite_min ? '#F59E0B' : 'var(--accent)'
                       return (
                         <div key={p.code_barre}
-                          onClick={() => { setNewFourniture(f => ({ ...f, designation: p.nom, unite: p.unite || '' })); setWareviaResults([]) }}
+                          onClick={() => { setNewFourniture(f => ({ ...f, designation: p.nom, unite: p.unite || '', warevia_code: p.code_barre, warevia_couleur: p.couleur || '#10B981', warevia_categorie: p.categorie || '' })); setWareviaResults([]) }}
                           style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--border)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -742,9 +755,14 @@ export default function Salle() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {fournitures.map((f, idx) => (
-                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '1px solid var(--border-2)', borderRadius: 'var(--r-card)', padding: '10px 14px' }}>
-                    <span style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--accent-soft)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{idx + 1}</span>
+                {fournitures.map((f, idx) => {
+                  const couleur = f.warevia_couleur || 'var(--border-strong)'
+                  const ws = f.warevia_code ? wareviaStocks[f.warevia_code] : null
+                  const stockInsuff = ws && parseFloat(f.quantite) > ws.quantite
+                  const stockOk     = ws && parseFloat(f.quantite) <= ws.quantite
+                  return (
+                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '1px solid var(--border-2)', borderLeft: `3px solid ${couleur}`, borderRadius: 'var(--r-card)', padding: '10px 14px' }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 6, background: couleur + '22', color: couleur, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{idx + 1}</span>
 
                     {editFournitureId === f.id ? (
                       <>
@@ -756,9 +774,17 @@ export default function Salle() {
                       </>
                     ) : (
                       <>
-                        <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{f.designation}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{f.designation}</div>
+                          {f.warevia_categorie && <div style={{ fontSize: 10, color: couleur, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 1 }}>{f.warevia_categorie}</div>}
+                        </div>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 800, color: 'var(--accent)', flexShrink: 0 }}>×{parseFloat(f.quantite) % 1 === 0 ? parseInt(f.quantite) : f.quantite}</span>
                         {f.unite && <span style={{ fontSize: 12, color: 'var(--fg-3)', flexShrink: 0 }}>{f.unite}</span>}
+                        {ws && (
+                          <span title={`Stock Warevia : ${ws.quantite} ${ws.unite || ''}`} style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '2px 7px', borderRadius: 20, flexShrink: 0, background: stockInsuff ? 'rgba(239,68,68,0.12)' : 'var(--accent-soft)', color: stockInsuff ? '#EF4444' : 'var(--accent)', border: `1px solid ${stockInsuff ? 'rgba(239,68,68,0.3)' : 'var(--accent)'}` }}>
+                            {stockInsuff ? '⚠ ' : ''}stock {ws.quantite}
+                          </span>
+                        )}
                         <button onClick={() => { setEditFournitureId(f.id); setEditFournitureForm({ designation: f.designation, quantite: f.quantite, unite: f.unite || '' }) }}
                           style={{ background: 'none', border: '1px solid var(--border-2)', borderRadius: 6, padding: '5px 9px', cursor: 'pointer', color: 'var(--fg-3)', fontSize: 12 }}>✏️</button>
                         <button onClick={() => deleteFourniture(f.id)}
@@ -768,7 +794,7 @@ export default function Salle() {
                       </>
                     )}
                   </div>
-                ))}
+                )})}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, fontSize: 12, color: 'var(--fg-3)', fontFamily: 'var(--font-mono)' }}>
                   {fournitures.length} article{fournitures.length > 1 ? 's' : ''}
                 </div>

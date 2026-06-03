@@ -424,13 +424,14 @@ router.get('/salles/:id/fournitures', async (req, res) => {
 });
 
 router.post('/salles/:id/fournitures', async (req, res) => {
-  const { designation, quantite, unite } = req.body;
+  const { designation, quantite, unite, warevia_code, warevia_couleur, warevia_categorie } = req.body;
   if (!designation?.trim()) return res.status(400).json({ error: 'Désignation requise.' });
   try {
     const r = await query(
-      `INSERT INTO salle_fournitures (salle_id, designation, quantite, unite, created_by)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [req.params.id, designation.trim(), parseFloat(quantite) || 1, unite?.trim() || null, req.user.id]
+      `INSERT INTO salle_fournitures (salle_id, designation, quantite, unite, warevia_code, warevia_couleur, warevia_categorie, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.params.id, designation.trim(), parseFloat(quantite) || 1, unite?.trim() || null,
+       warevia_code || null, warevia_couleur || null, warevia_categorie || null, req.user.id]
     );
     res.status(201).json(r.rows[0]);
   } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
