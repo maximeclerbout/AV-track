@@ -23,9 +23,9 @@ html.theme-v1 {
   --accent-fg:   #ffffff;
   --accent-soft: rgba(16,185,129,0.12);
 
-  --status-a_faire:    #60A5FA;
+  --status-a_faire:    #94A3B8;
   --status-en_cours:   #F59E0B;
-  --status-a_terminer: #6366F1;
+  --status-a_terminer: #F97316;
   --status-probleme:   #EF4444;
   --status-termine:    #10B981;
 
@@ -66,9 +66,9 @@ html.theme-v2 {
   --accent-fg:   var(--ink-900);
   --accent-soft: var(--signal-100);
 
-  --status-a_faire:    var(--ink-400);
+  --status-a_faire:    #94A3B8;
   --status-en_cours:   var(--signal-500);
-  --status-a_terminer: var(--atlas-500);
+  --status-a_terminer: #F97316;
   --status-probleme:   var(--vigie-500);
   --status-termine:    var(--sentinel-500);
 
