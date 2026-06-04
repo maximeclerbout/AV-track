@@ -337,14 +337,18 @@ function ValidationModal({ chantier, onClose }) {
   const [filterSalle, setFilterSalle] = useState('toutes')
   const [commentOpen, setCommentOpen] = useState(new Set())
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [autoSaveStatus, setAutoSaveStatus] = useState('') // '' | 'saving' | 'saved'
   const [sigModal, setSigModal] = useState(null) // 'client' | 'tech'
+  const saveTimerRef = useRef(null)
+  const validationRef = useRef(null)
+  const allProduitsRef = useRef([])
 
   const sallesAvecProduits = (chantier.salles || [])
     .filter(s => (s.produits || []).length > 0)
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true }))
 
   const allProduits = sallesAvecProduits.flatMap(s => s.produits || [])
+  allProduitsRef.current = allProduits
   const total = allProduits.length
   const done = Object.values(articles).filter(a => a.valide).length
   const pct = total ? Math.round((done / total) * 100) : 0
@@ -353,6 +357,7 @@ function ValidationModal({ chantier, onClose }) {
     axios.get(`/api/validations/chantier/${chantier.id}`)
       .then(res => {
         setValidation(res.data)
+        validationRef.current = res.data
         const map = {}
         res.data.articles.forEach(a => { map[a.produit_id] = { valide: a.valide, commentaire: a.commentaire || '' } })
         setArticles(map)
@@ -360,6 +365,25 @@ function ValidationModal({ chantier, onClose }) {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [chantier.id])
+
+  // Auto-save déclenché 800ms après chaque modification
+  useEffect(() => {
+    if (loading || !validationRef.current) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    setAutoSaveStatus('saving')
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        const payload = allProduitsRef.current.map(p => ({
+          produit_id: p.id,
+          valide: articles[p.id]?.valide || false,
+          commentaire: articles[p.id]?.commentaire || ''
+        }))
+        await axios.patch(`/api/validations/${validationRef.current.id}/articles`, { articles: payload })
+        setAutoSaveStatus('saved')
+        setTimeout(() => setAutoSaveStatus(''), 2000)
+      } catch { setAutoSaveStatus('') }
+    }, 800)
+  }, [articles])
 
   const getArt = (pid) => articles[pid] || { valide: false, commentaire: '' }
 
@@ -381,20 +405,11 @@ function ValidationModal({ chantier, onClose }) {
     })
   }
 
-  const handleSave = async () => {
-    if (!validation) return
-    setSaving(true)
-    try {
-      const payload = allProduits.map(p => ({ produit_id: p.id, ...getArt(p.id) }))
-      await axios.patch(`/api/validations/${validation.id}/articles`, { articles: payload })
-    } catch { alert('Erreur lors de la sauvegarde.') }
-    finally { setSaving(false) }
-  }
-
   const reloadValidation = async () => {
     try {
       const res = await axios.get(`/api/validations/chantier/${chantier.id}`)
       setValidation(res.data)
+      validationRef.current = res.data
     } catch {}
   }
 
@@ -574,7 +589,7 @@ function ValidationModal({ chantier, onClose }) {
           )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button onClick={() => setArticles(Object.fromEntries(allProduits.map(p => [p.id, { ...getArt(p.id), valide: false }])))}
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--fg-3)', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
                 Tout décocher
@@ -585,6 +600,8 @@ function ValidationModal({ chantier, onClose }) {
                   Tout valider
                 </button>
               )}
+              {autoSaveStatus === 'saving' && <span style={{ fontSize: 11, color: 'var(--fg-3)' }}>Sauvegarde...</span>}
+              {autoSaveStatus === 'saved'  && <span style={{ fontSize: 11, color: 'var(--accent)' }}>✓ Sauvegardé</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {validation && (
@@ -593,9 +610,9 @@ function ValidationModal({ chantier, onClose }) {
                   <Icon d={icons.download} size={13} color="#EF4444" /> PDF
                 </button>
               )}
-              <button onClick={handleSave} disabled={saving || !validation}
-                style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '7px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Icon d={icons.check} size={13} color="#fff" /> {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+              <button onClick={onClose}
+                style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '7px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon d={icons.check} size={13} color="#fff" /> OK
               </button>
             </div>
           </div>

@@ -130,11 +130,16 @@ router.get('/:id/pdf', async (req, res) => {
     const CM_X  = M + 370
     const OK_X  = W - M - 16
 
+    // Remplace les caractères hors Latin-1 qui font planter Helvetica
+    const sanitize = (text) => String(text || '')
+      .replace(/—/g, '-').replace(/–/g, '-')
+      .replace(/…/g, '...').replace(/[^\x00-\xFF]/g, '?')
+
     const trunc = (text, f, size, maxW) => {
-      let t = String(text || '')
+      let t = sanitize(text)
       if (f.widthOfTextAtSize(t, size) <= maxW) return t
-      while (t.length > 0 && f.widthOfTextAtSize(t + '…', size) > maxW) t = t.slice(0, -1)
-      return t + '…'
+      while (t.length > 0 && f.widthOfTextAtSize(t + '...', size) > maxW) t = t.slice(0, -1)
+      return t + '...'
     }
 
     let page, y
@@ -144,7 +149,7 @@ router.get('/:id/pdf', async (req, res) => {
       // Header vert
       page.drawRectangle({ x: 0, y: H - 50, width: W, height: 50, color: GREEN })
       page.drawText('AVTrack Pro', { x: M, y: H - 33, font: fontB, size: 16, color: WHITE })
-      page.drawText('Validation client', { x: W - M - 110, y: H - 33, font: fontR, size: 11, color: WHITE })
+      page.drawText('Validation client', { x: W - M - 115, y: H - 33, font: fontR, size: 11, color: WHITE })
       // Footer
       const foot = `${chantier.nom}${chantier.client ? ' — ' + chantier.client : ''}`
       page.drawText(foot, { x: M, y: 18, font: fontR, size: 8, color: GRAY })
@@ -161,14 +166,14 @@ router.get('/:id/pdf', async (req, res) => {
 
     const info = (label, value, dy) => {
       page.drawText(label, { x: M + 8, y: y - dy, font: fontB, size: 9, color: GRAY })
-      page.drawText(trunc(value || '—', fontR, 10, CW - 85), { x: M + 70, y: y - dy, font: fontR, size: 10, color: DARK })
+      page.drawText(trunc(value || '-', fontR, 10, CW - 85), { x: M + 70, y: y - dy, font: fontR, size: 10, color: DARK })
     }
     info('Chantier :', chantier.nom, 14)
     info('Client :',   chantier.client, 28)
-    if (chantier.nom_contact) info('Contact :', chantier.nom_contact + (chantier.telephone ? ' — ' + chantier.telephone : ''), 42)
+    if (chantier.nom_contact) info('Contact :', chantier.nom_contact + (chantier.telephone ? ' - ' + chantier.telephone : ''), 42)
     info('Adresse :', chantier.adresse, 56)
     const dateStr = new Date().toLocaleDateString('fr-FR')
-    page.drawText(`Édité le ${dateStr}`, { x: M + 8, y: y - 69, font: fontR, size: 8, color: GRAY })
+    page.drawText('Edite le ' + dateStr, { x: M + 8, y: y - 69, font: fontR, size: 8, color: GRAY })
     y -= 84
 
     // ── Équipements par salle ───────────────────────────────────
@@ -179,7 +184,7 @@ router.get('/:id/pdf', async (req, res) => {
       // Bandeau salle
       const nbOk = salle.produits.filter(p => artMap[p.id]?.valide).length
       page.drawRectangle({ x: M, y: y - 24, width: CW, height: 25, color: DARK })
-      page.drawText(trunc(`${salle.nom}${salle.etage ? '  —  ' + salle.etage : ''}`, fontB, 10, CW - 60), { x: M + 8, y: y - 16, font: fontB, size: 10, color: WHITE })
+      page.drawText(trunc(salle.nom + (salle.etage ? '  -  ' + salle.etage : ''), fontB, 10, CW - 60), { x: M + 8, y: y - 16, font: fontB, size: 10, color: WHITE })
       const cntColor = nbOk === salle.produits.length ? rgb(0.6, 1, 0.8) : WHITE
       page.drawText(`${nbOk}/${salle.produits.length}`, { x: OK_X - 20, y: y - 16, font: fontB, size: 10, color: cntColor })
       y -= 27
@@ -188,9 +193,9 @@ router.get('/:id/pdf', async (req, res) => {
       ensure(20)
       page.drawRectangle({ x: M, y: y - 18, width: CW, height: 19, color: rgb(0.91, 0.95, 0.92) })
       const hY = y - 12
-      page.drawText('Équipement / Marque', { x: TY_X, y: hY, font: fontB, size: 8, color: GRAY })
-      page.drawText('Référence / S/N',      { x: RF_X, y: hY, font: fontB, size: 8, color: GRAY })
-      page.drawText('Commentaire',           { x: CM_X, y: hY, font: fontB, size: 8, color: GRAY })
+      page.drawText('Equipement / Marque',  { x: TY_X, y: hY, font: fontB, size: 8, color: GRAY })
+      page.drawText('Reference / S/N',      { x: RF_X, y: hY, font: fontB, size: 8, color: GRAY })
+      page.drawText('Commentaire',          { x: CM_X, y: hY, font: fontB, size: 8, color: GRAY })
       page.drawText('OK',                    { x: OK_X, y: hY, font: fontB, size: 8, color: GRAY })
       y -= 21
 
@@ -222,7 +227,7 @@ router.get('/:id/pdf', async (req, res) => {
         const typeStr = trunc([p.type_equipement, p.marque, p.modele].filter(Boolean).join(' '), fontR, 9, RF_X - TY_X - 6)
         page.drawText(typeStr, { x: TY_X, y: tY, font: ok ? fontB : fontR, size: 9, color: ok ? rgb(0.02, 0.45, 0.28) : DARK })
 
-        const refStr = trunc([p.reference, p.serial_number ? 'S/N: ' + p.serial_number : ''].filter(Boolean).join(' / '), fontR, 8, CM_X - RF_X - 6)
+        const refStr = trunc([p.reference, p.serial_number ? 'S/N:' + p.serial_number : ''].filter(Boolean).join(' / '), fontR, 8, CM_X - RF_X - 6)
         page.drawText(refStr, { x: RF_X, y: tY, font: fontR, size: 8, color: GRAY })
 
         if (cmt) {
@@ -240,6 +245,7 @@ router.get('/:id/pdf', async (req, res) => {
     ensure(SIG_H + 30)
     y -= 16
     page.drawText('Signatures', { x: M, y, font: fontB, size: 12, color: DARK })
+
     y -= 12
 
     const sigW = (CW - 16) / 2
@@ -263,12 +269,13 @@ router.get('/:id/pdf', async (req, res) => {
           } catch (_) {}
         }
       } else {
-        page.drawText('Non signé', { x: x + 8, y: bx - SIG_H / 2 + 4, font: fontR, size: 10, color: rgb(0.75, 0.25, 0.25) })
+        page.drawText('Non signe', { x: x + 8, y: bx - SIG_H / 2 + 4, font: fontR, size: 10, color: rgb(0.75, 0.25, 0.25) })
       }
     }
 
     await drawSigBox(clientX, y, 'Client', val.signature_client, val.nom_signataire_client, val.date_signature_client, GREEN, GREEN)
     await drawSigBox(techX,   y, 'Technicien AVI', val.signature_tech, val.nom_signataire_tech, val.date_signature_tech, INDIGO, INDIGO)
+
 
     const pdfBytes = await pdfDoc.save()
     const safe = chantier.nom.replace(/[^a-zA-Z0-9-_]/g, '_')
