@@ -469,23 +469,15 @@ function ValidationModal({ chantier, onClose }) {
             </div>
           </div>
 
-          {/* Filtres par salle */}
-          {sallesAvecProduits.length > 1 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button onClick={() => setFilterSalle('toutes')} style={{ padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (filterSalle === 'toutes' ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.1)'), background: filterSalle === 'toutes' ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', color: filterSalle === 'toutes' ? 'var(--accent)' : 'var(--fg-3)' }}>
-                Toutes
-              </button>
-              {sallesAvecProduits.map(s => {
-                const nb = (s.produits || []).filter(p => getArt(p.id).valide).length
-                const active = filterSalle === String(s.id)
-                return (
-                  <button key={s.id} onClick={() => setFilterSalle(String(s.id))} style={{ padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (active ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.1)'), background: active ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', color: active ? 'var(--accent)' : 'var(--fg-3)' }}>
-                    {s.nom} <span style={{ opacity: 0.7 }}>({nb}/{(s.produits || []).length})</span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
+          {/* Filtre salle — menu déroulant */}
+          <select value={filterSalle} onChange={e => setFilterSalle(e.target.value)}
+            style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '8px 12px', color: 'var(--fg)', fontSize: 13, cursor: 'pointer', outline: 'none' }}>
+            <option value="toutes">Toutes les salles ({done}/{total})</option>
+            {sallesAvecProduits.map(s => {
+              const nb = (s.produits || []).filter(p => getArt(p.id).valide).length
+              return <option key={s.id} value={String(s.id)}>{s.nom}{s.etage ? ' — ' + s.etage : ''} ({nb}/{(s.produits || []).length})</option>
+            })}
+          </select>
         </div>
 
         {/* Liste */}
