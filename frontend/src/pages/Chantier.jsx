@@ -334,7 +334,7 @@ function ValidationSignModal({ validationId, type, onClose, onSigned }) {
 function ValidationModal({ chantier, onClose }) {
   const [validation, setValidation] = useState(null)
   const [articles, setArticles] = useState({}) // { produit_id: { valide, commentaire } }
-  const [openSalles, setOpenSalles] = useState(new Set())
+  const [filterSalle, setFilterSalle] = useState('toutes')
   const [commentOpen, setCommentOpen] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [autoSaveStatus, setAutoSaveStatus] = useState('') // '' | 'saving' | 'saved'
@@ -361,11 +361,6 @@ function ValidationModal({ chantier, onClose }) {
         const map = {}
         res.data.articles.forEach(a => { map[a.produit_id] = { valide: a.valide, commentaire: a.commentaire || '' } })
         setArticles(map)
-        // Ouvrir la première salle par défaut
-        if (res.data) {
-          const firstSalle = (chantier.salles || []).find(s => (s.produits || []).length > 0)
-          if (firstSalle) setOpenSalles(new Set([firstSalle.id]))
-        }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -474,10 +469,23 @@ function ValidationModal({ chantier, onClose }) {
             </div>
           </div>
 
-          {/* Résumé global */}
-          <div style={{ fontSize: 11, color: 'var(--fg-3)' }}>
-            {sallesAvecProduits.length} salle{sallesAvecProduits.length > 1 ? 's' : ''} — cliquer sur une salle pour déplier
-          </div>
+          {/* Filtres par salle */}
+          {sallesAvecProduits.length > 1 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button onClick={() => setFilterSalle('toutes')} style={{ padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (filterSalle === 'toutes' ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.1)'), background: filterSalle === 'toutes' ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', color: filterSalle === 'toutes' ? 'var(--accent)' : 'var(--fg-3)' }}>
+                Toutes
+              </button>
+              {sallesAvecProduits.map(s => {
+                const nb = (s.produits || []).filter(p => getArt(p.id).valide).length
+                const active = filterSalle === String(s.id)
+                return (
+                  <button key={s.id} onClick={() => setFilterSalle(String(s.id))} style={{ padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (active ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.1)'), background: active ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', color: active ? 'var(--accent)' : 'var(--fg-3)' }}>
+                    {s.nom} <span style={{ opacity: 0.7 }}>({nb}/{(s.produits || []).length})</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Liste */}
@@ -485,96 +493,79 @@ function ValidationModal({ chantier, onClose }) {
           {loading && <div style={{ textAlign: 'center', color: 'var(--fg-3)', padding: '40px 0', fontSize: 13 }}>Chargement...</div>}
           {!loading && total === 0 && <div style={{ textAlign: 'center', color: 'var(--fg-mute)', padding: '40px 0', fontSize: 13 }}>Aucun équipement dans ce chantier</div>}
 
-          {!loading && sallesAvecProduits.map(salle => {
-            const ids = (salle.produits || []).map(p => p.id)
-            const nbOk = ids.filter(id => getArt(id).valide).length
-            const allOk = ids.length > 0 && nbOk === ids.length
-            const isOpen = openSalles.has(salle.id)
-            const toggleOpen = () => setOpenSalles(prev => { const n = new Set(prev); n.has(salle.id) ? n.delete(salle.id) : n.add(salle.id); return n })
-            return (
-              <div key={salle.id} style={{ marginTop: 8 }}>
-                {/* Bandeau salle accordéon */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: allOk ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (allOk ? 'rgba(16,185,129,0.35)' : 'rgba(255,255,255,0.1)'), borderRadius: isOpen ? '10px 10px 0 0' : 10 }}>
-                  {/* Zone clic déplier */}
-                  <div onClick={toggleOpen} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', cursor: 'pointer' }}>
-                    {/* Chevron */}
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                      style={{ color: 'var(--fg-3)', flexShrink: 0, transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}>
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{salle.nom}</span>
-                    {salle.etage && <span style={{ fontSize: 11, color: 'var(--fg-3)' }}>{salle.etage}</span>}
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: allOk ? 'var(--accent)' : 'var(--fg-3)', background: allOk ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.06)', padding: '1px 7px', borderRadius: 10, marginLeft: 2 }}>{nbOk}/{ids.length}</span>
+          {!loading && (() => {
+            const sallesFiltrees = filterSalle === 'toutes'
+              ? sallesAvecProduits
+              : sallesAvecProduits.filter(s => String(s.id) === filterSalle)
+
+            return sallesFiltrees.map(salle => {
+              const ids = (salle.produits || []).map(p => p.id)
+              const nbOk = ids.filter(id => getArt(id).valide).length
+              const allOk = ids.length > 0 && nbOk === ids.length
+              return (
+                <div key={salle.id} style={{ marginTop: 14 }}>
+                  {/* Bandeau salle */}
+                  <div onClick={() => toggleSalle(salle)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 14px', background: allOk ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (allOk ? 'rgba(16,185,129,0.35)' : 'rgba(255,255,255,0.1)'), borderRadius: 10, marginBottom: 4, cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg)' }}>{salle.nom}</span>
+                      {salle.etage && <span style={{ fontSize: 11, color: 'var(--fg-3)' }}>{salle.etage}</span>}
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: allOk ? 'var(--accent)' : 'var(--fg-3)', background: allOk ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.06)', padding: '1px 7px', borderRadius: 10 }}>{nbOk}/{ids.length}</span>
+                    </div>
+                    <div style={{ width: 18, height: 18, borderRadius: 5, border: '2px solid ' + (allOk ? 'var(--accent)' : 'rgba(255,255,255,0.2)'), background: allOk ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
+                      {allOk && <Icon d={icons.check} size={10} color="#fff" />}
+                    </div>
                   </div>
-                  {/* Checkbox valider tout la salle */}
-                  <div onClick={() => toggleSalle(salle)} title="Valider / dévalider toute la salle"
-                    style={{ width: 20, height: 20, borderRadius: 5, border: '2px solid ' + (allOk ? 'var(--accent)' : 'rgba(255,255,255,0.2)'), background: allOk ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all .15s', marginRight: 12 }}>
-                    {allOk && <Icon d={icons.check} size={10} color="#fff" />}
-                  </div>
-                </div>
 
-                {/* Produits (masqués si fermé) */}
-                {isOpen && (
-                  <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden', marginBottom: 2 }}>
-                    {(salle.produits || []).map((p, i) => {
-                      const art = getArt(p.id)
-                      const ok = art.valide
-                      const hasCmt = commentOpen.has(p.id)
-                      const nomArticle = p.reference || p.type_equipement
-                      return (
-                        <div key={p.id}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: ok ? 'rgba(16,185,129,0.06)' : i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent', borderLeft: '3px solid ' + (ok ? 'var(--accent)' : 'transparent') }}>
-                            {/* Checkbox */}
-                            <div onClick={() => toggle(p.id)} style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid ' + (ok ? 'var(--accent)' : 'rgba(255,255,255,0.25)'), background: ok ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all .15s' }}>
-                              {ok && <Icon d={icons.check} size={11} color="#fff" />}
-                            </div>
-
-                            {/* Infos */}
-                            <div onClick={() => toggle(p.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
-                              {/* Nom article en principal (blanc gras) */}
-                              <div style={{ fontSize: 13, fontWeight: 700, color: ok ? 'var(--accent)' : 'var(--fg)', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {nomArticle}
-                              </div>
-                              {/* Catégorie + marque/modèle en secondaire */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: 11, color: 'var(--fg-3)' }}>{p.type_equipement}</span>
-                                {(p.marque || p.modele) && <span style={{ fontSize: 11, color: 'var(--fg-3)', fontStyle: 'italic' }}>{[p.marque, p.modele].filter(Boolean).join(' ')}</span>}
-                                {p.serial_number && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-mute)' }}>S/N: {p.serial_number}</span>}
-                              </div>
-                              {art.commentaire && !hasCmt && <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 2 }}>💬 {art.commentaire}</div>}
-                            </div>
-
-                            {ok && <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>✓</span>}
-
-                            {/* Bouton commentaire */}
-                            <button
-                              onClick={() => setCommentOpen(prev => { const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n })}
-                              title="Commentaire"
-                              style={{ background: art.commentaire ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (art.commentaire ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.08)'), color: art.commentaire ? '#F59E0B' : 'var(--fg-3)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 12, flexShrink: 0 }}>
-                              💬
-                            </button>
+                  {/* Liste articles */}
+                  {(salle.produits || []).map((p, i) => {
+                    const art = getArt(p.id)
+                    const ok = art.valide
+                    const hasCmt = commentOpen.has(p.id)
+                    const nomArticle = p.reference || p.type_equipement
+                    return (
+                      <div key={p.id} style={{ marginBottom: 2 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: ok ? 'rgba(16,185,129,0.06)' : i % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'transparent', borderRadius: 8, borderLeft: '3px solid ' + (ok ? 'var(--accent)' : 'transparent') }}>
+                          {/* Checkbox */}
+                          <div onClick={() => toggle(p.id)} style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid ' + (ok ? 'var(--accent)' : 'rgba(255,255,255,0.25)'), background: ok ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all .15s' }}>
+                            {ok && <Icon d={icons.check} size={11} color="#fff" />}
                           </div>
 
-                          {/* Zone commentaire */}
-                          {hasCmt && (
-                            <div style={{ padding: '5px 12px 5px 46px', background: 'rgba(245,158,11,0.03)' }}>
-                              <input
-                                value={art.commentaire}
-                                onChange={e => setComment(p.id, e.target.value)}
-                                placeholder="Commentaire sur cet article..."
-                                autoFocus
-                                style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '6px 10px', color: 'var(--fg)', fontSize: 12, outline: 'none' }}
-                              />
+                          {/* Infos */}
+                          <div onClick={() => toggle(p.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: ok ? 'var(--accent)' : 'var(--fg)', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {nomArticle}
                             </div>
-                          )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 11, color: 'var(--fg-3)' }}>{p.type_equipement}</span>
+                              {(p.marque || p.modele) && <span style={{ fontSize: 11, color: 'var(--fg-3)', fontStyle: 'italic' }}>{[p.marque, p.modele].filter(Boolean).join(' ')}</span>}
+                              {p.serial_number && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-mute)' }}>S/N: {p.serial_number}</span>}
+                            </div>
+                            {art.commentaire && !hasCmt && <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 2 }}>💬 {art.commentaire}</div>}
+                          </div>
+
+                          {ok && <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>✓</span>}
+
+                          <button onClick={() => setCommentOpen(prev => { const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n })}
+                            title="Commentaire"
+                            style={{ background: art.commentaire ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (art.commentaire ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.08)'), color: art.commentaire ? '#F59E0B' : 'var(--fg-3)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 12, flexShrink: 0 }}>
+                            💬
+                          </button>
                         </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+
+                        {hasCmt && (
+                          <div style={{ padding: '5px 12px 5px 46px', background: 'rgba(245,158,11,0.03)' }}>
+                            <input value={art.commentaire} onChange={e => setComment(p.id, e.target.value)}
+                              placeholder="Commentaire sur cet article..." autoFocus
+                              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '6px 10px', color: 'var(--fg)', fontSize: 12, outline: 'none' }} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })
+          })()}
         </div>
 
         {/* Footer */}
