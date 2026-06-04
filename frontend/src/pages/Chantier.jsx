@@ -31,6 +31,7 @@ const icons = {
   pen: "M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z",
   check: "M20 6L9 17l-5-5",
   trash: "M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
+  clipCheck: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4",
 }
 
 const Badge = ({ statut }) => {
@@ -243,6 +244,187 @@ function BLSignatureModal({ bl, onClose, onSigned }) {
   )
 }
 
+function ValidationModal({ chantier, onClose }) {
+  const [checked, setChecked] = useState(new Set())
+  const [filterSalle, setFilterSalle] = useState('toutes')
+
+  const sallesAvecProduits = (chantier.salles || [])
+    .filter(s => (s.produits || []).length > 0)
+    .sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true }))
+
+  const allProduits = sallesAvecProduits.flatMap(s =>
+    (s.produits || []).map(p => ({ ...p, salle_id: s.id }))
+  )
+  const total = allProduits.length
+  const done = checked.size
+  const pct = total ? Math.round((done / total) * 100) : 0
+
+  const toggle = (id) => {
+    setChecked(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSalle = (salle) => {
+    const ids = (salle.produits || []).map(p => p.id)
+    const allChecked = ids.every(id => checked.has(id))
+    setChecked(prev => {
+      const next = new Set(prev)
+      if (allChecked) ids.forEach(id => next.delete(id))
+      else ids.forEach(id => next.add(id))
+      return next
+    })
+  }
+
+  const sallesFiltrees = filterSalle === 'toutes'
+    ? sallesAvecProduits
+    : sallesAvecProduits.filter(s => String(s.id) === filterSalle)
+
+  const chipBtn = (active, onClick, label) => (
+    <button onClick={onClick} style={{
+      padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+      border: '1px solid ' + (active ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.1)'),
+      background: active ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)',
+      color: active ? 'var(--accent)' : 'var(--fg-3)',
+    }}>{label}</button>
+  )
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, width: '100%', maxWidth: 760, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+
+        {/* Header */}
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--fg)', marginBottom: 4 }}>
+                Validation client
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+                {chantier.client && <span>👤 {chantier.client}{chantier.nom_contact ? ' — ' + chantier.nom_contact : ''}</span>}
+                {!chantier.client && <span style={{ fontStyle: 'italic' }}>Client non renseigné</span>}
+              </div>
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20, flexShrink: 0 }}>✕</button>
+          </div>
+
+          {/* Barre de progression */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>{done}/{total} équipement{total > 1 ? 's' : ''} validé{done > 1 ? 's' : ''}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: pct === 100 ? 'var(--accent)' : 'var(--fg)' }}>{pct}%</span>
+            </div>
+            <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: pct + '%', background: pct === 100 ? 'var(--accent)' : '#F59E0B', borderRadius: 99, transition: '.4s' }} />
+            </div>
+          </div>
+
+          {/* Filtre par salle */}
+          {sallesAvecProduits.length > 1 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {chipBtn(filterSalle === 'toutes', () => setFilterSalle('toutes'), 'Toutes les salles')}
+              {sallesAvecProduits.map(s => {
+                const ids = (s.produits || []).map(p => p.id)
+                const nb = ids.filter(id => checked.has(id)).length
+                return chipBtn(filterSalle === String(s.id), () => setFilterSalle(String(s.id)), `${s.nom} (${nb}/${ids.length})`)
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Liste équipements */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 16px' }}>
+          {total === 0 && (
+            <div style={{ textAlign: 'center', color: 'var(--fg-mute)', padding: '40px 0', fontSize: 13 }}>
+              Aucun équipement dans ce chantier
+            </div>
+          )}
+          {sallesFiltrees.map(salle => {
+            const ids = (salle.produits || []).map(p => p.id)
+            const nbOk = ids.filter(id => checked.has(id)).length
+            const allOk = ids.length > 0 && nbOk === ids.length
+            return (
+              <div key={salle.id} style={{ marginTop: 14 }}>
+                {/* Bandeau salle cliquable */}
+                <div onClick={() => toggleSalle(salle)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', background: allOk ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.05)', border: '1px solid ' + (allOk ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.15)'), borderRadius: 10, marginBottom: 4, cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg)' }}>{salle.nom}</span>
+                    {salle.etage && <span style={{ fontSize: 11, color: 'var(--fg-3)' }}>{salle.etage}</span>}
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 10 }}>{nbOk}/{ids.length}</span>
+                  </div>
+                  <div style={{ width: 18, height: 18, borderRadius: 5, border: '2px solid ' + (allOk ? 'var(--accent)' : 'rgba(255,255,255,0.2)'), background: allOk ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
+                    {allOk && <Icon d={icons.check} size={10} color="#fff" />}
+                  </div>
+                </div>
+
+                {/* Produits */}
+                {(salle.produits || []).map((p, i) => {
+                  const isChecked = checked.has(p.id)
+                  return (
+                    <div key={p.id} onClick={() => toggle(p.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', background: isChecked ? 'rgba(16,185,129,0.05)' : i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'background .15s', borderLeft: '2px solid ' + (isChecked ? 'var(--accent)' : 'transparent'), marginBottom: 2 }}
+                      onMouseEnter={e => { if (!isChecked) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = isChecked ? 'rgba(16,185,129,0.05)' : i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}
+                    >
+                      {/* Checkbox */}
+                      <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid ' + (isChecked ? 'var(--accent)' : 'rgba(255,255,255,0.25)'), background: isChecked ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
+                        {isChecked && <Icon d={icons.check} size={11} color="#fff" />}
+                      </div>
+
+                      {/* Infos */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: isChecked ? 'var(--accent)' : 'var(--fg)' }}>{p.type_equipement}</span>
+                          {(p.marque || p.modele) && (
+                            <span style={{ fontSize: 11, color: 'var(--fg-3)', fontStyle: 'italic' }}>{[p.marque, p.modele].filter(Boolean).join(' ')}</span>
+                          )}
+                          {p.reference && (
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>{p.reference}</span>
+                          )}
+                        </div>
+                        {p.serial_number && (
+                          <div style={{ fontSize: 11, color: 'var(--fg-mute)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>S/N: {p.serial_number}</div>
+                        )}
+                      </div>
+
+                      {isChecked && (
+                        <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>✓ Validé</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '14px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button onClick={() => setChecked(new Set())}
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg-3)', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 12 }}>
+            Tout décocher
+          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {done < total && (
+              <button onClick={() => setChecked(new Set(allProduits.map(p => p.id)))}
+                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: 'var(--accent)', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                Tout valider
+              </button>
+            )}
+            <button onClick={onClose}
+              style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+              Fermer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Chantier() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -269,6 +451,7 @@ export default function Chantier() {
   const [lightboxChantier, setLightboxChantier] = useState(false)
   const [duplicateSalle, setDuplicateSalle] = useState(null)
   const [duplicateSalleNom, setDuplicateSalleNom] = useState('')
+  const [showValidation, setShowValidation] = useState(false)
 
   useEffect(() => {
     axios.get('/api/chantiers').then(res => setChantiers(res.data))
@@ -599,6 +782,11 @@ export default function Chantier() {
                   title="Télécharger toutes les photos des salles en ZIP"
                   style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#F59E0B', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Icon d={icons.camera} size={14} color="#F59E0B" /> Photos ZIP
+                </button>
+                <button onClick={() => setShowValidation(true)}
+                  title="Valider les équipements avec le client"
+                  style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', color: '#818CF8', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon d={icons.clipCheck} size={14} color="#818CF8" /> Validation client
                 </button>
               </div>
             </div>
@@ -944,6 +1132,10 @@ export default function Chantier() {
           onSign={() => { const bl = viewingBL; setViewingBL(null); setBlObjectUrl(null); setTimeout(() => setSigningBL(bl), 50) }}
           onClose={() => { setViewingBL(null); setBlObjectUrl(null) }}
         />
+      )}
+
+      {showValidation && (
+        <ValidationModal chantier={chantier} onClose={() => setShowValidation(false)} />
       )}
 
       {duplicateSalle && (
