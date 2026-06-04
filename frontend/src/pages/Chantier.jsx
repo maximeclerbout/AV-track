@@ -244,39 +244,170 @@ function BLSignatureModal({ bl, onClose, onSigned }) {
   )
 }
 
+function ValidationSignModal({ validationId, type, onClose, onSigned }) {
+  const canvasRef = useRef(null)
+  const [nom, setNom] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [saving, setSaving] = useState(false)
+  const [hasSignature, setHasSignature] = useState(false)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    canvas.width = canvas.offsetWidth || 500
+    canvas.height = 180
+    let isDown = false
+    const getP = (e) => {
+      const rect = canvas.getBoundingClientRect()
+      const sx = canvas.width / rect.width, sy = canvas.height / rect.height
+      const t = e.touches ? e.touches[0] : e
+      return { x: (t.clientX - rect.left) * sx, y: (t.clientY - rect.top) * sy }
+    }
+    const start = (e) => { e.preventDefault(); const ctx = canvas.getContext('2d'); const p = getP(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); isDown = true }
+    const move = (e) => {
+      e.preventDefault(); if (!isDown) return
+      const ctx = canvas.getContext('2d'); const p = getP(e)
+      ctx.lineTo(p.x, p.y); ctx.strokeStyle = 'var(--accent)'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke()
+      setHasSignature(true)
+    }
+    const stop = () => { isDown = false }
+    canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); canvas.addEventListener('mouseup', stop); canvas.addEventListener('mouseleave', stop)
+    canvas.addEventListener('touchstart', start, { passive: false }); canvas.addEventListener('touchmove', move, { passive: false }); canvas.addEventListener('touchend', stop, { passive: false })
+    return () => {
+      canvas.removeEventListener('mousedown', start); canvas.removeEventListener('mousemove', move); canvas.removeEventListener('mouseup', stop); canvas.removeEventListener('mouseleave', stop)
+      canvas.removeEventListener('touchstart', start); canvas.removeEventListener('touchmove', move); canvas.removeEventListener('touchend', stop)
+    }
+  }, [])
+
+  const clear = () => { canvasRef.current.getContext('2d').clearRect(0, 0, canvasRef.current.width, canvasRef.current.height); setHasSignature(false) }
+
+  const handleSave = async () => {
+    if (!nom.trim()) { alert('Nom requis.'); return }
+    if (!hasSignature) { alert('Veuillez signer.'); return }
+    setSaving(true)
+    try {
+      const signatureBase64 = canvasRef.current.toDataURL('image/png').split(',')[1]
+      await axios.post(`/api/validations/${validationId}/signer`, { type, signatureBase64, nom_signataire: nom, date_signature: date })
+      onSigned()
+      onClose()
+    } catch { alert('Erreur lors de la signature.') }
+    finally { setSaving(false) }
+  }
+
+  const isClient = type === 'client'
+  const accentColor = isClient ? 'var(--accent)' : '#818CF8'
+  const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 14px', color: 'var(--fg)', fontSize: 13, outline: 'none' }
+  const labelStyle = { fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(6px)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: 'var(--surface)', border: `1px solid ${accentColor}40`, borderRadius: 20, padding: 20, width: '100%', maxWidth: 520, maxHeight: '95vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>
+            Signature — {isClient ? 'Client' : 'Technicien AVI'}
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20 }}>✕</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+          <div><label style={labelStyle}>Nom *</label><input value={nom} onChange={e => setNom(e.target.value)} placeholder="Prénom Nom" style={inputStyle} /></div>
+          <div><label style={labelStyle}>Date *</label><input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...inputStyle, maxWidth: 180 }} /></div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <label style={labelStyle}>Signature *</label>
+            <button onClick={clear} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>Effacer</button>
+          </div>
+          <canvas ref={canvasRef} style={{ width: '100%', height: 180, background: 'rgba(255,255,255,0.03)', border: `1px solid ${accentColor}40`, borderRadius: 10, cursor: 'crosshair', touchAction: 'none', display: 'block' }} />
+          <div style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 4, textAlign: 'center' }}>Signez avec votre doigt ou la souris</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+          <button onClick={handleSave} disabled={saving} style={{ background: accentColor, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon d={icons.check} size={14} color="#fff" /> {saving ? 'Signature...' : 'Valider'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ValidationModal({ chantier, onClose }) {
-  const [checked, setChecked] = useState(new Set())
+  const [validation, setValidation] = useState(null)
+  const [articles, setArticles] = useState({}) // { produit_id: { valide, commentaire } }
   const [filterSalle, setFilterSalle] = useState('toutes')
+  const [commentOpen, setCommentOpen] = useState(new Set())
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [sigModal, setSigModal] = useState(null) // 'client' | 'tech'
 
   const sallesAvecProduits = (chantier.salles || [])
     .filter(s => (s.produits || []).length > 0)
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true }))
 
-  const allProduits = sallesAvecProduits.flatMap(s =>
-    (s.produits || []).map(p => ({ ...p, salle_id: s.id }))
-  )
+  const allProduits = sallesAvecProduits.flatMap(s => s.produits || [])
   const total = allProduits.length
-  const done = checked.size
+  const done = Object.values(articles).filter(a => a.valide).length
   const pct = total ? Math.round((done / total) * 100) : 0
 
-  const toggle = (id) => {
-    setChecked(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  useEffect(() => {
+    axios.get(`/api/validations/chantier/${chantier.id}`)
+      .then(res => {
+        setValidation(res.data)
+        const map = {}
+        res.data.articles.forEach(a => { map[a.produit_id] = { valide: a.valide, commentaire: a.commentaire || '' } })
+        setArticles(map)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [chantier.id])
+
+  const getArt = (pid) => articles[pid] || { valide: false, commentaire: '' }
+
+  const toggle = (pid) => {
+    setArticles(prev => ({ ...prev, [pid]: { ...getArt(pid), valide: !getArt(pid).valide } }))
+  }
+
+  const setComment = (pid, val) => {
+    setArticles(prev => ({ ...prev, [pid]: { ...getArt(pid), commentaire: val } }))
   }
 
   const toggleSalle = (salle) => {
     const ids = (salle.produits || []).map(p => p.id)
-    const allChecked = ids.every(id => checked.has(id))
-    setChecked(prev => {
-      const next = new Set(prev)
-      if (allChecked) ids.forEach(id => next.delete(id))
-      else ids.forEach(id => next.add(id))
+    const allOk = ids.every(id => getArt(id).valide)
+    setArticles(prev => {
+      const next = { ...prev }
+      ids.forEach(id => { next[id] = { ...getArt(id), valide: !allOk } })
       return next
     })
+  }
+
+  const handleSave = async () => {
+    if (!validation) return
+    setSaving(true)
+    try {
+      const payload = allProduits.map(p => ({ produit_id: p.id, ...getArt(p.id) }))
+      await axios.patch(`/api/validations/${validation.id}/articles`, { articles: payload })
+    } catch { alert('Erreur lors de la sauvegarde.') }
+    finally { setSaving(false) }
+  }
+
+  const reloadValidation = async () => {
+    try {
+      const res = await axios.get(`/api/validations/chantier/${chantier.id}`)
+      setValidation(res.data)
+    } catch {}
+  }
+
+  const downloadPDF = async () => {
+    if (!validation) return
+    try {
+      const res = await axios.get(`/api/validations/${validation.id}/pdf`, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `Validation_${chantier.nom.replace(/[^a-zA-Z0-9-_]/g, '_')}.pdf`)
+      document.body.appendChild(link); link.click(); link.remove()
+    } catch { alert('Erreur génération PDF.') }
   }
 
   const sallesFiltrees = filterSalle === 'toutes'
@@ -284,7 +415,7 @@ function ValidationModal({ chantier, onClose }) {
     : sallesAvecProduits.filter(s => String(s.id) === filterSalle)
 
   const chipBtn = (active, onClick, label) => (
-    <button onClick={onClick} style={{
+    <button onClick={onClick} key={label} style={{
       padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer',
       border: '1px solid ' + (active ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.1)'),
       background: active ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)',
@@ -292,64 +423,75 @@ function ValidationModal({ chantier, onClose }) {
     }}>{label}</button>
   )
 
+  const SIG_STATUS = {
+    en_cours:      { label: 'Non signé',          color: 'var(--fg-3)' },
+    signe_client:  { label: 'Signé (client)',      color: '#F59E0B' },
+    signe_tech:    { label: 'Signé (technicien)',  color: '#818CF8' },
+    signe_complet: { label: 'Signé complet',       color: 'var(--accent)' },
+  }
+  const statut = SIG_STATUS[validation?.statut] || SIG_STATUS.en_cours
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, width: '100%', maxWidth: 760, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, width: '100%', maxWidth: 800, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
 
         {/* Header */}
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div style={{ padding: '18px 24px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--fg)', marginBottom: 4 }}>
-                Validation client
-              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--fg)', marginBottom: 4 }}>Validation client</div>
               <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
-                {chantier.client && <span>👤 {chantier.client}{chantier.nom_contact ? ' — ' + chantier.nom_contact : ''}</span>}
-                {!chantier.client && <span style={{ fontStyle: 'italic' }}>Client non renseigné</span>}
+                {chantier.client
+                  ? <>👤 {chantier.client}{chantier.nom_contact ? ' — ' + chantier.nom_contact : ''}</>
+                  : <span style={{ fontStyle: 'italic' }}>Client non renseigné</span>}
               </div>
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20, flexShrink: 0 }}>✕</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              {validation && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: statut.color, background: statut.color + '1a', padding: '3px 10px', borderRadius: 20, border: '1px solid ' + statut.color + '40' }}>
+                  {statut.label}
+                </span>
+              )}
+              <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20 }}>✕</button>
+            </div>
           </div>
 
-          {/* Barre de progression */}
+          {/* Barre progression */}
           <div style={{ marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, alignItems: 'center' }}>
               <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>{done}/{total} équipement{total > 1 ? 's' : ''} validé{done > 1 ? 's' : ''}</span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: pct === 100 ? 'var(--accent)' : 'var(--fg)' }}>{pct}%</span>
             </div>
-            <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: pct + '%', background: pct === 100 ? 'var(--accent)' : '#F59E0B', borderRadius: 99, transition: '.4s' }} />
             </div>
           </div>
 
-          {/* Filtre par salle */}
+          {/* Filtres */}
           {sallesAvecProduits.length > 1 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {chipBtn(filterSalle === 'toutes', () => setFilterSalle('toutes'), 'Toutes les salles')}
+              {chipBtn(filterSalle === 'toutes', () => setFilterSalle('toutes'), 'Toutes')}
               {sallesAvecProduits.map(s => {
-                const ids = (s.produits || []).map(p => p.id)
-                const nb = ids.filter(id => checked.has(id)).length
-                return chipBtn(filterSalle === String(s.id), () => setFilterSalle(String(s.id)), `${s.nom} (${nb}/${ids.length})`)
+                const nb = (s.produits || []).filter(p => getArt(p.id).valide).length
+                return chipBtn(filterSalle === String(s.id), () => setFilterSalle(String(s.id)), `${s.nom} (${nb}/${(s.produits || []).length})`)
               })}
             </div>
           )}
         </div>
 
-        {/* Liste équipements */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 16px' }}>
-          {total === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--fg-mute)', padding: '40px 0', fontSize: 13 }}>
-              Aucun équipement dans ce chantier
-            </div>
-          )}
-          {sallesFiltrees.map(salle => {
+        {/* Liste */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 12px' }}>
+          {loading && <div style={{ textAlign: 'center', color: 'var(--fg-3)', padding: '40px 0', fontSize: 13 }}>Chargement...</div>}
+          {!loading && total === 0 && <div style={{ textAlign: 'center', color: 'var(--fg-mute)', padding: '40px 0', fontSize: 13 }}>Aucun équipement dans ce chantier</div>}
+
+          {!loading && sallesFiltrees.map(salle => {
             const ids = (salle.produits || []).map(p => p.id)
-            const nbOk = ids.filter(id => checked.has(id)).length
+            const nbOk = ids.filter(id => getArt(id).valide).length
             const allOk = ids.length > 0 && nbOk === ids.length
             return (
               <div key={salle.id} style={{ marginTop: 14 }}>
-                {/* Bandeau salle cliquable */}
-                <div onClick={() => toggleSalle(salle)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', background: allOk ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.05)', border: '1px solid ' + (allOk ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.15)'), borderRadius: 10, marginBottom: 4, cursor: 'pointer' }}>
+                {/* Bandeau salle */}
+                <div onClick={() => toggleSalle(salle)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 14px', background: allOk ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.05)', border: '1px solid ' + (allOk ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.15)'), borderRadius: 10, marginBottom: 3, cursor: 'pointer' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg)' }}>{salle.nom}</span>
                     {salle.etage && <span style={{ fontSize: 11, color: 'var(--fg-3)' }}>{salle.etage}</span>}
@@ -362,36 +504,50 @@ function ValidationModal({ chantier, onClose }) {
 
                 {/* Produits */}
                 {(salle.produits || []).map((p, i) => {
-                  const isChecked = checked.has(p.id)
+                  const art = getArt(p.id)
+                  const ok = art.valide
+                  const hasCmt = commentOpen.has(p.id)
                   return (
-                    <div key={p.id} onClick={() => toggle(p.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', background: isChecked ? 'rgba(16,185,129,0.05)' : i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'background .15s', borderLeft: '2px solid ' + (isChecked ? 'var(--accent)' : 'transparent'), marginBottom: 2 }}
-                      onMouseEnter={e => { if (!isChecked) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = isChecked ? 'rgba(16,185,129,0.05)' : i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}
-                    >
-                      {/* Checkbox */}
-                      <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid ' + (isChecked ? 'var(--accent)' : 'rgba(255,255,255,0.25)'), background: isChecked ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
-                        {isChecked && <Icon d={icons.check} size={11} color="#fff" />}
-                      </div>
-
-                      {/* Infos */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: isChecked ? 'var(--accent)' : 'var(--fg)' }}>{p.type_equipement}</span>
-                          {(p.marque || p.modele) && (
-                            <span style={{ fontSize: 11, color: 'var(--fg-3)', fontStyle: 'italic' }}>{[p.marque, p.modele].filter(Boolean).join(' ')}</span>
-                          )}
-                          {p.reference && (
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>{p.reference}</span>
-                          )}
+                    <div key={p.id} style={{ marginBottom: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: ok ? 'rgba(16,185,129,0.05)' : i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent', borderRadius: 8, borderLeft: '2px solid ' + (ok ? 'var(--accent)' : 'transparent') }}>
+                        {/* Checkbox */}
+                        <div onClick={() => toggle(p.id)} style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid ' + (ok ? 'var(--accent)' : 'rgba(255,255,255,0.25)'), background: ok ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all .15s' }}>
+                          {ok && <Icon d={icons.check} size={11} color="#fff" />}
                         </div>
-                        {p.serial_number && (
-                          <div style={{ fontSize: 11, color: 'var(--fg-mute)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>S/N: {p.serial_number}</div>
-                        )}
+
+                        {/* Infos */}
+                        <div onClick={() => toggle(p.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: ok ? 'var(--accent)' : 'var(--fg)' }}>{p.type_equipement}</span>
+                            {(p.marque || p.modele) && <span style={{ fontSize: 11, color: 'var(--fg-3)', fontStyle: 'italic' }}>{[p.marque, p.modele].filter(Boolean).join(' ')}</span>}
+                            {p.reference && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>{p.reference}</span>}
+                          </div>
+                          {p.serial_number && <div style={{ fontSize: 11, color: 'var(--fg-mute)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>S/N: {p.serial_number}</div>}
+                          {art.commentaire && !hasCmt && <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 2 }}>💬 {art.commentaire}</div>}
+                        </div>
+
+                        {ok && <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>✓</span>}
+
+                        {/* Bouton commentaire */}
+                        <button
+                          onClick={() => setCommentOpen(prev => { const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n })}
+                          title="Ajouter un commentaire"
+                          style={{ background: art.commentaire ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (art.commentaire ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.08)'), color: art.commentaire ? '#F59E0B' : 'var(--fg-3)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 12, flexShrink: 0 }}>
+                          💬
+                        </button>
                       </div>
 
-                      {isChecked && (
-                        <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>✓ Validé</span>
+                      {/* Zone commentaire */}
+                      {hasCmt && (
+                        <div style={{ padding: '6px 12px 6px 44px' }}>
+                          <input
+                            value={art.commentaire}
+                            onChange={e => setComment(p.id, e.target.value)}
+                            placeholder="Commentaire sur cet article..."
+                            autoFocus
+                            style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '7px 10px', color: 'var(--fg)', fontSize: 12, outline: 'none' }}
+                          />
+                        </div>
                       )}
                     </div>
                   )
@@ -402,25 +558,58 @@ function ValidationModal({ chantier, onClose }) {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '14px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button onClick={() => setChecked(new Set())}
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg-3)', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 12 }}>
-            Tout décocher
-          </button>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {done < total && (
-              <button onClick={() => setChecked(new Set(allProduits.map(p => p.id)))}
-                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: 'var(--accent)', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                Tout valider
+        <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          {/* Signatures */}
+          {validation && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+              <button onClick={() => setSigModal('client')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 600, background: validation.signature_client ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (validation.signature_client ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.1)'), color: validation.signature_client ? 'var(--accent)' : 'var(--fg-3)' }}>
+                <Icon d={icons.pen} size={12} color={validation.signature_client ? 'var(--accent)' : 'var(--fg-3)'} />
+                {validation.signature_client ? `Client : ${validation.nom_signataire_client}` : 'Signer (client)'}
               </button>
-            )}
-            <button onClick={onClose}
-              style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
-              Fermer
-            </button>
+              <button onClick={() => setSigModal('tech')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 600, background: validation.signature_tech ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (validation.signature_tech ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.1)'), color: validation.signature_tech ? '#818CF8' : 'var(--fg-3)' }}>
+                <Icon d={icons.pen} size={12} color={validation.signature_tech ? '#818CF8' : 'var(--fg-3)'} />
+                {validation.signature_tech ? `Technicien : ${validation.nom_signataire_tech}` : 'Signer (technicien)'}
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setArticles(Object.fromEntries(allProduits.map(p => [p.id, { ...getArt(p.id), valide: false }])))}
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--fg-3)', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
+                Tout décocher
+              </button>
+              {done < total && (
+                <button onClick={() => setArticles(Object.fromEntries(allProduits.map(p => [p.id, { ...getArt(p.id), valide: true }])))}
+                  style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)', color: 'var(--accent)', borderRadius: 10, padding: '7px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  Tout valider
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {validation && (
+                <button onClick={downloadPDF}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#EF4444', borderRadius: 10, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  <Icon d={icons.download} size={13} color="#EF4444" /> PDF
+                </button>
+              )}
+              <button onClick={handleSave} disabled={saving || !validation}
+                style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '7px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon d={icons.check} size={13} color="#fff" /> {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {sigModal && validation && (
+        <ValidationSignModal
+          validationId={validation.id}
+          type={sigModal}
+          onClose={() => setSigModal(null)}
+          onSigned={async () => { setSigModal(null); await reloadValidation() }}
+        />
+      )}
     </div>
   )
 }
