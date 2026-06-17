@@ -10,14 +10,14 @@ export function CategoriesProvider({ children }) {
 
   const refresh = () => {
     if (!token) return
-    axios.get('/api/categories')
+    axios.get('/api/categories', { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setCategories(res.data))
       .catch(() => {})
   }
 
   useEffect(() => {
     if (!token) return
-    axios.get('/api/categories')
+    axios.get('/api/categories', { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setCategories(res.data))
       .catch(() => {})
   }, [token])
