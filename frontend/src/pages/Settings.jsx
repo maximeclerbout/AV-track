@@ -596,7 +596,7 @@ function SectionCategories() {
   }
   const updateCouleur = async (id, c) => { await axios.patch('/api/categories/' + id, { couleur: c }); refresh(); loadAll() }
   const toggle = async (cat) => { await axios.patch('/api/categories/' + cat.id, { actif: !cat.actif }); refresh(); loadAll() }
-  const toggleReseau = async (cat) => { await axios.patch('/api/categories/' + cat.id, { reseau_actif: !(cat.reseau_actif !== false) }); loadAll() }
+  const toggleReseau = async (cat) => { await axios.patch('/api/categories/' + cat.id, { reseau_actif: !(cat.reseau_actif !== false) }); refresh(); loadAll() }
   const remove = async (id, n) => { if (!window.confirm(`Supprimer "${n}" ?`)) return; await axios.delete('/api/categories/' + id); refresh(); loadAll() }
 
   return (
