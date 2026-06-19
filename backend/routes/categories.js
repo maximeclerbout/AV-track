@@ -5,11 +5,14 @@ const { auth, requireRole } = require('../middleware/auth');
 const router = express.Router();
 router.use(auth);
 
-// GET /api/categories — liste pour tout le monde
+// GET /api/categories — liste (all=true pour admin)
 router.get('/', async (req, res) => {
   try {
+    const all = req.query.all === 'true' && req.user?.role === 'admin'
     const result = await query(
-      'SELECT * FROM categories_equipement WHERE actif = true ORDER BY ordre, nom'
+      all
+        ? 'SELECT * FROM categories_equipement ORDER BY ordre, nom'
+        : 'SELECT * FROM categories_equipement WHERE actif = true ORDER BY ordre, nom'
     );
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }

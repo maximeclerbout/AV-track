@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Layout from '../components/Layout'
@@ -10,8 +10,15 @@ const labelStyle = { fontSize: 11, fontWeight: 600, color: '#6B7280', textTransf
 
 export default function Categories() {
   const { user } = useAuth()
-  const { categories, refresh } = useCategories()
+  const { refresh } = useCategories()
   const navigate = useNavigate()
+  const [categories, setCategories] = useState([])
+
+  const loadAll = () => {
+    axios.get('/api/categories?all=true').then(r => setCategories(r.data)).catch(() => {})
+  }
+
+  useEffect(() => { loadAll() }, [])
   const [showAdd, setShowAdd] = useState(false)
   const [nom, setNom] = useState('')
   const [ordre, setOrdre] = useState(0)
@@ -32,50 +39,42 @@ export default function Categories() {
     setSaving(true)
     try {
       await axios.post('/api/categories', { nom, ordre: parseInt(ordre), couleur })
-      refresh()
-      setNom('')
-      setOrdre(0)
-      setCouleur('#00D4FF')
-      setShowAdd(false)
+      refresh(); loadAll()
+      setNom(''); setOrdre(0); setCouleur('#00D4FF'); setShowAdd(false)
     } catch (err) {
       alert(err.response?.data?.error || 'Erreur')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const save = async (id) => {
     setSaving(true)
     try {
       await axios.patch('/api/categories/' + id, { nom: editNom, ordre: parseInt(editOrdre), couleur: editCouleur })
-      refresh()
-      setEditId(null)
+      refresh(); loadAll(); setEditId(null)
     } catch (err) {
       alert(err.response?.data?.error || 'Erreur')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const updateCouleur = async (id, couleur) => {
     await axios.patch('/api/categories/' + id, { couleur })
-    refresh()
+    refresh(); loadAll()
   }
 
   const toggle = async (cat) => {
     await axios.patch('/api/categories/' + cat.id, { actif: !cat.actif })
-    refresh()
+    refresh(); loadAll()
   }
 
   const toggleReseau = async (cat) => {
     await axios.patch('/api/categories/' + cat.id, { reseau_actif: !cat.reseau_actif })
-    refresh()
+    refresh(); loadAll()
   }
 
   const remove = async (id, nom) => {
     if (!confirm('Supprimer la categorie "' + nom + '" ?')) return
     await axios.delete('/api/categories/' + id)
-    refresh()
+    refresh(); loadAll()
   }
 
   return (
