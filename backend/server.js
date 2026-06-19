@@ -133,6 +133,7 @@ app.listen(PORT, '0.0.0.0', () => {
     .catch(e => console.error('Migration clients:', e.message));
   dbQuery(`CREATE TABLE IF NOT EXISTS salle_programmes (id SERIAL PRIMARY KEY, salle_id INTEGER REFERENCES salles(id) ON DELETE CASCADE, nom_original VARCHAR(300) NOT NULL, chemin VARCHAR(500) NOT NULL, taille_bytes BIGINT, mime_type VARCHAR(100), uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMP DEFAULT NOW())`).catch(e => console.error('Migration salle_programmes:', e.message));
   dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS theme VARCHAR(10) DEFAULT 'v1'`).catch(() => {});
+  dbQuery(`ALTER TABLE categories_equipement ADD COLUMN IF NOT EXISTS reseau_actif BOOLEAN NOT NULL DEFAULT true`).catch(() => {});
   dbQuery(`CREATE TABLE IF NOT EXISTS validations_client (
     id SERIAL PRIMARY KEY,
     chantier_id INTEGER NOT NULL REFERENCES chantiers(id) ON DELETE CASCADE,

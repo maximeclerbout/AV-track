@@ -100,6 +100,10 @@ export default function Salle() {
     const cat = categories.find(c => c.nom === type)
     return (cat?.couleur) || TYPE_COLORS_DEFAULT[type] || 'var(--fg-3)'
   }
+  const reseauActif = (type) => {
+    const cat = categories.find(c => c.nom === type)
+    return cat ? cat.reseau_actif !== false : true
+  }
 
   const [salle, setSalle] = useState(null)
   const [chantiers, setChantiers] = useState([])
@@ -886,6 +890,7 @@ export default function Salle() {
               <label style={labelStyle}>Description</label>
               <textarea value={newProduit.description} onChange={e => setNewProduit({ ...newProduit, description: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical', minHeight: 60 }} />
             </div>
+            {reseauActif(newProduit.type_equipement) && (
             <div style={{ marginBottom: newProduit.sur_reseau ? 10 : 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}
                 onClick={() => setNewProduit({ ...newProduit, sur_reseau: !newProduit.sur_reseau, masque: salle?.net_masque || '', gateway: salle?.net_gateway || '', dns: salle?.net_dns || '' })}>
@@ -895,6 +900,7 @@ export default function Salle() {
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>Appareil sur le réseau</span>
               </div>
             </div>
+            )}
             {newProduit.sur_reseau && (
               <div style={{ marginBottom: 14 }}>
                 <div style={{ background: 'rgba(6,182,212,0.05)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 12, padding: 14, marginBottom: 8 }}>
@@ -1021,6 +1027,7 @@ export default function Salle() {
                   <textarea value={editProduitForm.description || ''} onChange={e => setEditProduitForm({ ...editProduitForm, description: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical', minHeight: 60 }} />
                 </div>
               </div>
+              {reseauActif(editProduitForm.type_equipement) && (
               <div style={{ marginBottom: editProduitForm.sur_reseau ? 12 : 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}
                   onClick={() => setEditProduitForm({ ...editProduitForm, sur_reseau: !editProduitForm.sur_reseau })}>
@@ -1030,6 +1037,7 @@ export default function Salle() {
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>Appareil sur le réseau</span>
                 </div>
               </div>
+              )}
               {editProduitForm.sur_reseau && (
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ background: 'rgba(6,182,212,0.05)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 12, padding: 14, marginBottom: 8 }}>
@@ -1153,7 +1161,7 @@ export default function Salle() {
                       {produit.description}
                     </div>
                   )}
-                  {produit.sur_reseau && (
+                  {produit.sur_reseau && reseauActif(produit.type_equipement) && (
                     <div style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.18)', borderRadius: 10, padding: 12, marginBottom: 8 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#06B6D4', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .8 }}>
                         Carte réseau 1{produit.label_reseau1 ? ` — ${produit.label_reseau1}` : ''}

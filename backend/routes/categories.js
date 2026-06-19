@@ -33,12 +33,13 @@ router.post('/', requireRole('admin'), async (req, res) => {
 
 // PATCH /api/categories/:id — modifier (admin)
 router.patch('/:id', requireRole('admin'), async (req, res) => {
-  const { nom, ordre, actif, couleur } = req.body;
+  const { nom, ordre, actif, couleur, reseau_actif } = req.body;
   const fields = [], vals = [];
-  if (nom !== undefined)    { fields.push('nom = $' + (fields.length+1));    vals.push(nom); }
-  if (ordre !== undefined)  { fields.push('ordre = $' + (fields.length+1));  vals.push(ordre); }
-  if (actif !== undefined)  { fields.push('actif = $' + (fields.length+1));  vals.push(actif); }
-  if (couleur !== undefined){ fields.push('couleur = $' + (fields.length+1)); vals.push(couleur); }
+  if (nom !== undefined)         { fields.push('nom = $' + (fields.length+1));         vals.push(nom); }
+  if (ordre !== undefined)       { fields.push('ordre = $' + (fields.length+1));       vals.push(ordre); }
+  if (actif !== undefined)       { fields.push('actif = $' + (fields.length+1));       vals.push(actif); }
+  if (couleur !== undefined)     { fields.push('couleur = $' + (fields.length+1));     vals.push(couleur); }
+  if (reseau_actif !== undefined){ fields.push('reseau_actif = $' + (fields.length+1)); vals.push(reseau_actif); }
   if (fields.length === 0) return res.status(400).json({ error: 'Rien a modifier.' });
   vals.push(req.params.id);
   try {

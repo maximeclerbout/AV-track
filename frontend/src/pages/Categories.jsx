@@ -67,6 +67,11 @@ export default function Categories() {
     refresh()
   }
 
+  const toggleReseau = async (cat) => {
+    await axios.patch('/api/categories/' + cat.id, { reseau_actif: !cat.reseau_actif })
+    refresh()
+  }
+
   const remove = async (id, nom) => {
     if (!confirm('Supprimer la categorie "' + nom + '" ?')) return
     await axios.delete('/api/categories/' + id)
@@ -158,6 +163,11 @@ export default function Categories() {
                   <button onClick={() => { setEditId(cat.id); setEditNom(cat.nom); setEditOrdre(cat.ordre) }}
                     style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
                     ✏️
+                  </button>
+                  <button onClick={() => toggleReseau(cat)}
+                    title={cat.reseau_actif !== false ? 'Désactiver les champs réseau' : 'Activer les champs réseau'}
+                    style={{ background: cat.reseau_actif !== false ? 'rgba(6,182,212,0.1)' : 'rgba(107,114,128,0.1)', border: '1px solid ' + (cat.reseau_actif !== false ? 'rgba(6,182,212,0.3)' : 'rgba(107,114,128,0.2)'), color: cat.reseau_actif !== false ? '#06B6D4' : '#6B7280', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}>
+                    {cat.reseau_actif !== false ? '🌐 Réseau' : '🚫 Réseau'}
                   </button>
                   <button onClick={() => toggle(cat)}
                     style={{ background: cat.actif ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)', border: '1px solid ' + (cat.actif ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'), color: cat.actif ? '#F59E0B' : '#10B981', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
