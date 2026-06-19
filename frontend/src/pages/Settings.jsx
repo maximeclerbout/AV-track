@@ -567,7 +567,8 @@ function SectionClients() {
 
 // ── Section Catégories ────────────────────────────────────────────
 function SectionCategories() {
-  const { categories, refresh } = useCategories()
+  const { refresh } = useCategories()
+  const [allCats, setAllCats] = useState([])
   const [showAdd, setShowAdd] = useState(false)
   const [nom, setNom]         = useState('')
   const [ordre, setOrdre]     = useState(0)
@@ -578,21 +579,25 @@ function SectionCategories() {
   const [editOrdre, setEditOrdre]   = useState(0)
   const [editCouleur, setEditCouleur] = useState('#7b8096')
 
+  const loadAll = () => axios.get('/api/categories?all=true').then(r => setAllCats(r.data)).catch(() => {})
+  useEffect(() => { loadAll() }, [])
+
   const create = async () => {
     if (!nom) return; setSaving(true)
-    try { await axios.post('/api/categories', { nom, ordre: parseInt(ordre), couleur }); refresh(); setNom(''); setOrdre(0); setCouleur('#10B981'); setShowAdd(false) }
+    try { await axios.post('/api/categories', { nom, ordre: parseInt(ordre), couleur }); refresh(); loadAll(); setNom(''); setOrdre(0); setCouleur('#10B981'); setShowAdd(false) }
     catch (err) { alert(err.response?.data?.error || 'Erreur') }
     finally { setSaving(false) }
   }
   const save = async (id) => {
     setSaving(true)
-    try { await axios.patch('/api/categories/' + id, { nom: editNom, ordre: parseInt(editOrdre), couleur: editCouleur }); refresh(); setEditId(null) }
+    try { await axios.patch('/api/categories/' + id, { nom: editNom, ordre: parseInt(editOrdre), couleur: editCouleur }); refresh(); loadAll(); setEditId(null) }
     catch (err) { alert(err.response?.data?.error || 'Erreur') }
     finally { setSaving(false) }
   }
-  const updateCouleur = async (id, c) => { await axios.patch('/api/categories/' + id, { couleur: c }); refresh() }
-  const toggle = async (cat) => { await axios.patch('/api/categories/' + cat.id, { actif: !cat.actif }); refresh() }
-  const remove = async (id, n) => { if (!window.confirm(`Supprimer "${n}" ?`)) return; await axios.delete('/api/categories/' + id); refresh() }
+  const updateCouleur = async (id, c) => { await axios.patch('/api/categories/' + id, { couleur: c }); refresh(); loadAll() }
+  const toggle = async (cat) => { await axios.patch('/api/categories/' + cat.id, { actif: !cat.actif }); refresh(); loadAll() }
+  const toggleReseau = async (cat) => { await axios.patch('/api/categories/' + cat.id, { reseau_actif: !(cat.reseau_actif !== false) }); loadAll() }
+  const remove = async (id, n) => { if (!window.confirm(`Supprimer "${n}" ?`)) return; await axios.delete('/api/categories/' + id); refresh(); loadAll() }
 
   return (
     <div>
@@ -620,9 +625,9 @@ function SectionCategories() {
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {categories.length === 0 ? (
+        {allCats.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--fg-3)', fontSize: 13, border: '1px dashed var(--border-2)', borderRadius: 'var(--r-card)' }}>Aucune catégorie — créez-en une ci-dessus</div>
-        ) : categories.map(cat => (
+        ) : allCats.map(cat => (
           <div key={cat.id} style={{ background: 'var(--surface)', border: '1px solid var(--border-2)', borderRadius: 'var(--r-card)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, opacity: cat.actif ? 1 : 0.55 }}>
             <label title="Changer la couleur" style={{ cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
               <div style={{ width: 30, height: 30, borderRadius: 7, background: (cat.couleur || '#7b8096') + '22', border: '2px solid ' + (cat.couleur || '#7b8096') }}>
@@ -644,6 +649,10 @@ function SectionCategories() {
                   {!cat.actif && <span style={{ fontSize: 11, color: '#EF4444', marginLeft: 8 }}>désactivée</span>}
                 </div>
                 <button onClick={() => { setEditId(cat.id); setEditNom(cat.nom); setEditOrdre(cat.ordre); setEditCouleur(cat.couleur) }} style={{ ...ghostBtn, padding: '6px 11px', fontSize: 12 }}>✏️</button>
+                <button onClick={() => toggleReseau(cat)} title={cat.reseau_actif !== false ? 'Désactiver champs réseau' : 'Activer champs réseau'}
+                  style={{ ...ghostBtn, padding: '6px 11px', fontSize: 11, fontWeight: 600, background: cat.reseau_actif !== false ? 'rgba(6,182,212,0.1)' : 'rgba(107,114,128,0.1)', borderColor: cat.reseau_actif !== false ? 'rgba(6,182,212,0.3)' : 'rgba(107,114,128,0.2)', color: cat.reseau_actif !== false ? '#06B6D4' : '#6B7280' }}>
+                  {cat.reseau_actif !== false ? '🌐' : '🚫'}
+                </button>
                 <button onClick={() => toggle(cat)} style={{ ...ghostBtn, padding: '6px 11px', fontSize: 11, fontWeight: 600, background: cat.actif ? 'rgba(245,158,11,0.1)' : 'var(--accent-soft)', borderColor: cat.actif ? 'rgba(245,158,11,0.25)' : 'var(--accent)', color: cat.actif ? '#F59E0B' : 'var(--accent)' }}>{cat.actif ? 'Désactiver' : 'Activer'}</button>
                 <button onClick={() => remove(cat.id, cat.nom)} style={{ ...ghostBtn, padding: '6px 11px', fontSize: 12, background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.2)', color: '#EF4444' }}>🗑️</button>
               </>
