@@ -915,7 +915,7 @@ export default function Salle() {
                     </div>
                     <div>
                       <label style={labelStyle}>Mot de passe</label>
-                      <input type="password" value={newProduit.mdp} onChange={e => setNewProduit({ ...newProduit, mdp: e.target.value })} style={inputStyle} />
+                      <input type="text" value={newProduit.mdp} onChange={e => setNewProduit({ ...newProduit, mdp: e.target.value })} style={inputStyle} />
                     </div>
                   </div>
                 </div>
@@ -947,7 +947,7 @@ export default function Salle() {
                       </div>
                       <div>
                         <label style={labelStyle}>Mot de passe</label>
-                        <input type="password" value={newProduit.mdp2} onChange={e => setNewProduit({ ...newProduit, mdp2: e.target.value })} style={inputStyle} />
+                        <input type="text" value={newProduit.mdp2} onChange={e => setNewProduit({ ...newProduit, mdp2: e.target.value })} style={inputStyle} />
                       </div>
                     </div>
                   </div>
@@ -1050,7 +1050,7 @@ export default function Salle() {
                       </div>
                       <div>
                         <label style={labelStyle}>Mot de passe</label>
-                        <input type="password" value={editProduitForm.mdp || ''} onChange={e => setEditProduitForm({ ...editProduitForm, mdp: e.target.value })} style={inputStyle} />
+                        <input type="text" value={editProduitForm.mdp || ''} onChange={e => setEditProduitForm({ ...editProduitForm, mdp: e.target.value })} style={inputStyle} />
                       </div>
                     </div>
                   </div>
@@ -1082,7 +1082,7 @@ export default function Salle() {
                         </div>
                         <div>
                           <label style={labelStyle}>Mot de passe</label>
-                          <input type="password" value={editProduitForm.mdp2 || ''} onChange={e => setEditProduitForm({ ...editProduitForm, mdp2: e.target.value })} style={inputStyle} />
+                          <input type="text" value={editProduitForm.mdp2 || ''} onChange={e => setEditProduitForm({ ...editProduitForm, mdp2: e.target.value })} style={inputStyle} />
                         </div>
                       </div>
                     </div>
@@ -1180,7 +1180,7 @@ export default function Salle() {
                         {produit.mdp && (
                           <div>
                             <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>Mot de passe</div>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{'•'.repeat(10)}</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{produit.mdp}</div>
                           </div>
                         )}
                       </div>
@@ -1213,7 +1213,7 @@ export default function Salle() {
                         {produit.mdp2 && (
                           <div>
                             <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>Mot de passe</div>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{'•'.repeat(10)}</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{produit.mdp2}</div>
                           </div>
                         )}
                       </div>
