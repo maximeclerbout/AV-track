@@ -8,7 +8,7 @@ const Icon = ({ d, size = 18, color = 'currentColor' }) => (
   </svg>
 )
 
-export default function Scanner({ onResult, onClose }) {
+export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le numéro de série', placeholder = 'Ex: SN-SAM-001' }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const canvasRef = useRef(null)
@@ -133,7 +133,7 @@ export default function Scanner({ onResult, onClose }) {
       <div style={{ width: '100%', maxWidth: 440, background: '#13151E', borderRadius: 20, border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800 }}>Scanner S/N</div>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800 }}>Scanner {label}</div>
           <button onClick={handleClose} style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', padding: 4 }}>
             <Icon d="M18 6L6 18M6 6l12 12" size={20} />
           </button>
@@ -172,7 +172,7 @@ export default function Scanner({ onResult, onClose }) {
                   ) : ocrResult ? (
                     <div>
                       <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 12, padding: 14, marginBottom: 12, textAlign: 'center' }}>
-                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>S/N détecté :</div>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>{label} détecté :</div>
                         <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#10B981', wordBreak: 'break-all' }}>{ocrResult}</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
@@ -215,7 +215,7 @@ export default function Scanner({ onResult, onClose }) {
                     {scanning && (
                       <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, textAlign: 'center' }}>
                         <span style={{ fontSize: 11, color: mode === 'ocr' ? '#8B5CF6' : '#00D4FF', background: 'rgba(0,0,0,0.7)', padding: '3px 12px', borderRadius: 20 }}>
-                          {mode === 'ocr' ? 'Cadrez le numéro de série...' : 'Pointez vers le code-barres...'}
+                          {mode === 'ocr' ? `Cadrez ${hint}...` : 'Pointez vers le code-barres...'}
                         </span>
                       </div>
                     )}
@@ -234,10 +234,10 @@ export default function Scanner({ onResult, onClose }) {
           {mode === 'manual' && (
             <div>
               <div style={{ fontSize: 13, color: '#8B8FA8', marginBottom: 14 }}>
-                Saisissez le numéro de série manuellement
+                Saisissez {hint} manuellement
               </div>
               <input value={manualSN} onChange={e => setManualSN(e.target.value)}
-                placeholder="Ex: SN-SAM-001" autoFocus
+                placeholder={placeholder} autoFocus
                 style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '12px 14px', color: '#E8EAF0', fontSize: 14, outline: 'none', marginBottom: 14, fontFamily: 'monospace' }} />
               <button onClick={() => { if (manualSN.trim()) { stopCamera(); onResult(manualSN.trim()) } }}
                 disabled={!manualSN.trim()}

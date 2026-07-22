@@ -169,13 +169,13 @@ router.post('/:id/duplicate', requireRole('admin', 'chef', 'technicien'), async 
       for (const p of prodsResult.rows) {
         await query(
           `INSERT INTO produits (salle_id, type_equipement, reference, serial_number, description,
-             sur_reseau, ip, masque, gateway, dns, dns_alt, login, mdp,
-             label_reseau1, label_reseau2, ip2, masque2, gateway2, dns2, dns2_alt, login2, mdp2,
+             sur_reseau, ip, mac, masque, gateway, dns, dns_alt, login, mdp,
+             label_reseau1, label_reseau2, ip2, mac2, masque2, gateway2, dns2, dns2_alt, login2, mdp2,
              marque, modele, position_ordre, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`,
           [salle.id, p.type_equipement, p.reference, p.serial_number, p.description,
-           p.sur_reseau, p.ip, p.masque, p.gateway, p.dns, p.dns_alt, p.login, p.mdp,
-           p.label_reseau1, p.label_reseau2, p.ip2, p.masque2, p.gateway2, p.dns2, p.dns2_alt, p.login2, p.mdp2,
+           p.sur_reseau, p.ip, p.mac, p.masque, p.gateway, p.dns, p.dns_alt, p.login, p.mdp,
+           p.label_reseau1, p.label_reseau2, p.ip2, p.mac2, p.masque2, p.gateway2, p.dns2, p.dns2_alt, p.login2, p.mdp2,
            p.marque, p.modele, p.position_ordre, req.user.id]
         );
         totalProduits++;
@@ -202,6 +202,39 @@ router.delete('/:id', requireRole('admin'), async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Chantier introuvable.' });
     res.json({ message: `Chantier "${result.rows[0].nom}" supprimé.` });
   } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+router.post('/:id/apply-network', async (req, res) => {
+  const { net_masque, net_gateway, net_dns } = req.body;
+  try {
+    const chResult = await query('SELECT id, nom FROM chantiers WHERE id = $1', [req.params.id]);
+    if (chResult.rows.length === 0) return res.status(404).json({ error: 'Chantier introuvable.' });
+    const chantier = chResult.rows[0];
+
+    const sallesUpdated = await query(
+      `UPDATE salles SET net_masque = $1, net_gateway = $2, net_dns = $3
+       WHERE chantier_id = $4 RETURNING id`,
+      [net_masque || null, net_gateway || null, net_dns || null, chantier.id]
+    );
+    const produitsUpdated = await query(
+      `UPDATE produits SET masque = $1, gateway = $2, dns = $3
+       WHERE sur_reseau = true AND salle_id IN (SELECT id FROM salles WHERE chantier_id = $4) RETURNING id`,
+      [net_masque || null, net_gateway || null, net_dns || null, chantier.id]
+    );
+
+    await audit(chantier.id, req.user,
+      `Reseau propage sur ${sallesUpdated.rowCount} salle(s) et ${produitsUpdated.rowCount} equipement(s) du chantier "${chantier.nom}"`,
+      'chantier', chantier.id
+    );
+    res.json({
+      salles: sallesUpdated.rowCount,
+      produits: produitsUpdated.rowCount,
+      message: `Reseau applique sur ${sallesUpdated.rowCount} salle(s) et ${produitsUpdated.rowCount} equipement(s).`
+    });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -332,8 +365,8 @@ router.get('/:id/export-template', async (req, res) => {
       { width: 18 }, { width: 22 }, { width: 12 },
       { width: 20 }, { width: 16 }, { width: 20 }, { width: 22 },
       { width: 14 }, { width: 13 },
-      { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
-      { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
+      { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
+      { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
       { width: 30 },
     ];
 
@@ -420,8 +453,8 @@ router.get('/:id/export-template', async (req, res) => {
       'Site', 'Salle', 'Étage',
       'Type Equipement', 'Marque', 'Modèle', 'S/N',
       'Etat', 'Réseau (O/N)',
-      'Label NIC 1', 'Adresse IP', 'Masque', 'Passerelle', 'DNS 1', 'DNS 2', 'Identifiant', 'Mot de passe',
-      'Label NIC 2', 'Adresse IP 2', 'Masque 2', 'Passerelle 2', 'DNS 1 (NIC2)', 'DNS 2 (NIC2)', 'Identifiant 2', 'Mot de passe 2',
+      'Label NIC 1', 'Adresse IP', 'Adresse MAC', 'Masque', 'Passerelle', 'DNS 1', 'DNS 2', 'Identifiant', 'Mot de passe',
+      'Label NIC 2', 'Adresse IP 2', 'Adresse MAC 2', 'Masque 2', 'Passerelle 2', 'DNS 1 (NIC2)', 'DNS 2 (NIC2)', 'Identifiant 2', 'Mot de passe 2',
       'Commentaire',
     ];
     const headerRow = ws.getRow(12);
@@ -492,6 +525,7 @@ router.get('/:id/export-template', async (req, res) => {
           p.sur_reseau ? 'O' : 'N',
           p.label_reseau1 || '',
           p.ip || '',
+          p.mac || '',
           p.masque || '',
           p.gateway || '',
           p.dns || '',
@@ -500,6 +534,7 @@ router.get('/:id/export-template', async (req, res) => {
           p.mdp || '',
           p.label_reseau2 || '',
           p.ip2 || '',
+          p.mac2 || '',
           p.masque2 || '',
           p.gateway2 || '',
           p.dns2 || '',
@@ -557,8 +592,8 @@ async function buildRapportClientBuffer(chantier, salles) {
     { width: 18 }, { width: 22 }, { width: 12 },
     { width: 20 }, { width: 16 }, { width: 20 }, { width: 22 },
     { width: 14 }, { width: 13 },
-    { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
-    { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
+    { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
+    { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
     { width: 30 },
   ];
 
@@ -598,7 +633,7 @@ async function buildRapportClientBuffer(chantier, salles) {
   applyStyle(ws.getCell('A11'), { value: 'LISTE DES ÉQUIPEMENTS', font: { bold: true, size: 11, color: { argb: HEADER_FG } }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: CARD_BG } }, alignment: { horizontal: 'center', vertical: 'middle' } });
   ws.getRow(11).height = 20;
 
-  const headers = ['Site','Salle','Étage','Type Equipement','Marque','Modèle','S/N','Etat','Réseau (O/N)','Label NIC 1','Adresse IP','Masque','Passerelle','DNS 1','DNS 2','Identifiant','Mot de passe','Label NIC 2','Adresse IP 2','Masque 2','Passerelle 2','DNS 1 (NIC2)','DNS 2 (NIC2)','Identifiant 2','Mot de passe 2','Commentaire'];
+  const headers = ['Site','Salle','Étage','Type Equipement','Marque','Modèle','S/N','Etat','Réseau (O/N)','Label NIC 1','Adresse IP','Adresse MAC','Masque','Passerelle','DNS 1','DNS 2','Identifiant','Mot de passe','Label NIC 2','Adresse IP 2','Adresse MAC 2','Masque 2','Passerelle 2','DNS 1 (NIC2)','DNS 2 (NIC2)','Identifiant 2','Mot de passe 2','Commentaire'];
   const headerRow = ws.getRow(12); headerRow.height = 30;
   headers.forEach((h, i) => {
     const cell = headerRow.getCell(i + 1);
@@ -638,8 +673,8 @@ async function buildRapportClientBuffer(chantier, salles) {
       const rowBg = pi % 2 === 0 ? ROW_BG_A : ROW_BG_B;
       [chantier.nom, salle.nom, salle.etage || '', p.type_equipement || '', p.marque || '', p.modele || '', p.serial_number || '',
        mapStatutToExcel(salle.statut), p.sur_reseau ? 'O' : 'N',
-       p.label_reseau1 || '', p.ip || '', p.masque || '', p.gateway || '', p.dns || '', p.dns_alt || '', p.login || '', p.mdp || '',
-       p.label_reseau2 || '', p.ip2 || '', p.masque2 || '', p.gateway2 || '', p.dns2 || '', p.dns2_alt || '', p.login2 || '', p.mdp2 || '',
+       p.label_reseau1 || '', p.ip || '', p.mac || '', p.masque || '', p.gateway || '', p.dns || '', p.dns_alt || '', p.login || '', p.mdp || '',
+       p.label_reseau2 || '', p.ip2 || '', p.mac2 || '', p.masque2 || '', p.gateway2 || '', p.dns2 || '', p.dns2_alt || '', p.login2 || '', p.mdp2 || '',
        p.description || '',
       ].forEach((val, i) => {
         const cell = row.getCell(i + 1); const isSite = i < 3;

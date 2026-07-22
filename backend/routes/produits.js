@@ -34,8 +34,8 @@ router.get('/salles/:sid/produits', async (req, res) => {
 
 router.post('/salles/:sid/produits', async (req, res) => {
   const { type_equipement, reference, serial_number, description,
-          sur_reseau = false, ip, masque, gateway, dns, dns_alt, login, mdp,
-          label_reseau1, label_reseau2, ip2, masque2, gateway2, dns2, dns2_alt, login2, mdp2,
+          sur_reseau = false, ip, mac, masque, gateway, dns, dns_alt, login, mdp,
+          label_reseau1, label_reseau2, ip2, mac2, masque2, gateway2, dns2, dns2_alt, login2, mdp2,
           marque, modele } = req.body;
 
   if (!reference) return res.status(400).json({ error: 'La référence est requise.' });
@@ -44,15 +44,15 @@ router.post('/salles/:sid/produits', async (req, res) => {
     const result = await query(
       `INSERT INTO produits
         (salle_id, type_equipement, reference, serial_number, description,
-         sur_reseau, ip, masque, gateway, dns, dns_alt, login, mdp,
-         label_reseau1, label_reseau2, ip2, masque2, gateway2, dns2, dns2_alt, login2, mdp2,
+         sur_reseau, ip, mac, masque, gateway, dns, dns_alt, login, mdp,
+         label_reseau1, label_reseau2, ip2, mac2, masque2, gateway2, dns2, dns2_alt, login2, mdp2,
          marque, modele, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27) RETURNING *`,
       [req.params.sid,
        type_equipement || 'Autre', reference, serial_number || null, description || null,
-       sur_reseau, ip || null, masque || null, gateway || null, dns || null, dns_alt || null, login || null, mdp || null,
+       sur_reseau, ip || null, mac || null, masque || null, gateway || null, dns || null, dns_alt || null, login || null, mdp || null,
        label_reseau1 || null, label_reseau2 || null,
-       ip2 || null, masque2 || null, gateway2 || null, dns2 || null, dns2_alt || null, login2 || null, mdp2 || null,
+       ip2 || null, mac2 || null, masque2 || null, gateway2 || null, dns2 || null, dns2_alt || null, login2 || null, mdp2 || null,
        marque || null, modele || null,
        req.user.id]
     );
@@ -71,8 +71,8 @@ router.post('/salles/:sid/produits', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   const allowed = ['type_equipement','reference','serial_number','description',
-                   'sur_reseau','ip','masque','gateway','dns','dns_alt','login','mdp',
-                   'label_reseau1','label_reseau2','ip2','masque2','gateway2','dns2','dns2_alt','login2','mdp2',
+                   'sur_reseau','ip','mac','masque','gateway','dns','dns_alt','login','mdp',
+                   'label_reseau1','label_reseau2','ip2','mac2','masque2','gateway2','dns2','dns2_alt','login2','mdp2',
                    'position_ordre','salle_id','marque','modele'];
   const fields = [], vals = [];
 

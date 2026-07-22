@@ -61,6 +61,7 @@ CREATE TABLE produits (
   description     TEXT,
   sur_reseau      BOOLEAN NOT NULL DEFAULT false,
   ip              VARCHAR(20),
+  mac             VARCHAR(20),
   masque          VARCHAR(20),
   gateway         VARCHAR(20),
   dns             VARCHAR(50),

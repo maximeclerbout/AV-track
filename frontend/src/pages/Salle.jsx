@@ -145,8 +145,8 @@ export default function Salle() {
   const [newProduit, setNewProduit] = useState({
     type_equipement: TYPES[0] || 'Autre', marque: '', modele: '', serial_number: '',
     description: '', sur_reseau: false,
-    ip: '', masque: '', gateway: '', dns: '', dns_alt: '', login: '', mdp: '', label_reseau1: '',
-    ip2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '',
+    ip: '', mac: '', masque: '', gateway: '', dns: '', dns_alt: '', login: '', mdp: '', label_reseau1: '',
+    ip2: '', mac2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '',
   })
 
   useEffect(() => {
@@ -258,7 +258,7 @@ export default function Salle() {
       if (newProduit.marque && !marques.find(m => m.nom.toLowerCase() === newProduit.marque.toLowerCase())) {
         axios.get('/api/marques').then(r => setMarques(r.data)).catch(() => {})
       }
-      setNewProduit({ type_equipement: TYPES[0] || 'Autre', marque: '', modele: '', serial_number: '', description: '', sur_reseau: false, ip: '', masque: salle?.net_masque || '', gateway: salle?.net_gateway || '', dns: salle?.net_dns || '', dns_alt: '', login: '', mdp: '', label_reseau1: '', ip2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '' })
+      setNewProduit({ type_equipement: TYPES[0] || 'Autre', marque: '', modele: '', serial_number: '', description: '', sur_reseau: false, ip: '', mac: '', masque: salle?.net_masque || '', gateway: salle?.net_gateway || '', dns: salle?.net_dns || '', dns_alt: '', login: '', mdp: '', label_reseau1: '', ip2: '', mac2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '' })
       setAddQuantite(1)
       setShowNic2Add(false)
       setShowAddProduit(false)
@@ -289,9 +289,9 @@ export default function Salle() {
       marque: p.marque || '',
       modele: p.modele || (p.marque ? '' : p.reference),
       serial_number: p.serial_number || '', description: p.description || '',
-      sur_reseau: p.sur_reseau, ip: p.ip || '', masque: p.masque || '', gateway: p.gateway || '',
+      sur_reseau: p.sur_reseau, ip: p.ip || '', mac: p.mac || '', masque: p.masque || '', gateway: p.gateway || '',
       dns: p.dns || '', dns_alt: p.dns_alt || '', login: p.login || '', mdp: p.mdp || '',
-      label_reseau1: p.label_reseau1 || '', ip2: p.ip2 || '', masque2: p.masque2 || '',
+      label_reseau1: p.label_reseau1 || '', ip2: p.ip2 || '', mac2: p.mac2 || '', masque2: p.masque2 || '',
       gateway2: p.gateway2 || '', dns2: p.dns2 || '', dns2_alt: p.dns2_alt || '',
       login2: p.login2 || '', mdp2: p.mdp2 || '', label_reseau2: p.label_reseau2 || ''
     })
@@ -881,7 +881,7 @@ export default function Salle() {
               <label style={labelStyle}>Numéro de série</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input value={newProduit.serial_number} onChange={e => setNewProduit({ ...newProduit, serial_number: e.target.value })} placeholder="S/N" style={{ ...inputStyle, flex: 1 }} />
-                <button title="Scanner" onClick={() => setScannerTarget('new')} style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: 10, padding: '0 12px', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <button title="Scanner" onClick={() => setScannerTarget('new-sn')} style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: 10, padding: '0 12px', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon d={icons.barcode} size={16} color="#06B6D4" />
                 </button>
               </div>
@@ -916,6 +916,15 @@ export default function Salle() {
                       </div>
                     ))}
                     <div>
+                      <label style={{ ...labelStyle, color: '#06B6D4' }}>Adresse MAC</label>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input value={newProduit.mac} onChange={e => setNewProduit({ ...newProduit, mac: e.target.value })} placeholder="AA:BB:CC:DD:EE:FF" style={{ ...inputStyle, flex: 1, fontFamily: 'var(--font-mono)' }} />
+                        <button type="button" title="Scanner MAC" onClick={() => setScannerTarget('new-mac')} style={{ background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 8, padding: '0 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Icon d={icons.barcode} size={14} color="#06B6D4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div>
                       <label style={labelStyle}>Identifiant</label>
                       <input value={newProduit.login} onChange={e => setNewProduit({ ...newProduit, login: e.target.value })} placeholder="admin / root..." style={inputStyle} />
                     </div>
@@ -937,7 +946,7 @@ export default function Salle() {
                         <span style={{ fontSize: 11, fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: .8, whiteSpace: 'nowrap' }}>Carte réseau 2</span>
                         <input value={newProduit.label_reseau2} onChange={e => setNewProduit({ ...newProduit, label_reseau2: e.target.value })} placeholder="ex: Dante / AV LAN" style={{ ...inputStyle, flex: 1, fontSize: 12, padding: '5px 10px' }} />
                       </div>
-                      <button onClick={() => { setShowNic2Add(false); setNewProduit(p => ({ ...p, ip2: '', masque2: '', gateway2: '', dns2: '', mdp2: '', label_reseau2: '' })) }}
+                      <button onClick={() => { setShowNic2Add(false); setNewProduit(p => ({ ...p, ip2: '', mac2: '', masque2: '', gateway2: '', dns2: '', mdp2: '', label_reseau2: '' })) }}
                         style={{ background: 'none', border: 'none', color: 'var(--fg-3)', cursor: 'pointer', fontSize: 18, lineHeight: 1, flexShrink: 0 }}>✕</button>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -947,6 +956,15 @@ export default function Salle() {
                           <input value={newProduit[key]} onChange={e => setNewProduit({ ...newProduit, [key]: e.target.value })} placeholder={ph} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
                         </div>
                       ))}
+                      <div>
+                        <label style={{ ...labelStyle, color: '#8B5CF6' }}>Adresse MAC</label>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input value={newProduit.mac2} onChange={e => setNewProduit({ ...newProduit, mac2: e.target.value })} placeholder="AA:BB:CC:DD:EE:FF" style={{ ...inputStyle, flex: 1, fontFamily: 'var(--font-mono)' }} />
+                          <button type="button" title="Scanner MAC" onClick={() => setScannerTarget('new-mac2')} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8, padding: '0 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Icon d={icons.barcode} size={14} color="#8B5CF6" />
+                          </button>
+                        </div>
+                      </div>
                       <div>
                         <label style={labelStyle}>Identifiant</label>
                         <input value={newProduit.login2} onChange={e => setNewProduit({ ...newProduit, login2: e.target.value })} placeholder="admin / root..." style={inputStyle} />
@@ -1017,7 +1035,7 @@ export default function Salle() {
                   <label style={labelStyle}>Numéro de série</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input value={editProduitForm.serial_number || ''} onChange={e => setEditProduitForm({ ...editProduitForm, serial_number: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-                    <button title="Scanner" onClick={() => setScannerTarget('edit')} style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: 10, padding: '0 12px', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <button title="Scanner" onClick={() => setScannerTarget('edit-sn')} style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: 10, padding: '0 12px', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Icon d={icons.barcode} size={16} color="#06B6D4" />
                     </button>
                   </div>
@@ -1053,6 +1071,15 @@ export default function Salle() {
                         </div>
                       ))}
                       <div>
+                        <label style={{ ...labelStyle, color: '#06B6D4' }}>Adresse MAC</label>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input value={editProduitForm.mac || ''} onChange={e => setEditProduitForm({ ...editProduitForm, mac: e.target.value })} placeholder="AA:BB:CC:DD:EE:FF" style={{ ...inputStyle, flex: 1, fontFamily: 'var(--font-mono)' }} />
+                          <button type="button" title="Scanner MAC" onClick={() => setScannerTarget('edit-mac')} style={{ background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 8, padding: '0 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Icon d={icons.barcode} size={14} color="#06B6D4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div>
                         <label style={labelStyle}>Identifiant</label>
                         <input value={editProduitForm.login || ''} onChange={e => setEditProduitForm({ ...editProduitForm, login: e.target.value })} placeholder="admin / root..." style={inputStyle} />
                       </div>
@@ -1074,7 +1101,7 @@ export default function Salle() {
                           <span style={{ fontSize: 11, fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: .8, whiteSpace: 'nowrap' }}>Carte réseau 2</span>
                           <input value={editProduitForm.label_reseau2 || ''} onChange={e => setEditProduitForm({ ...editProduitForm, label_reseau2: e.target.value })} placeholder="ex: Dante / AV LAN" style={{ ...inputStyle, flex: 1, fontSize: 12, padding: '5px 10px' }} />
                         </div>
-                        <button onClick={() => { setShowNic2Edit(false); setEditProduitForm(f => ({ ...f, ip2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', mdp2: '', label_reseau2: '' })) }}
+                        <button onClick={() => { setShowNic2Edit(false); setEditProduitForm(f => ({ ...f, ip2: '', mac2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', mdp2: '', label_reseau2: '' })) }}
                           style={{ background: 'none', border: 'none', color: 'var(--fg-3)', cursor: 'pointer', fontSize: 18, lineHeight: 1, flexShrink: 0 }}>✕</button>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -1084,6 +1111,15 @@ export default function Salle() {
                             <input value={editProduitForm[key] || ''} onChange={e => setEditProduitForm({ ...editProduitForm, [key]: e.target.value })} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
                           </div>
                         ))}
+                        <div>
+                          <label style={{ ...labelStyle, color: '#8B5CF6' }}>Adresse MAC</label>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <input value={editProduitForm.mac2 || ''} onChange={e => setEditProduitForm({ ...editProduitForm, mac2: e.target.value })} placeholder="AA:BB:CC:DD:EE:FF" style={{ ...inputStyle, flex: 1, fontFamily: 'var(--font-mono)' }} />
+                            <button type="button" title="Scanner MAC" onClick={() => setScannerTarget('edit-mac2')} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8, padding: '0 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <Icon d={icons.barcode} size={14} color="#8B5CF6" />
+                            </button>
+                          </div>
+                        </div>
                         <div>
                           <label style={labelStyle}>Identifiant</label>
                           <input value={editProduitForm.login2 || ''} onChange={e => setEditProduitForm({ ...editProduitForm, login2: e.target.value })} placeholder="admin / root..." style={inputStyle} />
@@ -1167,7 +1203,7 @@ export default function Salle() {
                         Carte réseau 1{produit.label_reseau1 ? ` — ${produit.label_reseau1}` : ''}
                       </div>
                       <div className="equip-net-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
-                        {[['IP', produit.ip],['Masque', produit.masque],['Passerelle', produit.gateway],['DNS 1', produit.dns]].map(([lbl, val]) => (
+                        {[['IP', produit.ip],['MAC', produit.mac],['Masque', produit.masque],['Passerelle', produit.gateway],['DNS 1', produit.dns]].map(([lbl, val]) => (
                           <div key={lbl}>
                             <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>{lbl}</div>
                             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{val || '—'}</div>
@@ -1200,7 +1236,7 @@ export default function Salle() {
                         Carte réseau 2{produit.label_reseau2 ? ` — ${produit.label_reseau2}` : ''}
                       </div>
                       <div className="equip-net-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
-                        {[['IP', produit.ip2],['Masque', produit.masque2],['Passerelle', produit.gateway2],['DNS 1', produit.dns2]].map(([lbl, val]) => (
+                        {[['IP', produit.ip2],['MAC', produit.mac2],['Masque', produit.masque2],['Passerelle', produit.gateway2],['DNS 1', produit.dns2]].map(([lbl, val]) => (
                           <div key={lbl}>
                             <div style={{ fontSize: 10, color: 'var(--fg-3)', fontWeight: 600, marginBottom: 3 }}>{lbl}</div>
                             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{val || '—'}</div>
@@ -1295,16 +1331,24 @@ export default function Salle() {
         </div>
       )}
 
-      {scannerTarget && (
-        <Scanner
-          onResult={val => {
-            if (scannerTarget === 'new') setNewProduit(prev => ({ ...prev, serial_number: val }))
-            else setEditProduitForm(prev => ({ ...prev, serial_number: val }))
-            setScannerTarget(null)
-          }}
-          onClose={() => setScannerTarget(null)}
-        />
-      )}
+      {scannerTarget && (() => {
+        const [ctx, fld] = scannerTarget.split('-')
+        const field = fld === 'sn' ? 'serial_number' : fld
+        const isMac = fld !== 'sn'
+        return (
+          <Scanner
+            label={isMac ? (fld === 'mac2' ? 'MAC 2' : 'MAC') : 'S/N'}
+            hint={isMac ? "l'adresse MAC" : 'le numéro de série'}
+            placeholder={isMac ? 'Ex: AA:BB:CC:DD:EE:FF' : 'Ex: SN-SAM-001'}
+            onResult={val => {
+              if (ctx === 'new') setNewProduit(prev => ({ ...prev, [field]: val }))
+              else setEditProduitForm(prev => ({ ...prev, [field]: val }))
+              setScannerTarget(null)
+            }}
+            onClose={() => setScannerTarget(null)}
+          />
+        )
+      })()}
     </Layout>
   )
 }

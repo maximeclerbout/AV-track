@@ -32,6 +32,8 @@ const icons = {
   check: "M20 6L9 17l-5-5",
   trash: "M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
   clipCheck: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4",
+  network: "M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 1 2-2V9M9 21H5a2 2 0 0 0-2-2V9m0 0h18",
+  wifi: "M5 12.5C7.5 10 10 8.5 12 8.5s4.5 1.5 7 4M8.5 15.5c1-1 2.2-1.5 3.5-1.5s2.5.5 3.5 1.5M12 19h.01",
 }
 
 const Badge = ({ statut }) => {
@@ -646,6 +648,9 @@ export default function Chantier() {
   const [duplicateSalle, setDuplicateSalle] = useState(null)
   const [duplicateSalleNom, setDuplicateSalleNom] = useState('')
   const [showValidation, setShowValidation] = useState(false)
+  const [showNetworkPanel, setShowNetworkPanel] = useState(false)
+  const [chantierNetwork, setChantierNetwork] = useState({ net_masque: '255.255.255.0', net_gateway: '', net_dns: '' })
+  const [applyingNetwork, setApplyingNetwork] = useState(false)
 
   useEffect(() => {
     axios.get('/api/chantiers').then(res => setChantiers(res.data))
@@ -735,6 +740,26 @@ export default function Chantier() {
       setDuplicateSalleNom('')
     } catch (err) { alert('Erreur lors de la duplication.') }
     finally { setSaving(false) }
+  }
+
+  const applyNetworkChantier = async () => {
+    if (!confirm('Appliquer ces informations réseau à toutes les salles et à tous les équipements sur le réseau de ce chantier ?')) return
+    setApplyingNetwork(true)
+    try {
+      const res = await axios.post('/api/chantiers/' + id + '/apply-network', chantierNetwork)
+      setChantier(prev => ({
+        ...prev,
+        salles: prev.salles.map(s => ({
+          ...s,
+          net_masque: chantierNetwork.net_masque, net_gateway: chantierNetwork.net_gateway, net_dns: chantierNetwork.net_dns,
+          produits: (s.produits || []).map(p => p.sur_reseau
+            ? { ...p, masque: chantierNetwork.net_masque, gateway: chantierNetwork.net_gateway, dns: chantierNetwork.net_dns }
+            : p)
+        }))
+      }))
+      alert(res.data.message)
+    } catch (err) { alert('Erreur lors de l\'application du réseau.') }
+    finally { setApplyingNetwork(false) }
   }
 
   const startEditSalle = (s) => {
@@ -1043,6 +1068,39 @@ export default function Chantier() {
                 style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
                 <Icon d={icons.plus} size={14} color="#fff" /> Ajouter salle
               </button>
+            </div>
+
+            {/* Réseau chantier — applique masque/passerelle/DNS à toutes les salles + équipements */}
+            <div style={{ background: 'var(--accent-soft)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+              <button onClick={() => setShowNetworkPanel(!showNetworkPanel)}
+                style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', color: '#06B6D4', fontSize: 13, fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon d={icons.network} size={15} color="#06B6D4" />
+                  Réseau chantier
+                </div>
+                <svg style={{ transform: showNetworkPanel ? 'rotate(180deg)' : 'none', transition: '.2s' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" strokeWidth="2">
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
+              </button>
+              {showNetworkPanel && (
+                <div style={{ padding: '0 14px 14px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 10 }}>
+                    Applique ces informations à toutes les salles de ce chantier et à tous les équipements marqués "sur le réseau".
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+                    {[['net_masque','Masque','255.255.255.0'],['net_gateway','Passerelle','192.168.1.1'],['net_dns','DNS','8.8.8.8']].map(([key, label, ph]) => (
+                      <div key={key}>
+                        <div style={labelStyle}>{label}</div>
+                        <input value={chantierNetwork[key]} onChange={e => setChantierNetwork(prev => ({ ...prev, [key]: e.target.value }))} placeholder={ph} style={inputStyle} />
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={applyNetworkChantier} disabled={applyingNetwork}
+                    style={{ background: 'linear-gradient(135deg,#06B6D4,#0891B2)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 3px 10px rgba(6,182,212,0.35)' }}>
+                    <Icon d={icons.wifi} size={13} color="#fff" /> {applyingNetwork ? 'Application...' : 'Appliquer à tout le chantier'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {showAddSalle && (
