@@ -78,9 +78,28 @@ export default function Scanner({ onResult, onClose }) {
     if (!videoRef.current || !canvasRef.current) return
     const video = videoRef.current
     const canvas = canvasRef.current
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d').drawImage(video, 0, 0)
+
+    // Doit correspondre au cadre affiché en overlay (mode 'ocr') : width 85%, height 30%, centré
+    const vw = video.videoWidth
+    const vh = video.videoHeight
+    const containerW = video.clientWidth
+    const containerH = video.clientHeight
+
+    // La vidéo est en object-fit: cover -> on calcule la portion du flux réellement visible à l'écran
+    const scale = Math.max(containerW / vw, containerH / vh)
+    const visibleW = containerW / scale
+    const visibleH = containerH / scale
+    const offsetX = (vw - visibleW) / 2
+    const offsetY = (vh - visibleH) / 2
+
+    const sx = offsetX + 0.075 * visibleW
+    const sy = offsetY + 0.35 * visibleH
+    const sw = 0.85 * visibleW
+    const sh = 0.30 * visibleH
+
+    canvas.width = sw
+    canvas.height = sh
+    canvas.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh)
     stopCamera()
     setPhotoTaken(true)
     setOcrLoading(true)
