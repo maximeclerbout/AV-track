@@ -57,6 +57,7 @@ CREATE TABLE produits (
   salle_id        INTEGER NOT NULL REFERENCES salles(id) ON DELETE CASCADE,
   type_equipement VARCHAR(50) NOT NULL,
   reference       VARCHAR(200) NOT NULL,
+  ref_constructeur VARCHAR(100),
   serial_number   VARCHAR(200),
   description     TEXT,
   sur_reseau      BOOLEAN NOT NULL DEFAULT false,

@@ -60,7 +60,7 @@ export default function ImportPDF() {
 
   const updateArticle = (i, field, value) => setArticles(prev => prev.map((a, j) => j === i ? { ...a, [field]: value } : a))
   const removeArticle = (i) => setArticles(prev => prev.filter((_, j) => j !== i))
-  const addArticle = () => setArticles(prev => [...prev, { reference: '', description: '', type_equipement: 'Autre', sur_reseau: false, quantite: 1, section: sallesConfig[0]?.section || 'Salle principale' }])
+  const addArticle = () => setArticles(prev => [...prev, { reference: '', ref_constructeur: '', description: '', type_equipement: 'Autre', sur_reseau: false, quantite: 1, section: sallesConfig[0]?.section || 'Salle principale' }])
   const updateSalle = (i, field, value) => setSallesConfig(prev => prev.map((s, j) => j === i ? { ...s, [field]: value } : s))
 
   const handleCreate = async () => {
@@ -207,14 +207,15 @@ export default function ImportPDF() {
                 </div>
                 <button onClick={addArticle} style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>+ Ajouter</button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 140px 60px 130px 36px', gap: 6, marginBottom: 8 }}>
-                {['Reference', 'Type', 'Qte', 'Salle', ''].map((h, i) => (
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 110px 140px 60px 130px 36px', gap: 6, marginBottom: 8 }}>
+                {['Reference', 'Réf. constr.', 'Type', 'Qte', 'Salle', ''].map((h, i) => (
                   <div key={i} style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: .8 }}>{h}</div>
                 ))}
               </div>
               {articles.map((art, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 140px 60px 130px 36px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 110px 140px 60px 130px 36px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
                   <input value={art.reference} onChange={e => updateArticle(i, 'reference', e.target.value)} style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }} />
+                  <input value={art.ref_constructeur || ''} onChange={e => updateArticle(i, 'ref_constructeur', e.target.value)} placeholder="Réf." style={{ ...inputStyle, fontSize: 12, padding: '7px 10px', fontFamily: 'monospace' }} />
                   <div style={{ position: 'relative' }}>
                     <select
                       value={art.type_equipement}

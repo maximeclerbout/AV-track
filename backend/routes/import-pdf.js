@@ -18,15 +18,103 @@ const upload = multer({
   }
 })
 
-const extractPdfText = (buffer) => {
+const extractPdfData = (buffer) => {
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParser(null, 1)
     pdfParser.on('pdfParser_dataError', err => reject(err))
     pdfParser.on('pdfParser_dataReady', () => {
-      resolve(pdfParser.getRawTextContent())
+      resolve({ texte: pdfParser.getRawTextContent(), pages: pdfParser.data?.Pages || [] })
     })
     pdfParser.parseBuffer(buffer)
   })
+}
+
+// ── Extraction par coordonnees (colonnes) ───────────────────────────────────
+// Le BDC AVI affiche des tableaux 2-3 colonnes cote a cote (Adresse du client /
+// facturation / expedition, ou Produit & Description / Ref. Constr.). Le texte
+// brut ligne par ligne (getRawTextContent) fusionne ces colonnes sans espace de
+// separation quand leur contenu se touche visuellement (ex: la reference
+// constructeur collee a la fin de la description). On reconstruit donc les
+// lignes colonne par colonne a partir de la position x/y de chaque caractere,
+// ce qui permet de separer proprement les colonnes independamment des espaces.
+const COL1_MAX = 12.5  // Adresse du client / Produit & Description
+const REF_MIN  = 12.5  // Reference constructeur (colonne "Ref. Constr.")
+const REF_MAX  = 21.8
+const QTE_MIN  = 21.8  // Quantite (colonne "Qte")
+const QTE_MAX  = 24.3
+
+const decodeChar = (t) => {
+  let raw = ''
+  for (const r of t.R) {
+    try { raw += decodeURIComponent(r.T) } catch { raw += r.T }
+  }
+  // Anomalie de police recontree sur certains BDC : certaines lettres majuscules
+  // (ex: C, G) sont decodees encadrees d'espaces (" C ") au lieu du caractere seul.
+  return raw.replace(/^ ([A-Za-zÀ-ÿ]) $/, '$1')
+}
+
+const columnRows = (page, xMin, xMax) => {
+  const chars = page.Texts
+    .filter(t => t.x >= xMin && t.x < xMax)
+    .map(t => ({ x: t.x, y: t.y, txt: decodeChar(t) }))
+  chars.sort((a, b) => a.y - b.y || a.x - b.x)
+  const rows = []
+  for (const c of chars) {
+    let row = rows[rows.length - 1]
+    if (!row || Math.abs(row.y - c.y) > 0.15) { row = { y: c.y, chars: [] }; rows.push(row) }
+    const prev = row.chars[row.chars.length - 1]
+    if (prev && prev.txt === c.txt && Math.abs(prev.x - c.x) < 0.1) continue // glyphe double (rendu gras)
+    row.chars.push(c)
+  }
+  return rows.map(r => ({ y: r.y, text: r.chars.map(c => c.txt).join('').trim() })).filter(r => r.text)
+}
+
+// "Adresse du client" -> ligne suivante = nom, 3 lignes suivantes = adresse complete
+const findClientAdresseCoord = (pages) => {
+  for (const page of pages) {
+    const col1 = columnRows(page, 0, COL1_MAX)
+    const idx = col1.findIndex(r => /adresse du client/i.test(r.text))
+    if (idx === -1) continue
+    const nom = col1[idx + 1]?.text || ''
+    const adresse = col1.slice(idx + 2, idx + 5).map(r => r.text).filter(Boolean).join(', ')
+    if (nom) return { client: nom, adresse }
+  }
+  return null
+}
+
+// "Titre du devis" -> ligne suivante = nom du chantier
+const findTitreCoord = (pages) => {
+  for (const page of pages) {
+    const col1 = columnRows(page, 0, COL1_MAX)
+    const idx = col1.findIndex(r => /titre du devis/i.test(r.text))
+    if (idx !== -1 && col1[idx + 1]) return col1[idx + 1].text
+  }
+  return ''
+}
+
+// Lignes de la colonne "Produit & Description" avec, pour chaque ligne, la
+// valeur "Ref. Constr." et "Qte" correspondantes (meme y) si presentes.
+// On ignore tout ce qui precede l'en-tete du tableau ("Produit & Description")
+// pour ne pas confondre l'entete du BDC (adresses, references, titre du devis)
+// avec des sections/articles.
+const buildDescRefRows = (pages) => {
+  const rows = []
+  let tableauDemarre = false
+  for (const page of pages) {
+    const desc = columnRows(page, 0, COL1_MAX)
+    const refs = columnRows(page, REF_MIN, REF_MAX)
+    const qtes = columnRows(page, QTE_MIN, QTE_MAX)
+    for (const d of desc) {
+      if (!tableauDemarre) {
+        if (/^produit\b/i.test(d.text)) tableauDemarre = true
+        continue
+      }
+      const refRow = refs.find(r => Math.abs(r.y - d.y) < 0.15)
+      const qteRow = qtes.find(r => Math.abs(r.y - d.y) < 0.15)
+      rows.push({ text: d.text, ref: refRow ? refRow.text : '', qte: qteRow ? qteRow.text : '' })
+    }
+  }
+  return rows
 }
 
 const LIGNES_A_IGNORER = [
@@ -70,7 +158,7 @@ const normaliserTexte = (texte) => {
 router.post('/parse', upload.single('fichier'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Fichier PDF requis.' })
   try {
-    const texte = await extractPdfText(req.file.buffer)
+    const { texte, pages } = await extractPdfData(req.file.buffer)
 	// Sauvegarder temporairement le fichier
     const fs = require('fs')
     const path = require('path')
@@ -84,55 +172,69 @@ const tmpPath = path.join('/opt/avtrack/backend/uploads', tmpName)
     let adresse = ''
     let titre = ''
 
-    const titreLigne = lignes.find(l =>
-      l.match(/^(Travaux|Projet|Installation|Deploiement|Remplacement|Renovation|Mise en|Creation)/i)
-    )
-    if (titreLigne) titre = titreLigne.trim()
+    // "Titre du devis" -> ligne suivante = nom du chantier (nouveau format BDC AVI)
+    titre = findTitreCoord(pages)
+    if (!titre) {
+      const titreLigne = lignes.find(l =>
+        l.match(/^(Travaux|Projet|Installation|Deploiement|Remplacement|Renovation|Mise en|Creation)/i)
+      )
+      if (titreLigne) titre = titreLigne.trim()
+    }
 
-for (let i = 0; i < lignes.length; i++) {
-      const l = lignes[i]
-      const lLow = l.toLowerCase()
-      if (lLow.includes('adresse de facturation') || lLow.includes('aaddrreessssee') || lLow.includes('aaddrr')) {
-        let nomTrouve = ''
-        let rueTrouvee = ''
-        let cpTrouve = ''
+    // "Adresse du client" -> ligne suivante = nom, 3 lignes suivantes = adresse (nouveau format BDC AVI)
+    const clientAdresseCoord = findClientAdresseCoord(pages)
+    if (clientAdresseCoord) {
+      client = clientAdresseCoord.client
+      adresse = clientAdresseCoord.adresse
+    }
 
-        const estLigneRue = (s) =>
-          /^(\d+\s+)?(rue|avenue|boulevard|impasse|allée|chemin|place|route|voie|zone)\s/i.test(s) ||
-          /^CS\s+\d/i.test(s) || /^ZI\s/i.test(s)
-        const estCP = (s) => /^\d{5}\s+\S/.test(s)
-        const estExclu = (s) => {
-          if (!s || s.length < 2) return true
-          const sl = s.toLowerCase()
-          return /^\+\d/.test(s) ||
-            /^France\s/i.test(s) || /^France$/i.test(s) ||
-            /^TVA/i.test(s) ||
-            sl.includes('facturation') || sl.includes('expedition') ||
-            sl.includes('alexandre') || sl.includes('vaulx') ||
-            sl.includes('audio') || sl.includes('integration') ||
-            sl.includes('siret') || sl.includes('tva') ||
-            sl.includes('contrat') || sl.includes('maintenance') ||
-            s.includes('Break') || s.includes('Page')
-        }
+    if (!client) {
+      // Fallback (ancien format) : recherche heuristique autour de "Adresse de facturation"
+      for (let i = 0; i < lignes.length; i++) {
+        const l = lignes[i]
+        const lLow = l.toLowerCase()
+        if (lLow.includes('adresse de facturation') || lLow.includes('aaddrreessssee') || lLow.includes('aaddrr')) {
+          let nomTrouve = ''
+          let rueTrouvee = ''
+          let cpTrouve = ''
 
-        for (let j = i + 1; j < Math.min(i + 14, lignes.length); j++) {
-          // Split on 3+ spaces to handle two-column merges ("IESEG   IESEG" → "IESEG")
-          const col1 = lignes[j].trim().split(/\s{3,}/)[0].trim()
-          const norm = normaliserTexte(col1)
-          // Strip billing label suffix BEFORE exclusion check so "MC CAIN, Facturation" → "MC CAIN"
-          const normClean = norm.replace(/,\s*(Facturation|facturation|Expédition|expedition).*$/, '').trim()
-
-          if (estExclu(normClean)) continue
-          if (estCP(normClean) && !cpTrouve) { cpTrouve = normClean; continue }
-          if (estLigneRue(normClean) && !rueTrouvee) { rueTrouvee = normClean; continue }
-          if (!estCP(normClean) && !estLigneRue(normClean) && !nomTrouve && /[a-zA-ZÀ-ÿ]{2,}/.test(normClean)) {
-            nomTrouve = normClean
+          const estLigneRue = (s) =>
+            /^(\d+\s+)?(rue|avenue|boulevard|impasse|allée|chemin|place|route|voie|zone)\s/i.test(s) ||
+            /^CS\s+\d/i.test(s) || /^ZI\s/i.test(s)
+          const estCP = (s) => /^\d{5}\s+\S/.test(s)
+          const estExclu = (s) => {
+            if (!s || s.length < 2) return true
+            const sl = s.toLowerCase()
+            return /^\+\d/.test(s) ||
+              /^France\s/i.test(s) || /^France$/i.test(s) ||
+              /^TVA/i.test(s) ||
+              sl.includes('facturation') || sl.includes('expedition') ||
+              sl.includes('alexandre') || sl.includes('vaulx') ||
+              sl.includes('audio') || sl.includes('integration') ||
+              sl.includes('siret') || sl.includes('tva') ||
+              sl.includes('contrat') || sl.includes('maintenance') ||
+              s.includes('Break') || s.includes('Page')
           }
-        }
 
-        if (nomTrouve) client = nomTrouve
-        if (rueTrouvee || cpTrouve) adresse = [rueTrouvee, cpTrouve].filter(Boolean).join(', ')
-        break
+          for (let j = i + 1; j < Math.min(i + 14, lignes.length); j++) {
+            // Split on 3+ spaces to handle two-column merges ("IESEG   IESEG" → "IESEG")
+            const col1 = lignes[j].trim().split(/\s{3,}/)[0].trim()
+            const norm = normaliserTexte(col1)
+            // Strip billing label suffix BEFORE exclusion check so "MC CAIN, Facturation" → "MC CAIN"
+            const normClean = norm.replace(/,\s*(Facturation|facturation|Expédition|expedition).*$/, '').trim()
+
+            if (estExclu(normClean)) continue
+            if (estCP(normClean) && !cpTrouve) { cpTrouve = normClean; continue }
+            if (estLigneRue(normClean) && !rueTrouvee) { rueTrouvee = normClean; continue }
+            if (!estCP(normClean) && !estLigneRue(normClean) && !nomTrouve && /[a-zA-ZÀ-ÿ]{2,}/.test(normClean)) {
+              nomTrouve = normClean
+            }
+          }
+
+          if (nomTrouve) client = nomTrouve
+          if (rueTrouvee || cpTrouve) adresse = [rueTrouvee, cpTrouve].filter(Boolean).join(', ')
+          break
+        }
       }
     }
 
@@ -143,17 +245,24 @@ for (let i = 0; i < lignes.length; i++) {
     const sections = []
     let sectionCourante = 'Salle principale'
     const articles = []
-    const marqueRegex = /\[([A-Z0-9][A-Z0-9\-\/\.\s]+)\]\s+\[([^\]]+)\]\s+(.+)/
+    // Reference + marque toujours entre crochets ; la description peut continuer
+    // sur la meme ligne ou, si elle est vide ici, sur la ligne suivante (retour a
+    // la ligne visuel avant que le prix/la reference ne soit imprime).
+    const marqueRegex = /^\[([A-Z0-9][A-Z0-9\-\/\.\s]+)\]\s+\[([^\]]+)\]\s*(.*)$/
 
-    for (let i = 0; i < lignes.length; i++) {
-      const ligne = lignes[i].trim()
+    // Lignes "Produit & Description" en ordre naturel (haut en bas, page par page),
+    // avec la reference constructeur correspondante extraite de la colonne voisine.
+    const descRefRows = buildDescRefRows(pages)
+
+    for (let i = 0; i < descRefRows.length; i++) {
+      const ligne = descRefRows[i].text
 
       if (SECTION_REGEX.test(ligne) &&
           !ignorerLigne(ligne) &&
           !SECTIONS_EXCLUES.some(s => ligne.includes(s)) &&
           !ligne.match(/^\[/) &&
           ligne.length > 4) {
-const ligneNorm = normaliserTexte(ligne)
+        const ligneNorm = normaliserTexte(ligne)
         if (!sections.includes(ligneNorm)) sections.push(ligneNorm)
         sectionCourante = ligneNorm
         continue
@@ -164,14 +273,14 @@ const ligneNorm = normaliserTexte(ligne)
       const match = ligne.match(marqueRegex)
       if (match) {
         const marque = match[2].trim()
-        const reste = match[3]
-        const descBrut = reste.split(/\s{2,}/)[0].trim()
-        const desc = descBrut
-          .replace(/\s+[A-Z0-9][A-Z0-9\-\/\.]{5,}(\s+\d.*)?$/, '')
-          .replace(/\s*\d+[,\.]\d{4}.*$/, '')
-          .replace(/\s+\/\/\s+.*$/, '')
-          .trim()
-        const qteMatch = reste.match(/(\d+)[,\.](\d{4})/)
+        let desc = match[3].trim()
+        // Description vide sur cette ligne (retour a la ligne) -> on prend la suivante,
+        // sauf si elle demarre elle-meme un nouvel article.
+        if (!desc && descRefRows[i + 1] && !marqueRegex.test(descRefRows[i + 1].text)) {
+          desc = descRefRows[i + 1].text.trim()
+        }
+        const refConstructeur = descRefRows[i].ref || ''
+        const qteMatch = (descRefRows[i].qte || '').match(/(\d+)[,\.](\d+)/)
         const quantite = qteMatch ? Math.round(parseFloat(qteMatch[1] + '.' + qteMatch[2])) : 1
 
         if (!ignorerLigne(desc) && desc.length > 2 && !ignorerLigne(marque)) {
@@ -180,6 +289,7 @@ const ligneNorm = normaliserTexte(ligne)
             articles.push({
               reference,
               serial_number: '',
+              ref_constructeur: refConstructeur,
               description: desc,
               type_equipement: devinerType(desc + ' ' + marque),
               sur_reseau: false,
@@ -309,9 +419,9 @@ router.post('/create', async (req, res) => {
       const qty = parseInt(art.quantite) || 1
       for (let q = 0; q < qty; q++) {
         await query(
-          `INSERT INTO produits (salle_id, type_equipement, reference, description, sur_reseau, created_by)
-           VALUES ($1, $2, $3, $4, false, $5)`,
-          [salleId, art.type_equipement || 'Autre', art.reference, art.description || '', req.user.id]
+          `INSERT INTO produits (salle_id, type_equipement, reference, ref_constructeur, description, sur_reseau, created_by)
+           VALUES ($1, $2, $3, $4, $5, false, $6)`,
+          [salleId, art.type_equipement || 'Autre', art.reference, art.ref_constructeur || null, art.description || '', req.user.id]
         )
         nbProduits++
       }

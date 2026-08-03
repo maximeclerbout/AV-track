@@ -143,7 +143,7 @@ export default function Salle() {
   const [showNic2Add, setShowNic2Add] = useState(false)
   const [showNic2Edit, setShowNic2Edit] = useState(false)
   const [newProduit, setNewProduit] = useState({
-    type_equipement: TYPES[0] || 'Autre', marque: '', modele: '', serial_number: '',
+    type_equipement: TYPES[0] || 'Autre', marque: '', modele: '', ref_constructeur: '', serial_number: '',
     description: '', sur_reseau: false,
     ip: '', mac: '', masque: '', gateway: '', dns: '', dns_alt: '', login: '', mdp: '', label_reseau1: '',
     ip2: '', mac2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '',
@@ -258,7 +258,7 @@ export default function Salle() {
       if (newProduit.marque && !marques.find(m => m.nom.toLowerCase() === newProduit.marque.toLowerCase())) {
         axios.get('/api/marques').then(r => setMarques(r.data)).catch(() => {})
       }
-      setNewProduit({ type_equipement: TYPES[0] || 'Autre', marque: '', modele: '', serial_number: '', description: '', sur_reseau: false, ip: '', mac: '', masque: salle?.net_masque || '', gateway: salle?.net_gateway || '', dns: salle?.net_dns || '', dns_alt: '', login: '', mdp: '', label_reseau1: '', ip2: '', mac2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '' })
+      setNewProduit({ type_equipement: TYPES[0] || 'Autre', marque: '', modele: '', ref_constructeur: '', serial_number: '', description: '', sur_reseau: false, ip: '', mac: '', masque: salle?.net_masque || '', gateway: salle?.net_gateway || '', dns: salle?.net_dns || '', dns_alt: '', login: '', mdp: '', label_reseau1: '', ip2: '', mac2: '', masque2: '', gateway2: '', dns2: '', dns2_alt: '', login2: '', mdp2: '', label_reseau2: '' })
       setAddQuantite(1)
       setShowNic2Add(false)
       setShowAddProduit(false)
@@ -288,6 +288,7 @@ export default function Salle() {
       type_equipement: p.type_equipement,
       marque: p.marque || '',
       modele: p.modele || (p.marque ? '' : p.reference),
+      ref_constructeur: p.ref_constructeur || '',
       serial_number: p.serial_number || '', description: p.description || '',
       sur_reseau: p.sur_reseau, ip: p.ip || '', mac: p.mac || '', masque: p.masque || '', gateway: p.gateway || '',
       dns: p.dns || '', dns_alt: p.dns_alt || '', login: p.login || '', mdp: p.mdp || '',
@@ -876,6 +877,10 @@ export default function Salle() {
                 <label style={labelStyle}>Modèle / Référence *</label>
                 <input value={newProduit.modele} onChange={e => setNewProduit({ ...newProduit, modele: e.target.value })} placeholder="ex: QM65B" style={inputStyle} />
               </div>
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={labelStyle}>Référence constructeur</label>
+                <input value={newProduit.ref_constructeur} onChange={e => setNewProduit({ ...newProduit, ref_constructeur: e.target.value })} placeholder="ex: LH85QBCEBGCXEN" style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
+              </div>
             </div>
             <div style={{ marginBottom: 10 }}>
               <label style={labelStyle}>Numéro de série</label>
@@ -1031,6 +1036,10 @@ export default function Salle() {
                   <label style={labelStyle}>Modèle / Référence *</label>
                   <input value={editProduitForm.modele || ''} onChange={e => setEditProduitForm({ ...editProduitForm, modele: e.target.value })} placeholder="ex: QM65B" style={inputStyle} />
                 </div>
+                <div style={{ gridColumn: '1/-1' }}>
+                  <label style={labelStyle}>Référence constructeur</label>
+                  <input value={editProduitForm.ref_constructeur || ''} onChange={e => setEditProduitForm({ ...editProduitForm, ref_constructeur: e.target.value })} placeholder="ex: LH85QBCEBGCXEN" style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
+                </div>
                 <div>
                   <label style={labelStyle}>Numéro de série</label>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -1171,7 +1180,10 @@ export default function Salle() {
                         {produit.type_equipement}
                       </span>
                     </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-mute)' }}>S/N: {produit.serial_number || '—'}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-mute)' }}>
+                      S/N: {produit.serial_number || '—'}
+                      {produit.ref_constructeur && <> · Réf: {produit.ref_constructeur}</>}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
