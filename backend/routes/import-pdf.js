@@ -381,7 +381,7 @@ const tmpPath = path.join('/opt/avtrack/backend/uploads', tmpName)
 })
 
 router.post('/create', async (req, res) => {
-  const { nom_chantier, client, adresse, nom_contact, telephone, salles_config, articles, chantier_id } = req.body
+  const { nom_chantier, numero_affaire, client, adresse, nom_contact, telephone, salles_config, articles, chantier_id } = req.body
   const { tmpFile } = req.body
   if ((!chantier_id && !nom_chantier) || !articles?.length) {
     return res.status(400).json({ error: 'Donnees incompletes.' })
@@ -395,9 +395,9 @@ router.post('/create', async (req, res) => {
     } else {
       const { clientId, photoUrl } = await matchOrCreateClient(client, { adresse, nom_contact, telephone })
       const chRes = await query(
-        `INSERT INTO chantiers (nom, client, adresse, nom_contact, telephone, statut, description, created_by, client_id, photo_url)
-         VALUES ($1, $2, $3, $4, $5, 'a_faire', 'Importe depuis BDC PDF', $6, $7, $8) RETURNING *`,
-        [nom_chantier, client, adresse, nom_contact || null, telephone || null, req.user.id, clientId, photoUrl]
+        `INSERT INTO chantiers (nom, numero_affaire, client, adresse, nom_contact, telephone, statut, description, created_by, client_id, photo_url)
+         VALUES ($1, $2, $3, $4, $5, $6, 'a_faire', 'Importe depuis BDC PDF', $7, $8, $9) RETURNING *`,
+        [nom_chantier, numero_affaire || null, client, adresse, nom_contact || null, telephone || null, req.user.id, clientId, photoUrl]
       )
       chantier = chRes.rows[0]
     }

@@ -690,6 +690,7 @@ export default function Chantier() {
   const openEditInfo = () => {
     setEditInfoForm({
       nom: chantier.nom || '',
+      numero_affaire: chantier.numero_affaire || '',
       client: chantier.client || '',
       adresse: chantier.adresse || '',
       nom_contact: chantier.nom_contact || '',
@@ -1341,6 +1342,7 @@ export default function Chantier() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div><label style={labelStyle}>Nom du chantier *</label><input value={editInfoForm.nom} onChange={e => setEditInfoForm(f => ({ ...f, nom: e.target.value }))} style={inputStyle} /></div>
+              <div><label style={labelStyle}>N° d'affaire</label><input value={editInfoForm.numero_affaire} onChange={e => setEditInfoForm(f => ({ ...f, numero_affaire: e.target.value }))} placeholder="Ex: 163472" style={inputStyle} /></div>
               <div><label style={labelStyle}>Client</label><input value={editInfoForm.client} onChange={e => setEditInfoForm(f => ({ ...f, client: e.target.value }))} style={inputStyle} /></div>
               <div><label style={labelStyle}>Adresse</label><input value={editInfoForm.adresse} onChange={e => setEditInfoForm(f => ({ ...f, adresse: e.target.value }))} style={inputStyle} /></div>
               <div><label style={labelStyle}>Nom du contact</label><input value={editInfoForm.nom_contact} onChange={e => setEditInfoForm(f => ({ ...f, nom_contact: e.target.value }))} placeholder="Ex: Jean Dupont" style={inputStyle} /></div>

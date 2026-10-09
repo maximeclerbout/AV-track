@@ -23,6 +23,7 @@ CREATE TABLE users (
 CREATE TABLE chantiers (
   id           SERIAL PRIMARY KEY,
   nom          VARCHAR(200) NOT NULL,
+  numero_affaire VARCHAR(50),
   client       VARCHAR(200),
   adresse      TEXT,
   date_debut   DATE,

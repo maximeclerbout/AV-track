@@ -18,6 +18,7 @@ export default function ImportPDF() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [nomChantier, setNomChantier] = useState('')
+  const [numeroAffaire, setNumeroAffaire] = useState('')
   const [client, setClient] = useState('')
   const [adresse, setAdresse] = useState('')
   const [nomContact, setNomContact] = useState('')
@@ -85,6 +86,7 @@ export default function ImportPDF() {
       const res = await axios.post('/api/import-pdf/create', {
         chantier_id: chantierId || undefined,
         nom_chantier: nomChantier,
+        numero_affaire: numeroAffaire,
         client, adresse, nom_contact: nomContact, telephone,
         salles_config: sallesActives,
         articles: articles.filter(a => a.reference),
@@ -158,6 +160,10 @@ export default function ImportPDF() {
                   <div style={{ gridColumn: '1/-1' }}>
                     <label style={labelStyle}>Nom du chantier *</label>
                     <input value={nomChantier} onChange={e => setNomChantier(e.target.value)} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>N° d'affaire</label>
+                    <input value={numeroAffaire} onChange={e => setNumeroAffaire(e.target.value)} placeholder="Ex: 163472" style={inputStyle} />
                   </div>
                   <div>
                     <label style={labelStyle}>Client</label>

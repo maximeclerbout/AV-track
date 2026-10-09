@@ -129,7 +129,7 @@ export default function Chantiers() {
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [filterStatut, setFilterStatut] = useState('tous')
-  const [form, setForm] = useState({ nom: '', client: '', adresse: '', telephone: '', nom_contact: '', date_debut: '', date_fin: '', description: '' })
+  const [form, setForm] = useState({ nom: '', numero_affaire: '', client: '', adresse: '', telephone: '', nom_contact: '', date_debut: '', date_fin: '', description: '' })
   const [formSalles, setFormSalles] = useState([''])
   const [editChantier, setEditChantier] = useState(null)
   const [editForm, setEditForm] = useState({})
@@ -198,7 +198,7 @@ export default function Chantiers() {
   const startEdit = (c) => {
     setEditChantier(c)
     setEditForm({
-      nom: c.nom, client: c.client || '', adresse: c.adresse || '',
+      nom: c.nom, numero_affaire: c.numero_affaire || '', client: c.client || '', adresse: c.adresse || '',
       telephone: c.telephone || '', nom_contact: c.nom_contact || '',
       date_debut: c.date_debut?.slice(0, 10) || '', date_fin: c.date_fin?.slice(0, 10) || '',
       description: c.description || '', statut: c.statut
@@ -327,6 +327,11 @@ export default function Chantiers() {
                   placeholder="Ex: Siège Social Entreprise X" style={inputStyle} />
               </div>
               <div>
+                <label style={labelStyle}>N° d'affaire</label>
+                <input value={form.numero_affaire} onChange={e => setForm({ ...form, numero_affaire: e.target.value })}
+                  placeholder="Ex: 163472" style={inputStyle} />
+              </div>
+              <div>
                 <label style={labelStyle}>Client</label>
                 <ClientAutocomplete
                   value={form.client}
@@ -424,6 +429,10 @@ export default function Chantiers() {
                 <div style={{ gridColumn: '1/-1' }}>
                   <label style={labelStyle}>Nom du chantier *</label>
                   <input value={editForm.nom || ''} onChange={e => setEditForm({ ...editForm, nom: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>N° d'affaire</label>
+                  <input value={editForm.numero_affaire || ''} onChange={e => setEditForm({ ...editForm, numero_affaire: e.target.value })} placeholder="Ex: 163472" style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Client</label>

@@ -43,16 +43,16 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', requireRole('admin', 'chef', 'technicien'), async (req, res) => {
-  const { nom, client, adresse, telephone, nom_contact, date_debut, date_fin, statut = 'a_faire', description, salles = [] } = req.body;
+  const { nom, numero_affaire, client, adresse, telephone, nom_contact, date_debut, date_fin, statut = 'a_faire', description, salles = [] } = req.body;
   if (!nom) return res.status(400).json({ error: 'Le nom du chantier est requis.' });
 
   try {
     const { clientId, photoUrl } = await matchOrCreateClient(client, { adresse, nom_contact, telephone });
 
     const result = await query(
-      `INSERT INTO chantiers (nom, client, adresse, telephone, nom_contact, date_debut, date_fin, statut, description, created_by, client_id, photo_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [nom, client, adresse, telephone || null, nom_contact || null, date_debut || null, date_fin || null, statut, description, req.user.id, clientId, photoUrl]
+      `INSERT INTO chantiers (nom, numero_affaire, client, adresse, telephone, nom_contact, date_debut, date_fin, statut, description, created_by, client_id, photo_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [nom, numero_affaire || null, client, adresse, telephone || null, nom_contact || null, date_debut || null, date_fin || null, statut, description, req.user.id, clientId, photoUrl]
     );
     const chantier = result.rows[0];
     const sallesACreer = salles.filter(s => s && s.trim());
@@ -107,7 +107,7 @@ router.get('/:id', async (req, res) => {
 
 router.patch('/:id', requireRole('admin', 'chef', 'technicien'), async (req, res) => {
   const { id } = req.params;
-  const allowed = ['nom','client','adresse','telephone','nom_contact','date_debut','date_fin','statut','description'];
+  const allowed = ['nom','numero_affaire','client','adresse','telephone','nom_contact','date_debut','date_fin','statut','description'];
   const fields = [], vals = [];
 
 allowed.forEach(f => {
@@ -151,6 +151,7 @@ router.post('/:id/duplicate', requireRole('admin', 'chef', 'technicien'), async 
        VALUES ($1,$2,$3,$4,$5,$6,$7,'a_faire',$8,$9,$10) RETURNING *`,
       [newNom, src.client, src.adresse, src.telephone, src.nom_contact, src.date_debut, src.date_fin, src.description, req.user.id, src.client_id]
     );
+    // Le numero d'affaire n'est pas duplique : c'est une reference unique par chantier.
     const chantier = newChResult.rows[0];
 
     const sallesResult = await query('SELECT * FROM salles WHERE chantier_id = $1 ORDER BY position_ordre, nom', [src.id]);

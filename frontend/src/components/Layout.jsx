@@ -103,7 +103,7 @@ function SidebarLinks({ chantiers, user, logout, navigate, location, setMenuOpen
                   transition: 'all .2s', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: dotColor }} />
-                {c.nom}
+                {c.numero_affaire ? `${c.numero_affaire} - ${c.nom}` : c.nom}
               </div>
             )
           })}

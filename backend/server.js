@@ -109,6 +109,7 @@ app.listen(PORT, '0.0.0.0', () => {
   // Migrations automatiques
   dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS telephone VARCHAR(30)`).catch(() => {});
   dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS nom_contact VARCHAR(100)`).catch(() => {});
+  dbQuery(`ALTER TABLE chantiers ADD COLUMN IF NOT EXISTS numero_affaire VARCHAR(50)`).catch(() => {});
   dbQuery(`ALTER TABLE categories_equipement ADD COLUMN IF NOT EXISTS couleur VARCHAR(20) DEFAULT '#7b8096'`).catch(() => {});
   dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS label_reseau1 VARCHAR(60)`).catch(() => {});
   dbQuery(`ALTER TABLE produits ADD COLUMN IF NOT EXISTS label_reseau2 VARCHAR(60)`).catch(() => {});
