@@ -96,14 +96,23 @@ function SidebarLinks({ chantiers, user, logout, navigate, location, setMenuOpen
               <div key={c.id}
                 onClick={() => { navigate('/chantiers/' + c.id); setMenuOpen(false) }}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px',
-                  borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 500, marginBottom: 2,
+                  display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 14px',
+                  borderRadius: 10, cursor: 'pointer', marginBottom: 2,
                   color: isActivePath ? 'var(--accent)' : 'var(--fg-3)',
                   background: isActivePath ? 'var(--accent-soft)' : 'transparent',
-                  transition: 'all .2s', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                  transition: 'all .2s'
                 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: dotColor }} />
-                {c.numero_affaire ? `${c.numero_affaire} - ${c.nom}` : c.nom}
+                <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: dotColor, marginTop: 5 }} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {c.numero_affaire ? `${c.numero_affaire} - ${c.nom}` : c.nom}
+                  </div>
+                  {c.client && (
+                    <div style={{ fontSize: 10, color: 'var(--fg-mute)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {c.client}
+                    </div>
+                  )}
+                </div>
               </div>
             )
           })}

@@ -933,6 +933,11 @@ export default function Chantier() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
                   <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 900, color: 'var(--fg)' }}>{chantier.nom}</h1>
+                  {chantier.numero_affaire && (
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: '3px 10px' }}>
+                      N° {chantier.numero_affaire}
+                    </span>
+                  )}
                   <Badge statut={chantier.statut} />
                   <button onClick={openEditInfo} title="Modifier les informations"
                     style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: 'var(--fg-3)', display: 'flex', alignItems: 'center' }}>
