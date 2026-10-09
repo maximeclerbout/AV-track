@@ -9,6 +9,92 @@ const { sendBlSigne } = require('../utils/mailer')
 
 const router = express.Router()
 
+// ── Positionnement dynamique du cartouche de signature ──────────────────────
+// Le cartouche "Date / Nom / Commentaires / Signature" n'est pas toujours a la
+// meme hauteur sur le BL PDF : elle depend de la taille du bloc adresse
+// au-dessus (bloc "Client" present ou non, adresse plus ou moins longue...).
+// Des coordonnees fixes finissent donc par ne plus coller au cartouche des que
+// le gabarit du BDC evolue. On detecte donc la position reelle des libelles
+// dans le PDF a signer avant d'y ecrire.
+const decodeBlChar = (t) => {
+  let raw = ''
+  for (const r of t.R) {
+    try { raw += decodeURIComponent(r.T) } catch { raw += r.T }
+  }
+  // Anomalie de police recontree sur certains PDF AVI : certaines lettres
+  // majuscules sont decodees encadrees d'espaces (" C ") au lieu du caractere seul.
+  return raw.replace(/^ ([A-Za-zÀ-ÿ]) $/, '$1')
+}
+
+const charsOfBlPage = (page) => {
+  const chars = page.Texts.map(t => ({ x: t.x, y: t.y, txt: decodeBlChar(t) }))
+  chars.sort((a, b) => a.y - b.y || a.x - b.x)
+  const out = []
+  for (const c of chars) {
+    const prev = out[out.length - 1]
+    // glyphe double (rendu gras) : meme caractere, position quasi identique
+    if (prev && prev.txt === c.txt && Math.abs(prev.x - c.x) < 0.1 && Math.abs(prev.y - c.y) < 0.05) continue
+    out.push(c)
+  }
+  return out
+}
+
+// Cherche un libelle (ex: "Date") caractere par caractere sur une meme ligne
+const findBlLabel = (chars, label) => {
+  const target = label.toLowerCase()
+  for (let i = 0; i < chars.length; i++) {
+    if (chars[i].txt.toLowerCase() !== target[0]) continue
+    let j = i, k = 0, ok = true
+    while (k < target.length) {
+      if (j >= chars.length || Math.abs(chars[j].y - chars[i].y) > 0.1 || chars[j].txt.toLowerCase() !== target[k]) { ok = false; break }
+      j++; k++
+    }
+    if (ok) return { y: chars[i].y, xEnd: chars[j - 1].x + 0.32 }
+  }
+  return null
+}
+
+const extractBlPages = (buffer) => new Promise((resolve, reject) => {
+  const PDFParser = require('pdf2json')
+  const parser = new PDFParser(null, 1)
+  parser.on('pdfParser_dataError', reject)
+  parser.on('pdfParser_dataReady', () => resolve(parser.data?.Pages || []))
+  parser.parseBuffer(buffer)
+})
+
+// Renvoie les positions (en points PDF, origine bas-gauche comme pdf-lib) ou
+// ecrire date/nom/commentaire/signature, detectees sur la 1ere page du PDF
+// a signer. Renvoie null si la detection echoue (gabarit non reconnu).
+const locateSignatureBox = async (pdfBytes, pageHeightPt) => {
+  try {
+    const pages = await extractBlPages(pdfBytes)
+    const page = pages[0]
+    if (!page) return null
+    const chars = charsOfBlPage(page)
+    const scale = pageHeightPt / page.Height
+
+    const dateLbl = findBlLabel(chars, 'Date')
+    const nomLbl = findBlLabel(chars, 'Nom')
+    if (!dateLbl || !nomLbl) return null
+    const commentLbl = findBlLabel(chars, 'Commentaires')
+    const sigLbl = findBlLabel(chars, 'Signature')
+
+    const BASELINE_OFFSET = 19 // decalage libelle -> ligne de base du texte saisi (calibre sur le gabarit AVI)
+    const MARGIN = 6
+    const toY = (y) => pageHeightPt - y * scale - BASELINE_OFFSET
+    const toX = (xEnd) => xEnd * scale + MARGIN
+
+    return {
+      date: { x: toX(dateLbl.xEnd), y: toY(dateLbl.y) },
+      nom: { x: toX(nomLbl.xEnd), y: toY(nomLbl.y) },
+      commentaire: commentLbl ? { x: toX(commentLbl.xEnd), y: toY(commentLbl.y) } : null,
+      signature: sigLbl ? { x: toX(sigLbl.xEnd), yTop: toY(sigLbl.y) } : null,
+    }
+  } catch (e) {
+    return null
+  }
+}
+
 // Route publique — accessible depuis un lien email sans connexion
 router.get('/:id/download-signe', async (req, res) => {
   try {
@@ -146,25 +232,40 @@ const { signatureBase64, pdfBase64, nom_signataire, commentaire, date_signature 
     const firstPage = pages[0]
     const { height: ph } = firstPage.getSize()
 
-// Tableau Date/Nom/Commentaires/Signature sur la page 1
-// Positions calibrées pour BL AVI
-    // Date : à gauche, ligne haute du tableau
-   firstPage.drawText(date_signature || new Date().toLocaleDateString('fr-FR'), {
-      x: 90, y: 558, size: 10, font, color: rgb(0, 0, 0)
+    // Tableau Date/Nom/Commentaires/Signature sur la page 1 — position
+    // detectee dans ce PDF precis (elle varie selon la taille du bloc adresse
+    // au-dessus), avec repli sur des coordonnees fixes si la detection echoue.
+    const SIG_IMG_HEIGHT = 55
+    const DEFAULTS = {
+      date: { x: 90, y: 558 },
+      nom: { x: 390, y: 558 },
+      commentaire: { x: 90, y: 524 },
+      signature: { x: 330, yTop: 523 },
+    }
+    const box = await locateSignatureBox(originalPdfBytes, ph)
+    const pos = {
+      date: box?.date || DEFAULTS.date,
+      nom: box?.nom || DEFAULTS.nom,
+      commentaire: box?.commentaire || DEFAULTS.commentaire,
+      signature: box?.signature || DEFAULTS.signature,
+    }
+
+    firstPage.drawText(date_signature || new Date().toLocaleDateString('fr-FR'), {
+      x: pos.date.x, y: pos.date.y, size: 10, font, color: rgb(0, 0, 0)
     })
-firstPage.drawText(nom_signataire, {
-      x: 390, y: 558, size: 10, font, color: rgb(0, 0, 0)
+    firstPage.drawText(nom_signataire, {
+      x: pos.nom.x, y: pos.nom.y, size: 10, font, color: rgb(0, 0, 0)
     })
     if (commentaire) {
       firstPage.drawText(commentaire, {
-        x: 90, y: 524, size: 10, font, color: rgb(0, 0, 0)
+        x: pos.commentaire.x, y: pos.commentaire.y, size: 10, font, color: rgb(0, 0, 0)
       })
     }
     if (signatureBase64) {
       const sigBuffer = Buffer.from(signatureBase64, 'base64')
       const sigImage = await pdfDoc.embedPng(sigBuffer)
-  firstPage.drawImage(sigImage, {
-        x: 330, y: 468, width: 180, height: 55
+      firstPage.drawImage(sigImage, {
+        x: pos.signature.x, y: pos.signature.yTop - SIG_IMG_HEIGHT, width: 180, height: SIG_IMG_HEIGHT
       })
     }
 
