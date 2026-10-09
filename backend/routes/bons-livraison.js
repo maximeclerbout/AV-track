@@ -80,7 +80,7 @@ const locateSignatureBox = async (pdfBytes, pageHeightPt) => {
     const sigLbl = findBlLabel(chars, 'Signature')
 
     const BASELINE_OFFSET = 19 // decalage libelle -> ligne de base du texte saisi (calibre sur le gabarit AVI)
-    const MARGIN = 6
+    const MARGIN = 16 // espace horizontal entre la fin du libelle et le texte saisi
     const toY = (y) => pageHeightPt - y * scale - BASELINE_OFFSET
     const toX = (xEnd) => xEnd * scale + MARGIN
 
