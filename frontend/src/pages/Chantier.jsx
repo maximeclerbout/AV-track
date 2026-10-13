@@ -639,6 +639,7 @@ export default function Chantier() {
   const [signingBL, setSigningBL] = useState(null)
   const [viewingBL, setViewingBL] = useState(null)
   const [blObjectUrl, setBlObjectUrl] = useState(null)
+  const [missingPhotosBL, setMissingPhotosBL] = useState(null)
   const [showMapsMenu, setShowMapsMenu] = useState(false)
   const [searchSalle, setSearchSalle] = useState('')
   const [filtreEtage, setFiltreEtage] = useState('tous')
@@ -853,6 +854,17 @@ export default function Chantier() {
     const token = localStorage.getItem('avtrack_token')
     setBlObjectUrl('/api/bons-livraison/' + bl.id + '/inline?token=' + token)
     setViewingBL(bl)
+  }
+
+  // Avant de voir/signer un BL : verifie que chaque salle a au moins une photo
+  const checkPhotosBeforeBL = (bl, action) => {
+    const sallesSansPhoto = (chantier.salles || []).filter(s => !s.photo_url)
+    if (sallesSansPhoto.length === 0) {
+      if (action === 'view') viewBL(bl)
+      else setSigningBL(bl)
+      return
+    }
+    setMissingPhotosBL({ bl, action, salles: sallesSansPhoto })
   }
 
   const deleteBL = async (bl) => {
@@ -1283,7 +1295,7 @@ export default function Chantier() {
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <button onClick={() => viewBL(bl)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>👁️ Voir</button>
+                      <button onClick={() => checkPhotosBeforeBL(bl, 'view')} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>👁️ Voir</button>
                       <button onClick={() => downloadBL(bl)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
                         <Icon d={icons.download} size={12} />
                       </button>
@@ -1293,7 +1305,7 @@ export default function Chantier() {
                         </button>
                       )}
                       {bl.statut === 'en_attente' && (
-                        <button onClick={() => setSigningBL(bl)} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button onClick={() => checkPhotosBeforeBL(bl, 'sign')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Icon d={icons.pen} size={12} color="#fff" /> Signer
                         </button>
                       )}
@@ -1363,6 +1375,49 @@ export default function Chantier() {
               <button onClick={saveEditInfo} disabled={saving} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
                 {saving ? 'Sauvegarde...' : 'Sauvegarder'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {missingPhotosBL && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 440 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <span style={{ fontSize: 26 }}>📷</span>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>Photo(s) manquante(s)</div>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--fg-3)', marginBottom: 14, lineHeight: 1.5 }}>
+              {missingPhotosBL.salles.length === 1
+                ? <>La salle <strong style={{ color: 'var(--fg)' }}>{missingPhotosBL.salles[0].nom}</strong> n'a pas encore de photo.</>
+                : <>{missingPhotosBL.salles.length} salles n'ont pas encore de photo :</>}
+            </div>
+            {missingPhotosBL.salles.length > 1 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 18, maxHeight: 220, overflowY: 'auto' }}>
+                {missingPhotosBL.salles.map(s => (
+                  <button key={s.id} onClick={() => { setMissingPhotosBL(null); navigate('/chantiers/' + id + '/salles/' + s.id) }}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', color: 'var(--fg)', fontSize: 13 }}>
+                    {s.nom}
+                    <span style={{ color: 'var(--accent)', fontSize: 12, flexShrink: 0 }}>📷 Photo</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => {
+                const { bl, action } = missingPhotosBL
+                setMissingPhotosBL(null)
+                if (action === 'view') viewBL(bl)
+                else setSigningBL(bl)
+              }} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
+                Ignorer
+              </button>
+              {missingPhotosBL.salles.length === 1 && (
+                <button onClick={() => { const s = missingPhotosBL.salles[0]; setMissingPhotosBL(null); navigate('/chantiers/' + id + '/salles/' + s.id) }}
+                  style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon d={icons.camera} size={14} color="#fff" /> Prendre la photo
+                </button>
+              )}
             </div>
           </div>
         </div>
