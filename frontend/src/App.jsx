@@ -45,6 +45,7 @@ export default function App() {
       <Route path="/import-pdf" element={<PrivateRoute><ImportPDF /></PrivateRoute>} />
       <Route path="/chantiers/:id/import-pdf" element={<PrivateRoute><ImportPDF /></PrivateRoute>} />
       <Route path="/import-xml" element={<PrivateRoute><ImportXML /></PrivateRoute>} />
+      <Route path="/chantiers/:id/import-xml" element={<PrivateRoute><ImportXML /></PrivateRoute>} />
       <Route path="/backup" element={<Navigate to="/parametres" replace />} />
       <Route path="/change-password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
       <Route path="/apparence" element={<Navigate to="/parametres" replace />} />

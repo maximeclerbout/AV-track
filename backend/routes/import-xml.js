@@ -255,24 +255,43 @@ const tmpPath = path.join('/opt/avtrack/backend/uploads', tmpName)
 })
 
 router.post('/create', async (req, res) => {
-  const { nom_chantier, numero_affaire, client, adresse, nom_contact, telephone, salles_config, articles } = req.body
+  const { nom_chantier, numero_affaire, client, adresse, nom_contact, telephone, salles_config, articles, chantier_id } = req.body
   const { tmpFile } = req.body
-  if (!nom_chantier || !articles?.length) {
+  if ((!chantier_id && !nom_chantier) || !articles?.length) {
     return res.status(400).json({ error: 'Donnees incompletes.' })
   }
   try {
-    const { clientId, photoUrl } = await matchOrCreateClient(client, { adresse, nom_contact, telephone })
+    let chantier
+    if (chantier_id) {
+      const existant = await query('SELECT * FROM chantiers WHERE id = $1', [chantier_id])
+      if (existant.rows.length === 0) return res.status(404).json({ error: 'Chantier introuvable.' })
+      chantier = existant.rows[0]
+    } else {
+      const { clientId, photoUrl } = await matchOrCreateClient(client, { adresse, nom_contact, telephone })
+      const chRes = await query(
+        `INSERT INTO chantiers (nom, numero_affaire, client, adresse, nom_contact, telephone, statut, description, created_by, client_id, photo_url)
+         VALUES ($1, $2, $3, $4, $5, $6, 'a_faire', 'Importe depuis synoptique XML', $7, $8, $9) RETURNING *`,
+        [nom_chantier, numero_affaire || null, client, adresse, nom_contact || null, telephone || null, req.user.id, clientId, photoUrl]
+      )
+      chantier = chRes.rows[0]
+    }
 
-    const chRes = await query(
-      `INSERT INTO chantiers (nom, numero_affaire, client, adresse, nom_contact, telephone, statut, description, created_by, client_id, photo_url)
-       VALUES ($1, $2, $3, $4, $5, $6, 'a_faire', 'Importe depuis synoptique XML', $7, $8, $9) RETURNING *`,
-      [nom_chantier, numero_affaire || null, client, adresse, nom_contact || null, telephone || null, req.user.id, clientId, photoUrl]
-    )
-    const chantier = chRes.rows[0]
+    // Si on rattache a un chantier existant, on reutilise les salles portant deja
+    // le meme nom au lieu d'en creer des doublons (meme logique que l'import PDF).
+    const sallesExistantes = chantier_id
+      ? (await query('SELECT id, nom FROM salles WHERE chantier_id = $1', [chantier.id])).rows
+      : []
+    const trouverSalleExistante = (nom) =>
+      sallesExistantes.find(s => s.nom.trim().toLowerCase() === (nom || '').trim().toLowerCase())
 
     const salleIds = {}
     if (salles_config && salles_config.length > 0) {
       for (const sc of salles_config) {
+        const existante = trouverSalleExistante(sc.nom)
+        if (existante) {
+          salleIds[sc.section] = existante.id
+          continue
+        }
         const sRes = await query(
           `INSERT INTO salles (chantier_id, nom, statut) VALUES ($1, $2, 'a_faire') RETURNING id`,
           [chantier.id, sc.nom]
@@ -280,11 +299,17 @@ router.post('/create', async (req, res) => {
         salleIds[sc.section] = sRes.rows[0].id
       }
     } else {
-      const sRes = await query(
-        `INSERT INTO salles (chantier_id, nom, statut) VALUES ($1, $2, 'a_faire') RETURNING id`,
-        [chantier.id, 'Salle principale']
-      )
-      salleIds['default'] = sRes.rows[0].id
+      const nomDefaut = 'Salle principale'
+      const existante = trouverSalleExistante(nomDefaut)
+      if (existante) {
+        salleIds['default'] = existante.id
+      } else {
+        const sRes = await query(
+          `INSERT INTO salles (chantier_id, nom, statut) VALUES ($1, $2, 'a_faire') RETURNING id`,
+          [chantier.id, nomDefaut]
+        )
+        salleIds['default'] = sRes.rows[0].id
+      }
     }
 
     let nbProduits = 0
@@ -302,7 +327,7 @@ router.post('/create', async (req, res) => {
     }
 
     await audit(chantier.id, req.user,
-      'Chantier importe depuis synoptique XML : ' + nbProduits + ' equipement(s)',
+      (chantier_id ? 'Synoptique XML ajoute au chantier : ' : 'Chantier importe depuis synoptique XML : ') + nbProduits + ' equipement(s)',
       'chantier', chantier.id
     )
 if (tmpFile) {
@@ -321,7 +346,11 @@ if (tmpFile) {
         )
       }
     }
-    res.status(201).json({ message: 'Import reussi !', chantier_id: chantier.id, nb_articles: nbProduits })
+    res.status(201).json({
+      message: chantier_id ? 'Equipements ajoutes au chantier !' : 'Import reussi !',
+      chantier_id: chantier.id,
+      nb_articles: nbProduits
+    })
   } catch (err) {
     console.error('Erreur creation XML:', err)
     res.status(500).json({ error: 'Erreur creation : ' + err.message })

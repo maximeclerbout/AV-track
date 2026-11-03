@@ -1007,6 +1007,11 @@ export default function Chantier() {
                   style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: 'var(--accent)', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Icon d={icons.upload} size={14} color="var(--accent)" /> Importer un BDC
                 </button>
+                <button onClick={() => navigate('/chantiers/' + id + '/import-xml')}
+                  title="Ajouter des équipements depuis un synoptique XML"
+                  style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#8B5CF6', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon d={icons.upload} size={14} color="#8B5CF6" /> Importer un XML
+                </button>
                 <button onClick={exportExcel}
                   style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
                   <Icon d={icons.download} size={14} color="#fff" /> Récap chantier

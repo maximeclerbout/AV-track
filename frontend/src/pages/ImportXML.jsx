@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import Layout from '../components/Layout'
 import { useCategories } from '../context/CategoriesContext'
@@ -12,6 +12,7 @@ export default function ImportXML() {
   const { categories } = useCategories()
   const TYPES = categories.length > 0 ? categories.map(c => c.nom) : TYPES_DEFAULT
   const navigate = useNavigate()
+  const { id: chantierId } = useParams()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -25,6 +26,16 @@ export default function ImportXML() {
   const [articles, setArticles] = useState([])
   const [sallesConfig, setSallesConfig] = useState([])
   const [tmpFile, setTmpFile] = useState(null)
+  const [existingSalles, setExistingSalles] = useState([])
+  const [createdChantierId, setCreatedChantierId] = useState(null)
+
+  useEffect(() => {
+    if (!chantierId) return
+    axios.get('/api/chantiers/' + chantierId).then(res => {
+      setNomChantier(res.data.nom)
+      setExistingSalles((res.data.salles || []).map(s => s.nom))
+    }).catch(() => setError('Chantier introuvable.'))
+  }, [chantierId])
 
   const handleFile = async (e) => {
     const file = e.target.files[0]
@@ -38,11 +49,11 @@ export default function ImportXML() {
       const res = await axios.post('/api/import-xml/parse', formData, {
         headers: { 'Content-Type': 'multipart/form-data', 'Authorization': 'Bearer ' + token }
       })
-      setNomChantier(res.data.titre || 'Nouveau chantier')
+      if (!chantierId) setNomChantier(res.data.titre || 'Nouveau chantier')
       setClient(res.data.client || '')
       setAdresse(res.data.adresse || '')
       setArticles(res.data.articles || [])
-      setTmpFile(res.data.tmpFile || null)      
+      setTmpFile(res.data.tmpFile || null)
       const sects = res.data.sections || []
       if (sects.length > 0) {
         setSallesConfig(sects.map(s => ({ section: s, nom: s, inclure: true })))
@@ -63,7 +74,7 @@ export default function ImportXML() {
   const updateSalle = (i, field, value) => setSallesConfig(prev => prev.map((s, j) => j === i ? { ...s, [field]: value } : s))
 
   const handleCreate = async () => {
-    if (!nomChantier || articles.filter(a => a.reference).length === 0) {
+    if ((!chantierId && !nomChantier) || articles.filter(a => a.reference).length === 0) {
       setError('Nom du chantier et au moins un article sont requis.')
       return
     }
@@ -72,6 +83,7 @@ export default function ImportXML() {
     try {
       const sallesActives = sallesConfig.filter(s => s.inclure)
       const res = await axios.post('/api/import-xml/create', {
+        chantier_id: chantierId || undefined,
         nom_chantier: nomChantier,
         numero_affaire: numeroAffaire,
         client, adresse, nom_contact: nomContact, telephone,
@@ -80,7 +92,8 @@ export default function ImportXML() {
         tmpFile
       })
       setStep(3)
-      setTimeout(() => navigate('/chantiers/' + res.data.chantier_id), 2000)
+      setCreatedChantierId(res.data.chantier_id)
+      if (chantierId) setTimeout(() => navigate('/chantiers/' + res.data.chantier_id), 2000)
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur lors de la creation.')
     } finally {
@@ -92,14 +105,20 @@ export default function ImportXML() {
     <Layout chantiers={[]}>
       <div style={{ maxWidth: 960, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Import Synoptique XML</h1>
-          <p style={{ color: '#6B7280', fontSize: 14 }}>Creez un chantier depuis un synoptique X-ten AV en XML</p>
+          <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, marginBottom: 4 }}>
+            {chantierId ? 'Ajouter un synoptique au chantier' : 'Import Synoptique XML'}
+          </h1>
+          <p style={{ color: '#6B7280', fontSize: 14 }}>
+            {chantierId
+              ? <>Ajoutez des équipements à <strong style={{ color: '#E8EAF0' }}>{nomChantier || '...'}</strong> depuis un synoptique XML</>
+              : 'Creez un chantier depuis un synoptique X-ten AV en XML'}
+          </p>
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
           {[1,2,3].map(s => (
             <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: step >= s ? 'linear-gradient(135deg,#00D4FF,#0099CC)' : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: step >= s ? '#fff' : '#6B7280' }}>{s}</div>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: step >= s ? 'linear-gradient(135deg,#8B5CF6,#6D28D9)' : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: step >= s ? '#fff' : '#6B7280' }}>{s}</div>
               <span style={{ fontSize: 12, color: step >= s ? '#E8EAF0' : '#6B7280', fontWeight: step === s ? 600 : 400 }}>
                 {s === 1 ? 'Upload XML' : s === 2 ? 'Validation' : 'Termine'}
               </span>
@@ -140,35 +159,37 @@ export default function ImportXML() {
 
         {step === 2 && (
           <div>
-            <div style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 24, marginBottom: 16 }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, marginBottom: 16 }}>Informations du chantier</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div style={{ gridColumn: '1/-1' }}>
-                  <label style={labelStyle}>Nom du chantier *</label>
-                  <input value={nomChantier} onChange={e => setNomChantier(e.target.value)} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>N° d'affaire</label>
-                  <input value={numeroAffaire} onChange={e => setNumeroAffaire(e.target.value)} placeholder="Ex: 163472" style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Client</label>
-                  <input value={client} onChange={e => setClient(e.target.value)} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Adresse</label>
-                  <input value={adresse} onChange={e => setAdresse(e.target.value)} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Nom du contact</label>
-                  <input value={nomContact} onChange={e => setNomContact(e.target.value)} placeholder="Ex: Jean Dupont" style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Téléphone contact</label>
-                  <input value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="Ex: 06 12 34 56 78" style={inputStyle} />
+            {!chantierId && (
+              <div style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 24, marginBottom: 16 }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, marginBottom: 16 }}>Informations du chantier</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={labelStyle}>Nom du chantier *</label>
+                    <input value={nomChantier} onChange={e => setNomChantier(e.target.value)} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>N° d'affaire</label>
+                    <input value={numeroAffaire} onChange={e => setNumeroAffaire(e.target.value)} placeholder="Ex: 163472" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Client</label>
+                    <input value={client} onChange={e => setClient(e.target.value)} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Adresse</label>
+                    <input value={adresse} onChange={e => setAdresse(e.target.value)} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Nom du contact</label>
+                    <input value={nomContact} onChange={e => setNomContact(e.target.value)} placeholder="Ex: Jean Dupont" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Téléphone contact</label>
+                    <input value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="Ex: 06 12 34 56 78" style={inputStyle} />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div style={{ background: '#13151E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 24, marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -182,6 +203,12 @@ export default function ImportXML() {
                 </button>
               </div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>Zones du synoptique — cochez, renommez ou ajoutez des salles.</div>
+              {chantierId && existingSalles.length > 0 && (
+                <div style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#8B8FA8' }}>
+                  Salles déjà présentes dans ce chantier — reprenez exactement leur nom ci-dessous pour y ajouter les équipements au lieu de créer un doublon :{' '}
+                  <strong style={{ color: '#8B5CF6' }}>{existingSalles.join(', ')}</strong>
+                </div>
+              )}
               {sallesConfig.map((sc, i) => (
                 <div key={sc.section} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                   <div onClick={() => updateSalle(i, 'inclure', !sc.inclure)}
@@ -251,7 +278,9 @@ export default function ImportXML() {
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setStep(1)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', fontSize: 13 }}>Retour</button>
               <button onClick={handleCreate} disabled={saving} style={{ background: 'linear-gradient(135deg,#8B5CF6,#6D28D9)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
-                {saving ? 'Creation...' : 'Creer le chantier (' + articles.filter(a => a.reference).length + ' equipements)'}
+                {saving
+                  ? (chantierId ? 'Ajout...' : 'Creation...')
+                  : (chantierId ? 'Ajouter' : 'Creer le chantier') + ' (' + articles.filter(a => a.reference).length + ' equipements)'}
               </button>
             </div>
           </div>
@@ -260,8 +289,28 @@ export default function ImportXML() {
         {step === 3 && (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <div style={{ fontSize: 64, marginBottom: 20 }}>✅</div>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Import reussi !</div>
-            <div style={{ fontSize: 14, color: '#6B7280' }}>Redirection vers le chantier...</div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
+              {chantierId ? 'Équipements ajoutés !' : 'Import reussi !'}
+            </div>
+            {chantierId ? (
+              <div style={{ fontSize: 14, color: '#6B7280' }}>Redirection vers le chantier...</div>
+            ) : (
+              <>
+                <div style={{ fontSize: 14, color: '#6B7280', marginBottom: 24 }}>
+                  Pour plus de précision, vous pouvez compléter ce chantier avec le bon de commande PDF du projet.
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button onClick={() => navigate('/chantiers/' + createdChantierId + '/import-pdf')}
+                    style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>
+                    📄 Importer aussi le bon de commande PDF
+                  </button>
+                  <button onClick={() => navigate('/chantiers/' + createdChantierId)}
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontSize: 14 }}>
+                    Aller au chantier
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

@@ -28,6 +28,7 @@ export default function ImportPDF() {
   const [sallesConfig, setSallesConfig] = useState([])
   const [tmpFile, setTmpFile] = useState(null)
   const [existingSalles, setExistingSalles] = useState([])
+  const [createdChantierId, setCreatedChantierId] = useState(null)
 
   useEffect(() => {
     if (!chantierId) return
@@ -93,7 +94,8 @@ export default function ImportPDF() {
         tmpFile
       })
       setStep(3)
-      setTimeout(() => navigate('/chantiers/' + res.data.chantier_id), 2000)
+      setCreatedChantierId(res.data.chantier_id)
+      if (chantierId) setTimeout(() => navigate('/chantiers/' + res.data.chantier_id), 2000)
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur lors de la creation.')
     } finally {
@@ -287,7 +289,25 @@ export default function ImportPDF() {
             <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
               {chantierId ? 'Équipements ajoutés !' : 'Import reussi !'}
             </div>
-            <div style={{ fontSize: 14, color: '#6B7280' }}>Redirection vers le chantier...</div>
+            {chantierId ? (
+              <div style={{ fontSize: 14, color: '#6B7280' }}>Redirection vers le chantier...</div>
+            ) : (
+              <>
+                <div style={{ fontSize: 14, color: '#6B7280', marginBottom: 24 }}>
+                  Pour plus de précision, vous pouvez compléter ce chantier avec le synoptique XML du projet.
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button onClick={() => navigate('/chantiers/' + createdChantierId + '/import-xml')}
+                    style={{ background: 'linear-gradient(135deg,#00D4FF,#0099CC)', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>
+                    📐 Importer aussi le synoptique XML
+                  </button>
+                  <button onClick={() => navigate('/chantiers/' + createdChantierId)}
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EAF0', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontSize: 14 }}>
+                    Aller au chantier
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
