@@ -42,6 +42,7 @@ const REF_MIN  = 12.5  // Reference constructeur (colonne "Ref. Constr.")
 const REF_MAX  = 21.8
 const QTE_MIN  = 21.8  // Quantite (colonne "Qte")
 const QTE_MAX  = 24.3
+const MONTANT_MIN = 24.3  // PU HT / REM.% / TAXES / MONTANT — tout ce qui suit la Qte
 
 const decodeChar = (t) => {
   let raw = ''
@@ -104,6 +105,7 @@ const buildDescRefRows = (pages) => {
     const desc = columnRows(page, 0, COL1_MAX)
     const refs = columnRows(page, REF_MIN, REF_MAX)
     const qtes = columnRows(page, QTE_MIN, QTE_MAX)
+    const montants = columnRows(page, MONTANT_MIN, 1000)
     for (const d of desc) {
       if (!tableauDemarre) {
         if (/^produit\b/i.test(d.text)) tableauDemarre = true
@@ -111,7 +113,8 @@ const buildDescRefRows = (pages) => {
       }
       const refRow = refs.find(r => Math.abs(r.y - d.y) < 0.15)
       const qteRow = qtes.find(r => Math.abs(r.y - d.y) < 0.15)
-      rows.push({ text: d.text, ref: refRow ? refRow.text : '', qte: qteRow ? qteRow.text : '' })
+      const montantRow = montants.find(r => Math.abs(r.y - d.y) < 0.15)
+      rows.push({ text: d.text, ref: refRow ? refRow.text : '', qte: qteRow ? qteRow.text : '', montant: montantRow ? montantRow.text : '' })
     }
   }
   return rows
@@ -240,7 +243,7 @@ const tmpPath = path.join('/opt/avtrack/backend/uploads', tmpName)
 
     const SECTION_REGEX = /^[A-Z][A-Z\s\-\/]{2,39}$/
     const SECTIONS_EXCLUES = ['TVA', 'SIRET', 'IBAN', 'CGV', 'AVI', 'ARTICLE', 'TOTAL',
-      'TAXES', 'DEEE', 'FRANCE', 'MATERIEL', 'FOURNITURES', 'OFFICE']
+      'TAXES', 'DEEE', 'FRANCE', 'MATERIEL', 'EQUIPEMENT', 'FOURNITURES', 'OFFICE', 'REMISE', 'PRESTATION']
 
     const sections = []
     let sectionCourante = 'Salle principale'
@@ -257,9 +260,14 @@ const tmpPath = path.join('/opt/avtrack/backend/uploads', tmpName)
     for (let i = 0; i < descRefRows.length; i++) {
       const ligne = descRefRows[i].text
 
+      // Un intitule en majuscules suivi d'un montant sur la meme ligne est un
+      // bandeau de sous-total (ex: "EQUIPEMENT ... 16 813,56 €", "REMISE ...
+      // -490,00 €"), pas le nom d'une salle : on ne le garde donc pas comme
+      // section meme s'il n'est pas dans la liste d'exclusion explicite.
       if (SECTION_REGEX.test(ligne) &&
           !ignorerLigne(ligne) &&
           !SECTIONS_EXCLUES.some(s => ligne.includes(s)) &&
+          !descRefRows[i].montant &&
           !ligne.match(/^\[/) &&
           ligne.length > 4) {
         const ligneNorm = normaliserTexte(ligne)
