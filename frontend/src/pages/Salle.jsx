@@ -119,6 +119,7 @@ export default function Salle() {
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploadPhotoProgress, setUploadPhotoProgress] = useState(null)
   const [photos, setPhotos] = useState([])
   const [lightboxPhoto, setLightboxPhoto] = useState(null)
   const [videos, setVideos] = useState([])
@@ -193,17 +194,24 @@ export default function Salle() {
   }
 
   const uploadPhoto = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
     setUploadingPhoto(true)
+    let hadPhoto = !!salle.photo_url
+    let erreurs = 0
     try {
-      const formData = new FormData()
-      formData.append('photo', file)
-      const res = await axios.post('/api/salles/' + sid + '/photos', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-      setPhotos(prev => [...prev, res.data])
-      if (!salle.photo_url) setSalle(prev => ({ ...prev, photo_url: res.data.url }))
-    } catch (err) { alert('Erreur upload photo.') }
-    finally { setUploadingPhoto(false); e.target.value = '' }
+      for (let i = 0; i < files.length; i++) {
+        if (files.length > 1) setUploadPhotoProgress({ current: i + 1, total: files.length })
+        try {
+          const formData = new FormData()
+          formData.append('photo', files[i])
+          const res = await axios.post('/api/salles/' + sid + '/photos', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+          setPhotos(prev => [...prev, res.data])
+          if (!hadPhoto) { setSalle(prev => ({ ...prev, photo_url: res.data.url })); hadPhoto = true }
+        } catch { erreurs++ }
+      }
+      if (erreurs) alert(erreurs + ' photo(s) sur ' + files.length + " n'ont pas pu être envoyées.")
+    } finally { setUploadingPhoto(false); setUploadPhotoProgress(null); e.target.value = '' }
   }
 
   const uploadVideo = async (e) => {
@@ -508,24 +516,26 @@ export default function Salle() {
                     <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, height: photos.length === 1 ? 140 : 80, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 8, cursor: 'pointer', color: 'var(--fg-3)', background: 'rgba(255,255,255,0.02)', minWidth: photos.length === 1 ? 60 : 'auto' }}
                       onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(16,185,129,0.5)'}
                       onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}>
-                      {uploadingPhoto ? <span style={{ fontSize: 10 }}>...</span> : <>
+                      {uploadingPhoto ? <span style={{ fontSize: 10 }}>{uploadPhotoProgress ? `${uploadPhotoProgress.current}/${uploadPhotoProgress.total}` : '...'}</span> : <>
                         <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
                         <span style={{ fontSize: 10 }}>Photo</span>
                       </>}
-                      <input type="file" accept="image/*" onChange={uploadPhoto} style={{ display: 'none' }} />
+                      <input type="file" accept="image/*" multiple onChange={uploadPhoto} style={{ display: 'none' }} />
                     </label>
                   </div>
                 ) : (
                   <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, height: 140, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 12, cursor: 'pointer', color: 'var(--fg-3)', fontSize: 13, background: 'rgba(255,255,255,0.02)', position: 'relative', transition: 'border .2s' }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(16,185,129,0.5)'}
                     onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}>
-                    {uploadingPhoto ? <span>Upload en cours...</span> : (
+                    {uploadingPhoto ? (
+                      <span>{uploadPhotoProgress ? `Upload ${uploadPhotoProgress.current}/${uploadPhotoProgress.total}...` : 'Upload en cours...'}</span>
+                    ) : (
                       <>
                         <Icon d={icons.camera} size={22} color="#3d4155" />
-                        <span style={{ fontSize: 12 }}>Ajouter une photo</span>
+                        <span style={{ fontSize: 12 }}>Ajouter des photos</span>
                       </>
                     )}
-                    <input type="file" accept="image/*" onChange={uploadPhoto} style={{ display: 'none' }} />
+                    <input type="file" accept="image/*" multiple onChange={uploadPhoto} style={{ display: 'none' }} />
                   </label>
                 )}
 
