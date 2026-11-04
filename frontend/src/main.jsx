@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { CategoriesProvider } from './context/CategoriesContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { PhotoQueueProvider } from './context/PhotoQueueContext'
 import App from './App.jsx'
 import './index.css'
 
@@ -12,7 +13,9 @@ function Root() {
   return (
     <ThemeProvider user={user}>
       <CategoriesProvider>
-        <App />
+        <PhotoQueueProvider>
+          <App />
+        </PhotoQueueProvider>
       </CategoriesProvider>
     </ThemeProvider>
   )

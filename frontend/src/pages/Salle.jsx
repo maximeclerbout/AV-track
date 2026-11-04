@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Layout from '../components/Layout'
 import { useCategories } from '../context/CategoriesContext'
+import { usePhotoQueue } from '../context/PhotoQueueContext'
 
 const icons = {
   wifi: "M5 12.5C7.5 10 10 8.5 12 8.5s4.5 1.5 7 4M8.5 15.5c1-1 2.2-1.5 3.5-1.5s2.5.5 3.5 1.5M12 19h.01",
@@ -95,6 +96,8 @@ export default function Salle() {
   const { cid, sid } = useParams()
   const navigate = useNavigate()
   const { categories } = useCategories()
+  const { pending: pendingAllPhotos, queuePhoto, cancelPending } = usePhotoQueue()
+  const pendingPhotos = pendingAllPhotos.filter(p => p.salleId === sid)
   const TYPES = categories.length > 0 ? categories.map(c => c.nom) : TYPES_DEFAULT
   const getTypeColor = (type) => {
     const cat = categories.find(c => c.nom === type)
@@ -118,8 +121,6 @@ export default function Salle() {
   const [editComment, setEditComment] = useState(false)
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const [uploadPhotoProgress, setUploadPhotoProgress] = useState(null)
   const [photos, setPhotos] = useState([])
   const [lightboxPhoto, setLightboxPhoto] = useState(null)
   const [videos, setVideos] = useState([])
@@ -177,6 +178,18 @@ export default function Salle() {
       .finally(() => setLoading(false))
   }, [cid, sid])
 
+  // Une photo mise en file d'attente (reseau coupe/faible) peut finir par
+  // s'envoyer bien apres coup, meme si on a quitte puis reouvert cette page.
+  useEffect(() => {
+    const onUploaded = (e) => {
+      if (e.detail?.salleId !== sid) return
+      setPhotos(prev => prev.some(p => p.id === e.detail.photo.id) ? prev : [...prev, e.detail.photo])
+      setSalle(prev => prev && !prev.photo_url ? { ...prev, photo_url: e.detail.photo.url } : prev)
+    }
+    window.addEventListener('avtrack:photo-uploaded', onUploaded)
+    return () => window.removeEventListener('avtrack:photo-uploaded', onUploaded)
+  }, [sid])
+
   const updateStatut = async (statut) => {
     await axios.patch('/api/salles/' + sid, { statut })
     setSalle(prev => ({ ...prev, statut }))
@@ -193,25 +206,14 @@ export default function Salle() {
     alert(res.data.message)
   }
 
+  // Les photos sont d'abord mises en file d'attente locale (IndexedDB) puis
+  // envoyees des que possible — meme hors reseau sur un chantier, rien n'est
+  // perdu : la file continue meme si on quitte cette page (voir PhotoQueueContext).
   const uploadPhoto = async (e) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
-    setUploadingPhoto(true)
-    let hadPhoto = !!salle.photo_url
-    let erreurs = 0
-    try {
-      for (let i = 0; i < files.length; i++) {
-        if (files.length > 1) setUploadPhotoProgress({ current: i + 1, total: files.length })
-        try {
-          const formData = new FormData()
-          formData.append('photo', files[i])
-          const res = await axios.post('/api/salles/' + sid + '/photos', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-          setPhotos(prev => [...prev, res.data])
-          if (!hadPhoto) { setSalle(prev => ({ ...prev, photo_url: res.data.url })); hadPhoto = true }
-        } catch { erreurs++ }
-      }
-      if (erreurs) alert(erreurs + ' photo(s) sur ' + files.length + " n'ont pas pu être envoyées.")
-    } finally { setUploadingPhoto(false); setUploadPhotoProgress(null); e.target.value = '' }
+    for (const file of files) queuePhoto(sid, file)
+    e.target.value = ''
   }
 
   const uploadVideo = async (e) => {
@@ -503,23 +505,37 @@ export default function Salle() {
                 </div>
 
                 {/* Photo gallery */}
-                {photos.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: photos.length === 1 ? '1fr auto' : 'repeat(3, 1fr)', gap: 6 }}>
+                {(photos.length + pendingPhotos.length) > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: (photos.length + pendingPhotos.length) === 1 ? '1fr auto' : 'repeat(3, 1fr)', gap: 6 }}>
                     {photos.map((photo, idx) => (
-                      <div key={photo.id} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', height: photos.length === 1 ? 140 : 80, cursor: 'pointer' }}
+                      <div key={photo.id} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', height: (photos.length + pendingPhotos.length) === 1 ? 140 : 80, cursor: 'pointer' }}
                         onClick={() => setLightboxPhoto(idx)}>
                         <img src={photo.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         <button onClick={e => { e.stopPropagation(); deleteSpecificPhoto(photo.id); }}
                           style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,0.85)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1 }}>×</button>
                       </div>
                     ))}
-                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, height: photos.length === 1 ? 140 : 80, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 8, cursor: 'pointer', color: 'var(--fg-3)', background: 'rgba(255,255,255,0.02)', minWidth: photos.length === 1 ? 60 : 'auto' }}
+                    {pendingPhotos.map(p => (
+                      <div key={p.id} title={p.uploading ? 'Envoi en cours...' : "En attente d'un meilleur réseau"}
+                        style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', height: (photos.length + pendingPhotos.length) === 1 ? 140 : 80 }}>
+                        <img src={p.previewUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.45 }} />
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: 'rgba(245,158,11,0.9)', borderRadius: 20, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#fff', animation: 'avtrack-pulse 1.4s ease-in-out infinite' }} />
+                            {p.uploading ? 'Envoi...' : 'En attente'}
+                          </span>
+                        </div>
+                        {!p.uploading && (
+                          <button onClick={() => { if (confirm('Annuler l\'envoi de cette photo ?')) cancelPending(p.id) }}
+                            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1 }}>×</button>
+                        )}
+                      </div>
+                    ))}
+                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, height: (photos.length + pendingPhotos.length) === 1 ? 140 : 80, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 8, cursor: 'pointer', color: 'var(--fg-3)', background: 'rgba(255,255,255,0.02)', minWidth: (photos.length + pendingPhotos.length) === 1 ? 60 : 'auto' }}
                       onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(16,185,129,0.5)'}
                       onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}>
-                      {uploadingPhoto ? <span style={{ fontSize: 10 }}>{uploadPhotoProgress ? `${uploadPhotoProgress.current}/${uploadPhotoProgress.total}` : '...'}</span> : <>
-                        <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
-                        <span style={{ fontSize: 10 }}>Photo</span>
-                      </>}
+                      <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
+                      <span style={{ fontSize: 10 }}>Photo</span>
                       <input type="file" accept="image/*" multiple onChange={uploadPhoto} style={{ display: 'none' }} />
                     </label>
                   </div>
@@ -527,16 +543,15 @@ export default function Salle() {
                   <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, height: 140, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 12, cursor: 'pointer', color: 'var(--fg-3)', fontSize: 13, background: 'rgba(255,255,255,0.02)', position: 'relative', transition: 'border .2s' }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(16,185,129,0.5)'}
                     onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}>
-                    {uploadingPhoto ? (
-                      <span>{uploadPhotoProgress ? `Upload ${uploadPhotoProgress.current}/${uploadPhotoProgress.total}...` : 'Upload en cours...'}</span>
-                    ) : (
-                      <>
-                        <Icon d={icons.camera} size={22} color="#3d4155" />
-                        <span style={{ fontSize: 12 }}>Ajouter des photos</span>
-                      </>
-                    )}
+                    <Icon d={icons.camera} size={22} color="#3d4155" />
+                    <span style={{ fontSize: 12 }}>Ajouter des photos</span>
                     <input type="file" accept="image/*" multiple onChange={uploadPhoto} style={{ display: 'none' }} />
                   </label>
+                )}
+                {pendingPhotos.length > 0 && (
+                  <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 6 }}>
+                    {pendingPhotos.length} photo(s) en attente d'un meilleur réseau — envoi automatique dès que possible, même si vous quittez cette page.
+                  </div>
                 )}
 
                 {/* Section vidéos */}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { usePhotoQueue } from '../context/PhotoQueueContext'
 
 const icons = {
   grid:     "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
@@ -13,6 +14,7 @@ const icons = {
   save:     "M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8",
   key:      "M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4",
   palette:  "M12 2a10 10 0 1 0 0 20 4 4 0 0 0 4-4v-1a2 2 0 0 1 2-2h1a3 3 0 0 0 0-6h-1a10 10 0 0 0-6-7",
+  camera:   "M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
 }
 
 const Icon = ({ d, size = 18, color = 'currentColor' }) => (
@@ -149,6 +151,8 @@ export default function Layout({ children, chantiers = [] }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const photoQueue = usePhotoQueue()
+  const pendingPhotos = photoQueue?.pending || []
 
   const sidebarProps = { chantiers, user, logout, navigate, location, setMenuOpen }
 
@@ -164,6 +168,10 @@ export default function Layout({ children, chantiers = [] }) {
         @media (min-width: 769px) {
           .mobile-menu-btn { display: none !important; }
           .topbar-logo { display: none !important; }
+        }
+        @keyframes avtrack-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: .3; }
         }
       `}</style>
 
@@ -195,6 +203,14 @@ export default function Layout({ children, chantiers = [] }) {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {pendingPhotos.length > 0 && (
+              <div title={pendingPhotos.length + ' photo(s) en attente d\'envoi — reprend automatiquement des que le reseau est meilleur'}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 20, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: '#F59E0B' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', animation: 'avtrack-pulse 1.4s ease-in-out infinite' }} />
+                <Icon d={icons.camera} size={13} color="#F59E0B" />
+                {pendingPhotos.length}
+              </div>
+            )}
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'var(--accent-fg)' }}>
               {user?.prenom?.[0]}{user?.nom?.[0]}
             </div>
