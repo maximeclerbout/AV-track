@@ -150,6 +150,107 @@ router.post('/salles/:id/apply-network', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
 });
 
+router.post('/salles/:id/assign-ips', async (req, res) => {
+  try {
+    const salleResult = await query('SELECT * FROM salles WHERE id = $1', [req.params.id]);
+    if (salleResult.rows.length === 0) return res.status(404).json({ error: 'Salle introuvable.' });
+    const salle = salleResult.rows[0];
+
+    const gatewayMatch = (salle.net_gateway || '').match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.(\d{1,3})$/);
+    if (!gatewayMatch) {
+      return res.status(400).json({ error: 'La passerelle de la salle doit etre definie avant d\'attribuer des IP.' });
+    }
+    const base = gatewayMatch[1] + '.';
+
+    const produitsResult = await query(
+      `SELECT id, ip, marque, position_ordre FROM produits
+       WHERE salle_id = $1 AND sur_reseau = true ORDER BY position_ordre, id`,
+      [salle.id]
+    );
+
+    // On refuse d'attribuer quoi que ce soit si des doublons existent deja
+    // parmi les IP saisies manuellement : mieux vaut alerter et laisser
+    // corriger a la main que risquer d'aggraver un conflit sur le reseau.
+    const ipCounts = new Map();
+    for (const p of produitsResult.rows) {
+      const ip = (p.ip || '').trim();
+      if (!ip) continue;
+      if (!ipCounts.has(ip)) ipCounts.set(ip, []);
+      ipCounts.get(ip).push(p.id);
+    }
+    const doublons = [...ipCounts.entries()].filter(([, ids]) => ids.length > 1);
+    if (doublons.length > 0) {
+      return res.status(409).json({
+        error: `Doublon(s) d'adresse IP detecte(s) dans cette salle : ${doublons.map(([ip, ids]) => `${ip} (equipements #${ids.join(', #')})`).join(' ; ')}. Corrigez-les avant d'attribuer automatiquement les IP restantes.`
+      });
+    }
+
+    const reserved = new Set([parseInt(gatewayMatch[2], 10)]);
+    const dnsMatch = (salle.net_dns || '').match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.(\d{1,3})$/);
+    if (dnsMatch && dnsMatch[1] + '.' === base) reserved.add(parseInt(dnsMatch[2], 10));
+
+    const sansIp = [];
+    for (const p of produitsResult.rows) {
+      const ip = (p.ip || '').trim();
+      const ipMatch = ip.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.(\d{1,3})$/);
+      if (ipMatch) {
+        if (ipMatch[1] + '.' === base) reserved.add(parseInt(ipMatch[2], 10));
+      } else if (!ip) {
+        sansIp.push(p);
+      }
+    }
+
+    // Priorite aux equipements Extron, puis ordre d'ajout dans la salle
+    sansIp.sort((a, b) => {
+      const extronA = (a.marque || '').toLowerCase().includes('extron') ? 0 : 1;
+      const extronB = (b.marque || '').toLowerCase().includes('extron') ? 0 : 1;
+      if (extronA !== extronB) return extronA - extronB;
+      return (a.position_ordre || 0) - (b.position_ordre || 0) || a.id - b.id;
+    });
+
+    let next = 10, ipAssigned = 0, ipSkippedNoRange = 0;
+    const assignments = [];
+    for (const p of sansIp) {
+      while (next <= 254 && reserved.has(next)) next++;
+      if (next > 254) { ipSkippedNoRange++; continue; }
+      assignments.push({ id: p.id, ip: base + next });
+      reserved.add(next);
+      next++;
+      ipAssigned++;
+    }
+
+    for (const a of assignments) {
+      await query('UPDATE produits SET ip = $1 WHERE id = $2', [a.ip, a.id]);
+    }
+
+    // Garde-fou final : si malgre tout un doublon s'est glisse, on previent
+    // plutot que de laisser une incoherence silencieuse en base.
+    const verif = await query(
+      `SELECT ip FROM produits WHERE salle_id = $1 AND sur_reseau = true AND ip IS NOT NULL AND ip <> ''
+       GROUP BY ip HAVING COUNT(*) > 1`,
+      [salle.id]
+    );
+    if (verif.rows.length > 0) {
+      return res.status(409).json({
+        error: `Attribution interrompue : doublon(s) detecte(s) apres attribution (${verif.rows.map(r => r.ip).join(', ')}). Verifiez manuellement les IP de cette salle.`
+      });
+    }
+
+    let message = ipAssigned > 0
+      ? `${ipAssigned} adresse(s) IP attribuee(s) automatiquement (priorite Extron, .10-.254).`
+      : `Aucun equipement sans IP a attribuer.`;
+    if (ipSkippedNoRange > 0) message += ` ${ipSkippedNoRange} equipement(s) sans IP disponible (plage epuisee).`;
+
+    if (ipAssigned > 0) {
+      await audit(salle.chantier_id, req.user,
+        `${ipAssigned} IP attribuee(s) automatiquement pour "${salle.nom}"`,
+        'salle', salle.id
+      );
+    }
+    res.json({ ipAssigned, message });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Erreur serveur.' }); }
+});
+
 router.post('/salles/:id/photo', upload.single('photo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Aucun fichier recu.' });
   try {

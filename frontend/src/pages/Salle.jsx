@@ -206,6 +206,20 @@ export default function Salle() {
     alert(res.data.message)
   }
 
+  const assignIps = async () => {
+    try {
+      const res = await axios.post('/api/salles/' + sid + '/assign-ips')
+      alert(res.data.message)
+      if (res.data.ipAssigned > 0) {
+        const refreshed = await axios.get('/api/chantiers/' + cid)
+        const s = refreshed.data.salles?.find(s => s.id === parseInt(sid))
+        if (s) setSalle(s)
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erreur lors de l\'attribution des IP.')
+    }
+  }
+
   // Les photos sont d'abord mises en file d'attente locale (IndexedDB) puis
   // envoyees des que possible — meme hors reseau sur un chantier, rien n'est
   // perdu : la file continue meme si on quitte cette page (voir PhotoQueueContext).
@@ -629,10 +643,19 @@ export default function Salle() {
                           </div>
                         ))}
                       </div>
-                      <button onClick={applyNetwork}
-                        style={{ background: 'linear-gradient(135deg,#06B6D4,#0891B2)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 3px 10px rgba(6,182,212,0.35)' }}>
-                        <Icon d={icons.wifi} size={13} color="#fff" /> Appliquer à tous les équipements
-                      </button>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        <button onClick={applyNetwork}
+                          style={{ background: 'linear-gradient(135deg,#06B6D4,#0891B2)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 3px 10px rgba(6,182,212,0.35)' }}>
+                          <Icon d={icons.wifi} size={13} color="#fff" /> Appliquer masque/passerelle/DNS
+                        </button>
+                        <button onClick={assignIps}
+                          style={{ background: 'rgba(6,182,212,0.12)', color: '#06B6D4', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Icon d={icons.network} size={13} color="#06B6D4" /> Attribuer les IP automatiquement
+                        </button>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 6 }}>
+                        Le premier bouton propage le masque/la passerelle/le DNS de la salle à tous les équipements réseau. Le second attribue une IP aux équipements qui n'en ont pas encore (priorité Extron, plage .10 à .254), sans toucher aux IP déjà saisies manuellement — en cas de doublon existant, une alerte est affichée au lieu d'attribuer.
+                      </div>
                     </div>
                   )}
                 </div>
