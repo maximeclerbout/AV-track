@@ -731,7 +731,8 @@ router.get('/:id/photos-zip', async (req, res) => {
       return res.status(404).json({ error: 'Aucune photo trouvée pour ce chantier.' });
     }
 
-    const safeCh = chantier.nom.replace(/[^a-zA-Z0-9-_]/g, '_');
+    const chLabel = [chantier.numero_affaire, chantier.client, chantier.nom].filter(Boolean).join('_');
+    const safeCh = chLabel.replace(/[^a-zA-Z0-9-_]/g, '_');
     const tmpFile = path.join(os.tmpdir(), `avtrack_photos_${Date.now()}.zip`);
 
     await new Promise((resolve, reject) => {
