@@ -819,7 +819,8 @@ export default function Chantier() {
       const url = window.URL.createObjectURL(new Blob([res.data]))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', 'Photos_' + (chantier?.nom || id) + '.zip')
+      const label = [chantier?.numero_affaire, chantier?.client, chantier?.nom].filter(Boolean).join('_') || id
+      link.setAttribute('download', 'Photos_' + label + '.zip')
       document.body.appendChild(link); link.click(); link.remove()
     } catch { alert('Erreur téléchargement photos.') }
   }
