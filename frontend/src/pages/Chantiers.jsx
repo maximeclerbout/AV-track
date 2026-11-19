@@ -165,7 +165,13 @@ export default function Chantiers() {
     if (next && odooAffaires === null && !odooLoading) loadOdooAffaires()
   }
 
-  const creerDepuisOdoo = (affaire) => {
+  // Quand un chantier est cree depuis une affaire Odoo, on retient ses
+  // articles (materiel vendu) pour les creer avec les salles en meme temps
+  // que le chantier — voir createChantier(). null = creation manuelle normale.
+  const [odooArticles, setOdooArticles] = useState(null)
+  const [odooVentesLoading, setOdooVentesLoading] = useState(false)
+
+  const creerDepuisOdoo = async (affaire) => {
     setForm(f => ({
       ...f,
       numero_affaire: affaire.numero_affaire,
@@ -174,8 +180,21 @@ export default function Chantiers() {
       nom_contact: affaire.nom_contact || '',
       telephone: affaire.telephone || '',
     }))
+    setOdooArticles(null)
+    setFormSalles([''])
     setShowAdd(true)
     setShowOdoo(false)
+
+    setOdooVentesLoading(true)
+    try {
+      const res = await axios.get('/api/odoo/affaires/' + affaire.odoo_id + '/ventes')
+      setOdooArticles(res.data.articles || [])
+      if (res.data.sections?.length) setFormSalles(res.data.sections)
+    } catch (err) {
+      setOdooArticles([])
+    } finally {
+      setOdooVentesLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -198,11 +217,29 @@ export default function Chantiers() {
     if (!form.nom) return
     setSaving(true)
     try {
-      const res = await axios.post('/api/chantiers', {
-        ...form,
-        salles: formSalles.filter(s => s.trim())
-      })
-      navigate('/chantiers/' + res.data.id)
+      let res
+      if (odooArticles !== null) {
+        // Chantier cree depuis une affaire Odoo : on cree le chantier, les
+        // salles et le materiel vendu en une seule fois (meme endpoint que
+        // l'import BDC PDF, qui sait deja repartir les articles par salle).
+        res = await axios.post('/api/import-pdf/create', {
+          nom_chantier: form.nom,
+          numero_affaire: form.numero_affaire,
+          client: form.client,
+          adresse: form.adresse,
+          nom_contact: form.nom_contact,
+          telephone: form.telephone,
+          salles_config: formSalles.filter(s => s.trim()).map(nom => ({ section: nom, nom })),
+          articles: odooArticles
+        })
+        navigate('/chantiers/' + res.data.chantier_id)
+      } else {
+        res = await axios.post('/api/chantiers', {
+          ...form,
+          salles: formSalles.filter(s => s.trim())
+        })
+        navigate('/chantiers/' + res.data.id)
+      }
     } catch (err) {
       alert('Erreur lors de la création')
     } finally {
@@ -316,7 +353,7 @@ export default function Chantiers() {
                 </div>
               )}
             </div>
-            <button onClick={() => setShowAdd(true)}
+            <button onClick={() => { setOdooArticles(null); setShowAdd(true) }}
               style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 18px rgba(16,185,129,0.40)' }}>
               <Icon d="M12 5v14M5 12h14" size={14} color="#fff" /> Nouveau chantier
             </button>
@@ -421,7 +458,14 @@ export default function Chantiers() {
         {/* Inline add form */}
         {showAdd && (
           <div style={{ background: 'var(--surface)', borderRadius: 16, padding: 24, marginBottom: 24, borderTop: '3px solid #10B981', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, marginBottom: 20, color: 'var(--fg)' }}>Nouveau chantier</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, marginBottom: 12, color: 'var(--fg)' }}>Nouveau chantier</div>
+            {odooArticles !== null && (
+              <div style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: 8, padding: '8px 12px', marginBottom: 16, fontSize: 12, color: '#A855F7' }}>
+                {odooVentesLoading
+                  ? 'Récupération des salles et du matériel vendu depuis Odoo...'
+                  : `Les salles et ${odooArticles.length} équipement(s) ci-dessous viennent de la vente Odoo liée à cette affaire — vérifiez avant de créer.`}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div style={{ gridColumn: '1/-1' }}>
                 <label style={labelStyle}>Nom du chantier *</label>
@@ -507,13 +551,13 @@ export default function Chantiers() {
             </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setShowAdd(false); setFormSalles(['']) }}
+              <button onClick={() => { setShowAdd(false); setFormSalles(['']); setOdooArticles(null) }}
                 style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
                 Annuler
               </button>
-              <button onClick={createChantier} disabled={saving}
+              <button onClick={createChantier} disabled={saving || odooVentesLoading}
                 style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
-                {saving ? 'Création...' : `Créer le chantier${formSalles.filter(s => s.trim()).length ? ` (${formSalles.filter(s => s.trim()).length} salle${formSalles.filter(s => s.trim()).length > 1 ? 's' : ''})` : ''}`}
+                {odooVentesLoading ? 'Chargement du matériel Odoo...' : saving ? 'Création...' : `Créer le chantier${formSalles.filter(s => s.trim()).length ? ` (${formSalles.filter(s => s.trim()).length} salle${formSalles.filter(s => s.trim()).length > 1 ? 's' : ''})` : ''}${odooArticles?.length ? ` + ${odooArticles.length} équipement(s)` : ''}`}
               </button>
             </div>
           </div>
