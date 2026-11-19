@@ -1,6 +1,6 @@
 import ImportExcel from '../components/ImportExcel'
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 import Layout from '../components/Layout'
 
@@ -136,6 +136,7 @@ export default function Chantiers() {
   const [duplicateChantier, setDuplicateChantier] = useState(null)
   const [duplicateChantierNom, setDuplicateChantierNom] = useState('')
   const navigate = useNavigate()
+  const location = useLocation()
   const importMenuRef = useRef(null)
 
   // Panneau "Affaires Odoo" — lecture seule, charge a la demande (pas au
@@ -215,6 +216,31 @@ export default function Chantiers() {
       .then(res => setChantiers(res.data))
       .finally(() => setLoading(false))
   }, [])
+
+  // Arrivee depuis le Planning (clic sur une intervention) : /chantiers?odoo_numero=163682
+  // -> si le chantier existe deja (meme numero d'affaire), on l'ouvre directement,
+  // sinon on declenche la creation pre-remplie depuis l'affaire Odoo correspondante.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const numero = params.get('odoo_numero')
+    if (!numero || (chantiers.length === 0 && loading)) return
+
+    navigate('/chantiers', { replace: true })
+
+    const existant = chantiers.find(c => (c.numero_affaire || '').trim() === numero.trim())
+    if (existant) {
+      navigate('/chantiers/' + existant.id)
+      return
+    }
+
+    axios.get('/api/odoo/affaires', { params: { q: numero } })
+      .then(res => {
+        const trouvee = res.data.find(a => a.numero_affaire === numero) || res.data[0]
+        if (trouvee) creerDepuisOdoo(trouvee)
+        else alert('Affaire Odoo "' + numero + '" introuvable.')
+      })
+      .catch(() => alert('Erreur lors de la recherche de l\'affaire Odoo.'))
+  }, [chantiers, location.search])
 
   useEffect(() => {
     const handler = (e) => {

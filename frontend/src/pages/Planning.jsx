@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Layout from '../components/Layout'
 
@@ -12,6 +13,7 @@ const toISODate = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + p
 const formatHeure = (s) => s ? s.slice(11, 16) : ''
 
 export default function Planning() {
+  const navigate = useNavigate()
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d })
   const [creneaux, setCreneaux] = useState([])
   const [loading, setLoading] = useState(true)
@@ -62,9 +64,14 @@ export default function Planning() {
   const today = toISODate(new Date())
   const moisLabel = cursor.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
 
+  const ouvrirAffaire = (e) => {
+    if (!/^\d{4,}$/.test(e.numero_affaire || '')) return
+    navigate('/chantiers?odoo_numero=' + encodeURIComponent(e.numero_affaire))
+  }
+
   return (
     <Layout>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div>
@@ -106,9 +113,9 @@ export default function Planning() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gap: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' }}>
           {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(j => (
-            <div key={j} style={{ background: 'var(--surface-elev)', padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: .5 }}>
+            <div key={j} style={{ background: 'var(--surface-elev)', padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: .5, minWidth: 0 }}>
               {j}
             </div>
           ))}
@@ -119,32 +126,36 @@ export default function Planning() {
             const entries = parJour[iso] || []
             return (
               <div key={iso} style={{
-                background: 'var(--surface)', minHeight: 104, padding: 6,
+                background: 'var(--surface)', minHeight: 104, minWidth: 0, padding: 6,
                 opacity: estMoisCourant ? 1 : 0.35,
                 boxShadow: estAujourdhui ? 'inset 0 0 0 2px var(--accent)' : 'none'
               }}>
                 <div style={{ fontSize: 11, fontWeight: estAujourdhui ? 800 : 600, color: estAujourdhui ? 'var(--accent)' : 'var(--fg-3)', marginBottom: 4 }}>
                   {d.getDate()}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {entries.map(e => (
-                    <div key={e.id}
-                      title={`${formatHeure(e.debut)}–${formatHeure(e.fin)} · ${e.titre}${e.client ? ' · ' + e.client : ''}${e.employes?.length ? ' · ' + e.employes.join(', ') : ''}`}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                  {entries.map(e => {
+                    const cliquable = /^\d{4,}$/.test(e.numero_affaire || '')
+                    return (
+                    <div key={e.id} onClick={() => ouvrirAffaire(e)}
+                      title={`${formatHeure(e.debut)}–${formatHeure(e.fin)} · ${e.titre}${e.client ? ' · ' + e.client : ''}${e.employes?.length ? ' · ' + e.employes.join(', ') : ''}${cliquable ? ' · cliquer pour créer/ouvrir le chantier' : ''}`}
                       style={{
-                        fontSize: 10, padding: '2px 5px', borderRadius: 4,
+                        fontSize: 10, padding: '2px 5px', borderRadius: 4, minWidth: 0,
                         background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
                         color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        display: 'flex', alignItems: 'center', gap: 4, cursor: 'default'
-                      }}>
+                        display: 'flex', alignItems: 'center', gap: 4, cursor: cliquable ? 'pointer' : 'default'
+                      }}
+                      onMouseEnter={e2 => { if (cliquable) e2.currentTarget.style.background = 'rgba(16,185,129,0.12)' }}
+                      onMouseLeave={e2 => { e2.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}>
                       <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
                         {(e.employes?.length ? e.employes : ['?']).map((nom, i) => (
                           <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: EMPLOYE_COLORS[nom] || 'var(--fg-mute)' }} />
                         ))}
                       </span>
                       <span style={{ fontFamily: 'var(--font-mono)', flexShrink: 0, color: 'var(--fg-mute)' }}>{formatHeure(e.debut)}</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.titre}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{e.titre}</span>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             )
