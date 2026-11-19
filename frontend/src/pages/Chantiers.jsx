@@ -166,7 +166,14 @@ export default function Chantiers() {
   }
 
   const creerDepuisOdoo = (affaire) => {
-    setForm(f => ({ ...f, numero_affaire: affaire.numero_affaire, client: affaire.client }))
+    setForm(f => ({
+      ...f,
+      numero_affaire: affaire.numero_affaire,
+      client: affaire.client,
+      adresse: affaire.adresse || '',
+      nom_contact: affaire.nom_contact || '',
+      telephone: affaire.telephone || '',
+    }))
     setShowAdd(true)
     setShowOdoo(false)
   }
