@@ -21,6 +21,32 @@ const SECTION_EXCLUE_REGEX = /install|contrat|service|maintenance|garantie|forma
 // (meme convention que les BDC PDF AVI), suivis de la description.
 const MARQUE_REGEX = /^\[([^\]]+)\]\s*\[([^\]]+)\]\s*(.*)$/;
 
+const TACHES_GENERIQUES = ['programmation', 'préparation chantier', 'preparation chantier'];
+
+// Le titre d'une affaire n'est presque jamais rempli dans le champ dedie
+// d'Odoo : on le retrouve en pratique dans le nom de la tache technicien
+// (ex: "163682 - Salle du conseil - visio (Inter)"), dont on retire le
+// numero d'affaire, le nom du client et le suffixe entre parentheses.
+function extraireTitre(taches, numero, client) {
+  if (!taches?.length) return '';
+  const numeroEsc = String(numero).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const reNumeroPrefixe = new RegExp('^' + numeroEsc + '\\s*[-–]?\\s*(.+?)\\s*\\([^)]*\\)\\s*$', 'i');
+  for (const t of taches) {
+    const m = (t || '').match(reNumeroPrefixe);
+    if (m && m[1].trim()) return m[1].trim();
+  }
+  for (const t of taches) {
+    let s = (t || '').split(String(numero)).join(' ');
+    if (client) {
+      const clientEsc = client.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      s = s.replace(new RegExp('^\\s*' + clientEsc + '\\s*[-–]?\\s*', 'i'), '');
+    }
+    s = s.replace(/\s*\([^)]*\)\s*$/, '').replace(/^[\s\-–]+|[\s\-–]+$/g, '').trim();
+    if (s) return s;
+  }
+  return '';
+}
+
 const devinerType = (texte) => {
   const t = texte.toLowerCase();
   if (t.includes('projecteur') || t.includes('epson') || t.includes('videopro')) return 'Videoprojecteur';
@@ -57,6 +83,23 @@ router.get('/affaires', async (req, res) => {
       partnersById = Object.fromEntries(partners.map(p => [p.id, p]));
     }
 
+    // Lecture groupee des taches liees, pour en extraire un titre lisible
+    // quand le champ dedie d'Odoo n'est pas rempli (cas le plus frequent).
+    const projectIds = projects.map(p => p.id);
+    let tachesByProject = {};
+    if (projectIds.length > 0) {
+      const taches = await odoo.searchRead('project.task', [['project_id', 'in', projectIds]], {
+        fields: ['project_id', 'name']
+      });
+      for (const t of taches) {
+        const pid = t.project_id ? t.project_id[0] : null;
+        if (!pid) continue;
+        const nom = (t.name || '').trim();
+        if (TACHES_GENERIQUES.includes(nom.toLowerCase())) continue;
+        (tachesByProject[pid] ||= []).push(nom);
+      }
+    }
+
     const existing = await query(
       `SELECT numero_affaire FROM chantiers WHERE numero_affaire IS NOT NULL AND numero_affaire <> ''`
     );
@@ -68,10 +111,11 @@ router.get('/affaires', async (req, res) => {
       // le client c'est la societe et le contact c'est la personne elle-meme.
       const client = partner ? (partner.parent_id ? partner.parent_id[1] : partner.name) : '';
       const nom_contact = partner?.parent_id ? partner.name : '';
+      const titre = p.x_studio_objet_de_lintervention || extraireTitre(tachesByProject[p.id] || [], p.name, client);
       return {
         odoo_id: p.id,
         numero_affaire: p.name,
-        titre: p.x_studio_objet_de_lintervention || '',
+        titre,
         client,
         adresse: partner ? formatAdresse(partner) : '',
         nom_contact,
