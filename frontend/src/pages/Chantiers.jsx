@@ -148,11 +148,11 @@ export default function Chantiers() {
   const [odooSearch, setOdooSearch] = useState('')
   const [odooVendeur, setOdooVendeur] = useState('tous')
 
-  const loadOdooAffaires = async () => {
+  const loadOdooAffaires = async (q) => {
     setOdooLoading(true)
     setOdooError(null)
     try {
-      const res = await axios.get('/api/odoo/affaires')
+      const res = await axios.get('/api/odoo/affaires', { params: q ? { q } : {} })
       setOdooAffaires(res.data)
     } catch (err) {
       setOdooError(err.response?.data?.error || 'Erreur de connexion à Odoo.')
@@ -166,6 +166,16 @@ export default function Chantiers() {
     setShowOdoo(next)
     if (next && odooAffaires === null && !odooLoading) loadOdooAffaires()
   }
+
+  // La recherche interroge Odoo directement (numero/client sur toute la base,
+  // pas seulement les 100 affaires recentes deja chargees), avec un debounce
+  // pour ne pas spammer l'API a chaque frappe. Ne se declenche pas a
+  // l'ouverture du panneau (deja gere par toggleOdooPanel ci-dessus).
+  useEffect(() => {
+    if (!showOdoo || odooAffaires === null) return
+    const id = setTimeout(() => loadOdooAffaires(odooSearch), 400)
+    return () => clearTimeout(id)
+  }, [odooSearch])
 
   // Quand un chantier est cree depuis une affaire Odoo, on retient ses
   // articles (materiel vendu) pour les creer avec les salles en meme temps
@@ -411,7 +421,7 @@ export default function Chantiers() {
                       <option value="tous">Tous les vendeurs</option>
                       {odooVendeurs.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
-                    <button onClick={loadOdooAffaires} style={{ background: 'none', border: 'none', color: '#A855F7', cursor: 'pointer', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    <button onClick={() => loadOdooAffaires(odooSearch)} style={{ background: 'none', border: 'none', color: '#A855F7', cursor: 'pointer', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
                       ↻ Actualiser
                     </button>
                   </div>

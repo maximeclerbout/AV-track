@@ -65,10 +65,15 @@ router.get('/affaires', async (req, res) => {
     return res.status(503).json({ error: 'Integration Odoo non configuree sur ce serveur.' });
   }
   try {
-    const projects = await odoo.searchRead('project.project', [], {
+    // Sans recherche : les 100 affaires les plus recentes. Avec une
+    // recherche (numero ou client), on interroge Odoo directement sur
+    // toutes les affaires plutot que de filtrer seulement ce sous-ensemble.
+    const q = (req.query.q || '').trim();
+    const domaine = q ? ['|', ['name', 'ilike', q], ['partner_id.display_name', 'ilike', q]] : [];
+    const projects = await odoo.searchRead('project.project', domaine, {
       fields: ['name', 'partner_id', 'create_date', 'user_id', 'x_studio_objet_de_lintervention'],
       order: 'id desc',
-      limit: 100
+      limit: q ? 200 : 100
     });
 
     // Lecture groupee des contacts Odoo lies, pour recuperer l'adresse du
