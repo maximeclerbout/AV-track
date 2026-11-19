@@ -592,6 +592,49 @@ export default function Chantiers() {
               </div>
             </div>
 
+            {/* Apercu du materiel Odoo avant creation definitive */}
+            {odooArticles !== null && !odooVentesLoading && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>Matériel détecté depuis Odoo ({odooArticles.length})</label>
+                {odooArticles.length === 0 ? (
+                  <div style={{ fontSize: 12, color: '#4B5563', fontStyle: 'italic' }}>
+                    Aucun équipement détecté dans la vente Odoo — vous pourrez en ajouter manuellement après création.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 360, overflowY: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 12 }}>
+                    {[...new Set(odooArticles.map(a => a.section))].map(section => (
+                      <div key={section}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#A855F7', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 6 }}>
+                          {section}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {odooArticles.map((a, idx) => a.section === section && (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '6px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 12, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {a.quantite > 1 ? `${a.quantite}× ` : ''}{a.reference}
+                                </div>
+                                {a.ref_constructeur && (
+                                  <div style={{ fontSize: 10, color: 'var(--fg-mute)', fontFamily: 'var(--font-mono)' }}>
+                                    Réf. {a.ref_constructeur}
+                                  </div>
+                                )}
+                              </div>
+                              <button onClick={() => setOdooArticles(prev => prev.filter((_, j) => j !== idx))}
+                                title="Retirer cet équipement de l'import"
+                                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 12, flexShrink: 0 }}>
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => { setShowAdd(false); setFormSalles(['']); setOdooArticles(null) }}
                 style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
