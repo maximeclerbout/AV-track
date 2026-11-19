@@ -138,6 +138,39 @@ export default function Chantiers() {
   const navigate = useNavigate()
   const importMenuRef = useRef(null)
 
+  // Panneau "Affaires Odoo" — lecture seule, charge a la demande (pas au
+  // montage de la page) pour ne pas ralentir le chargement si Odoo est lent
+  // ou mal configure.
+  const [showOdoo, setShowOdoo] = useState(false)
+  const [odooAffaires, setOdooAffaires] = useState(null)
+  const [odooLoading, setOdooLoading] = useState(false)
+  const [odooError, setOdooError] = useState(null)
+
+  const loadOdooAffaires = async () => {
+    setOdooLoading(true)
+    setOdooError(null)
+    try {
+      const res = await axios.get('/api/odoo/affaires')
+      setOdooAffaires(res.data)
+    } catch (err) {
+      setOdooError(err.response?.data?.error || 'Erreur de connexion à Odoo.')
+    } finally {
+      setOdooLoading(false)
+    }
+  }
+
+  const toggleOdooPanel = () => {
+    const next = !showOdoo
+    setShowOdoo(next)
+    if (next && odooAffaires === null && !odooLoading) loadOdooAffaires()
+  }
+
+  const creerDepuisOdoo = (affaire) => {
+    setForm(f => ({ ...f, numero_affaire: affaire.numero_affaire, client: affaire.client }))
+    setShowAdd(true)
+    setShowOdoo(false)
+  }
+
   useEffect(() => {
     axios.get('/api/chantiers')
       .then(res => setChantiers(res.data))
@@ -281,6 +314,68 @@ export default function Chantiers() {
               <Icon d="M12 5v14M5 12h14" size={14} color="#fff" /> Nouveau chantier
             </button>
           </div>
+        </div>
+
+        {/* Affaires Odoo — lecture seule */}
+        <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+          <button onClick={toggleOdooPanel}
+            style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', color: '#A855F7', fontSize: 13, fontWeight: 600 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 1 2-2V9M9 21H5a2 2 0 0 0-2-2V9m0 0h18" size={14} color="#A855F7" />
+              Affaires Odoo
+              {odooAffaires && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-mute)', background: 'rgba(168,85,247,0.1)', borderRadius: 20, padding: '1px 7px' }}>
+                  {odooAffaires.filter(a => !a.deja_importee).length} nouvelle(s)
+                </span>
+              )}
+            </div>
+            <svg style={{ transform: showOdoo ? 'rotate(180deg)' : 'none', transition: '.2s' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A855F7" strokeWidth="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          {showOdoo && (
+            <div style={{ padding: '0 14px 14px' }}>
+              {odooLoading ? (
+                <div style={{ fontSize: 13, color: 'var(--fg-3)', padding: '8px 0' }}>Chargement depuis Odoo...</div>
+              ) : odooError ? (
+                <div style={{ fontSize: 13, color: '#EF4444', padding: '8px 0' }}>{odooError}</div>
+              ) : odooAffaires?.length === 0 ? (
+                <div style={{ fontSize: 13, color: 'var(--fg-3)', padding: '8px 0' }}>Aucune affaire trouvée dans Odoo.</div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                    <button onClick={loadOdooAffaires} style={{ background: 'none', border: 'none', color: '#A855F7', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                      ↻ Actualiser
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
+                    {odooAffaires?.map(a => (
+                      <div key={a.odoo_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)', fontFamily: 'var(--font-mono)' }}>
+                            N° {a.numero_affaire}
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--fg-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {a.client || 'Client non renseigné'}
+                          </div>
+                        </div>
+                        {a.deja_importee ? (
+                          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 20, padding: '4px 10px', flexShrink: 0 }}>
+                            ✓ Déjà importée
+                          </span>
+                        ) : (
+                          <button onClick={() => creerDepuisOdoo(a)}
+                            style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.3)', color: '#A855F7', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
+                            + Créer le chantier
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Search + filter chips */}

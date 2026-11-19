@@ -58,6 +58,7 @@ const validationsRoutes = require('./routes/validations');
 const marquesRoutes = require('./routes/marques');
 const clientsRoutes  = require('./routes/clients');
 const wareviaRoutes  = require('./routes/warevia');
+const odooRoutes     = require('./routes/odoo');
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', app: 'AVTrack Pro', version: '1.0.0', timestamp: new Date().toISOString() });
@@ -78,6 +79,7 @@ app.use('/api/import-xml', importXmlRoutes);
 app.use('/api/marques',    marquesRoutes);
 app.use('/api/clients',    clientsRoutes);
 app.use('/api/warevia',    wareviaRoutes);
+app.use('/api/odoo',       odooRoutes);
 app.use('/api/produits',   produitsRoutes);
 app.use('/api',            produitsRoutes);
 app.use('/api',            sallesRoutes);
