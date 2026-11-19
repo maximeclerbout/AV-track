@@ -15,6 +15,7 @@ const icons = {
   key:      "M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4",
   palette:  "M12 2a10 10 0 1 0 0 20 4 4 0 0 0 4-4v-1a2 2 0 0 1 2-2h1a3 3 0 0 0 0-6h-1a10 10 0 0 0-6-7",
   camera:   "M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+  calendar: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
 }
 
 const Icon = ({ d, size = 18, color = 'currentColor' }) => (
@@ -38,6 +39,7 @@ function SidebarLinks({ chantiers, user, logout, navigate, location, setMenuOpen
   const navLinks = [
     { path: '/',          icon: icons.grid,     label: 'Tableau de bord' },
     { path: '/chantiers', icon: icons.building, label: 'Chantiers' },
+    { path: '/planning',  icon: icons.calendar, label: 'Planning' },
   ]
   if (user?.role === 'admin' || user?.role === 'chef') {
     navLinks.push({ path: '/parametres', icon: icons.cog, label: 'Paramètres' })

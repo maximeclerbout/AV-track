@@ -9,6 +9,7 @@ import Chantier from './pages/Chantier'
 import Salle from './pages/Salle'
 import ChangePassword from './pages/ChangePassword'
 import Settings from './pages/Settings'
+import Planning from './pages/Planning'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -37,6 +38,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       <Route path="/chantiers" element={<PrivateRoute><Chantiers /></PrivateRoute>} />
+      <Route path="/planning" element={<PrivateRoute><Planning /></PrivateRoute>} />
       <Route path="/chantiers/:id" element={<PrivateRoute><Chantier /></PrivateRoute>} />
       <Route path="/chantiers/:cid/salles/:sid" element={<PrivateRoute><Salle /></PrivateRoute>} />
       <Route path="/utilisateurs" element={<Navigate to="/parametres" replace />} />

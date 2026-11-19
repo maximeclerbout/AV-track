@@ -214,4 +214,50 @@ router.get('/affaires/:odooId/ventes', async (req, res) => {
   }
 });
 
+// Planning (lecture seule) restreint a ces deux techniciens, a la demande
+// de l'utilisateur. Identifiants Odoo (res.users) trouves une fois par nom
+// — s'ils changent un jour (depart/reembauche), il faudra les remettre a jour.
+const PLANNING_EMPLOYES = {
+  43: 'Maxime Clerbout',
+  128: 'Mathieu Masclet'
+};
+const PLANNING_USER_IDS = Object.keys(PLANNING_EMPLOYES).map(Number);
+
+router.get('/planning', async (req, res) => {
+  if (!odoo.isConfigured()) {
+    return res.status(503).json({ error: 'Integration Odoo non configuree sur ce serveur.' });
+  }
+  const start = req.query.start;
+  const end = req.query.end;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start || '') || !/^\d{4}-\d{2}-\d{2}$/.test(end || '')) {
+    return res.status(400).json({ error: 'Parametres start/end (YYYY-MM-DD) requis.' });
+  }
+  try {
+    const taches = await odoo.searchRead('project.task', [
+      ['user_ids', 'in', PLANNING_USER_IDS],
+      ['planned_date_begin', '!=', false],
+      ['planned_date_begin', '<=', end + ' 23:59:59'],
+      ['date_deadline', '>=', start + ' 00:00:00']
+    ], {
+      fields: ['name', 'project_id', 'partner_id', 'planned_date_begin', 'date_deadline', 'user_ids'],
+      order: 'planned_date_begin asc'
+    });
+
+    const creneaux = taches.map(t => ({
+      id: t.id,
+      titre: t.name,
+      numero_affaire: t.project_id ? t.project_id[1] : '',
+      client: t.partner_id ? t.partner_id[1] : '',
+      debut: t.planned_date_begin,
+      fin: t.date_deadline,
+      employes: (t.user_ids || []).filter(uid => PLANNING_EMPLOYES[uid]).map(uid => PLANNING_EMPLOYES[uid])
+    }));
+
+    res.json(creneaux);
+  } catch (err) {
+    console.error('Erreur lecture planning Odoo:', err.message);
+    res.status(502).json({ error: 'Impossible de contacter Odoo : ' + err.message });
+  }
+});
+
 module.exports = router;
