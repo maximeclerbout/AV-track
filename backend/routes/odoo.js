@@ -40,9 +40,9 @@ router.get('/affaires', async (req, res) => {
   }
   try {
     const projects = await odoo.searchRead('project.project', [], {
-      fields: ['name', 'partner_id', 'create_date'],
+      fields: ['name', 'partner_id', 'create_date', 'user_id', 'x_studio_objet_de_lintervention'],
       order: 'id desc',
-      limit: 40
+      limit: 100
     });
 
     // Lecture groupee des contacts Odoo lies, pour recuperer l'adresse du
@@ -71,10 +71,12 @@ router.get('/affaires', async (req, res) => {
       return {
         odoo_id: p.id,
         numero_affaire: p.name,
+        titre: p.x_studio_objet_de_lintervention || '',
         client,
         adresse: partner ? formatAdresse(partner) : '',
         nom_contact,
         telephone: partner?.phone || '',
+        vendeur: p.user_id ? p.user_id[1].replace(/\s*\(Collaborateur\)\s*$/, '') : '',
         create_date: p.create_date,
         deja_importee: existingSet.has((p.name || '').trim())
       };

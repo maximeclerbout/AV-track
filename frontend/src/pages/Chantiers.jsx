@@ -145,6 +145,8 @@ export default function Chantiers() {
   const [odooAffaires, setOdooAffaires] = useState(null)
   const [odooLoading, setOdooLoading] = useState(false)
   const [odooError, setOdooError] = useState(null)
+  const [odooSearch, setOdooSearch] = useState('')
+  const [odooVendeur, setOdooVendeur] = useState('tous')
 
   const loadOdooAffaires = async () => {
     setOdooLoading(true)
@@ -174,6 +176,7 @@ export default function Chantiers() {
   const creerDepuisOdoo = async (affaire) => {
     setForm(f => ({
       ...f,
+      nom: affaire.titre || '',
       numero_affaire: affaire.numero_affaire,
       client: affaire.client,
       adresse: affaire.adresse || '',
@@ -308,6 +311,18 @@ export default function Chantiers() {
     })
     .sort((a, b) => (ordre[a.statut] ?? 9) - (ordre[b.statut] ?? 9))
 
+  const odooVendeurs = [...new Set((odooAffaires || []).map(a => a.vendeur).filter(Boolean))].sort()
+
+  const odooAffairesFiltrees = (odooAffaires || []).filter(a => {
+    const q = odooSearch.trim().toLowerCase()
+    const matchSearch = !q ||
+      a.numero_affaire.toLowerCase().includes(q) ||
+      (a.client || '').toLowerCase().includes(q) ||
+      (a.titre || '').toLowerCase().includes(q)
+    const matchVendeur = odooVendeur === 'tous' || a.vendeur === odooVendeur
+    return matchSearch && matchVendeur
+  })
+
   return (
     <Layout chantiers={chantiers}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -387,21 +402,37 @@ export default function Chantiers() {
                 <div style={{ fontSize: 13, color: 'var(--fg-3)', padding: '8px 0' }}>Aucune affaire trouvée dans Odoo.</div>
               ) : (
                 <>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                    <button onClick={loadOdooAffaires} style={{ background: 'none', border: 'none', color: '#A855F7', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <input value={odooSearch} onChange={e => setOdooSearch(e.target.value)}
+                      placeholder="Rechercher (n°, client, titre)..."
+                      style={{ ...inputStyle, flex: 1, minWidth: 140, padding: '6px 10px', fontSize: 12 }} />
+                    <select value={odooVendeur} onChange={e => setOdooVendeur(e.target.value)}
+                      style={{ ...inputStyle, width: 'auto', padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
+                      <option value="tous">Tous les vendeurs</option>
+                      {odooVendeurs.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                    <button onClick={loadOdooAffaires} style={{ background: 'none', border: 'none', color: '#A855F7', cursor: 'pointer', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
                       ↻ Actualiser
                     </button>
                   </div>
+                  {odooAffairesFiltrees.length === 0 ? (
+                    <div style={{ fontSize: 13, color: 'var(--fg-3)', padding: '8px 0' }}>Aucune affaire ne correspond.</div>
+                  ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
-                    {odooAffaires?.map(a => (
+                    {odooAffairesFiltrees.map(a => (
                       <div key={a.odoo_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)', fontFamily: 'var(--font-mono)' }}>
                             N° {a.numero_affaire}
                           </div>
                           <div style={{ fontSize: 12, color: 'var(--fg-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {a.client || 'Client non renseigné'}
+                            {a.client || 'Client non renseigné'}{a.titre ? ' — ' + a.titre : ''}
                           </div>
+                          {a.vendeur && (
+                            <div style={{ fontSize: 11, color: 'var(--fg-mute)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              Vendeur : {a.vendeur}
+                            </div>
+                          )}
                         </div>
                         {a.deja_importee ? (
                           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 20, padding: '4px 10px', flexShrink: 0 }}>
@@ -416,6 +447,7 @@ export default function Chantiers() {
                       </div>
                     ))}
                   </div>
+                  )}
                 </>
               )}
             </div>
