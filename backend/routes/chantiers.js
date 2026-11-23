@@ -737,7 +737,9 @@ router.get('/:id/photos-zip', async (req, res) => {
 
     await new Promise((resolve, reject) => {
       const output = fs.createWriteStream(tmpFile);
-      const archive = archiver('zip', { zlib: { level: 5 } });
+      // Les photos (JPEG) sont deja compressees : stocker sans recompresser
+      // (zlib level 0) evite de bruler du CPU pour un gain de taille nul.
+      const archive = archiver('zip', { zlib: { level: 0 } });
       output.on('close', resolve);
       archive.on('error', reject);
       archive.pipe(output);
@@ -769,19 +771,22 @@ router.get('/:id/export-complet', async (req, res) => {
 
     const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
 
-    // Produits + photos + programmes Extron par salle
+    // Produits + photos + programmes Extron par salle (requetes paralleles
+    // par salle, et les salles elles-memes en parallele, pour ne pas payer
+    // le temps d'aller-retour DB en serie sur un chantier a beaucoup de salles)
     const salles = await Promise.all(sallesRaw.map(async salle => {
-      const prods = await query(
-        `SELECT * FROM produits WHERE salle_id = $1 ORDER BY sur_reseau DESC, (type_equipement ILIKE 'autre'), type_equipement, position_ordre`,
-        [salle.id]
-      );
-      let photosResult = await query('SELECT * FROM salle_photos WHERE salle_id = $1 ORDER BY created_at ASC', [salle.id]);
+      const [prods, photosResult, progs] = await Promise.all([
+        query(
+          `SELECT * FROM produits WHERE salle_id = $1 ORDER BY sur_reseau DESC, (type_equipement ILIKE 'autre'), type_equipement, position_ordre`,
+          [salle.id]
+        ),
+        query('SELECT * FROM salle_photos WHERE salle_id = $1 ORDER BY created_at ASC', [salle.id]),
+        query('SELECT * FROM salle_programmes WHERE salle_id = $1 ORDER BY created_at ASC', [salle.id])
+      ]);
       let photos = photosResult.rows;
-      if (photos.length === 0) {
-        const legacy = await query('SELECT photo_url FROM salles WHERE id = $1', [salle.id]);
-        if (legacy.rows[0]?.photo_url) photos = [{ url: legacy.rows[0].photo_url }];
+      if (photos.length === 0 && salle.photo_url) {
+        photos = [{ url: salle.photo_url }];
       }
-      const progs = await query('SELECT * FROM salle_programmes WHERE salle_id = $1 ORDER BY created_at ASC', [salle.id]);
       return { ...salle, produits: prods.rows, photos, programmes: progs.rows };
     }));
 
@@ -797,7 +802,10 @@ router.get('/:id/export-complet', async (req, res) => {
 
     await new Promise((resolve, reject) => {
       const output  = fs.createWriteStream(tmpFile);
-      const archive = archiver('zip', { zlib: { level: 5 } });
+      // Photos, documents et le rapport .xlsx (deja un zip en interne) sont
+      // tous deja compresses : stocker sans recompresser (zlib level 0) va
+      // bien plus vite pour une taille finale quasi identique.
+      const archive = archiver('zip', { zlib: { level: 0 } });
       output.on('close', resolve);
       archive.on('error', reject);
       archive.pipe(output);
