@@ -345,31 +345,15 @@ router.get('/:id/export-template', async (req, res) => {
       a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' })
     );
 
-    const mapStatutToExcel = (s) => {
-      if (s === 'termine')    return 'Terminé';
-      if (s === 'en_cours')   return 'En cours';
-      if (s === 'a_terminer') return 'A terminer';
-      if (s === 'probleme')   return 'Problème';
-      return 'A faire';
-    };
-    const fmtDate = (d) => {
-      if (!d) return '';
-      const dt = new Date(d);
-      return [String(dt.getDate()).padStart(2,'0'), String(dt.getMonth()+1).padStart(2,'0'), dt.getFullYear()].join('/');
-    };
-
     const wb = new ExcelJS.Workbook();
     wb.creator = 'AVTrack Pro';
     const ws = wb.addWorksheet('Chantier');
 
-    ws.columns = [
-      { width: 18 }, { width: 22 }, { width: 12 },
-      { width: 20 }, { width: 16 }, { width: 20 }, { width: 22 },
-      { width: 14 }, { width: 13 },
-      { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
-      { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
-      { width: 30 },
-    ];
+    const toutesLesLignes = salles.flatMap(salle => salle.produits.map(p => ligneProduitComplete(chantier, salle, p)));
+    const colonnesAGarder = colonnesNonVides(toutesLesLignes);
+    const mapLigne = (ligneComplete) => colonnesAGarder.map(i => ligneComplete[i]);
+
+    ws.columns = colonnesAGarder.map(i => ({ width: COL_WIDTHS_FULL[i] }));
 
     const GREEN     = 'FF059669';
     const CARD_BG   = 'FF181B24';
@@ -450,14 +434,7 @@ router.get('/:id/export-template', async (req, res) => {
     ws.getRow(11).height = 20;
 
     // Ligne 12 : En-têtes
-    const headers = [
-      'Site', 'Salle', 'Étage',
-      'Type Equipement', 'Marque', 'Modèle', 'S/N',
-      'Etat', 'Réseau (O/N)',
-      'Label NIC 1', 'Adresse IP', 'Adresse MAC', 'Masque', 'Passerelle', 'DNS 1', 'DNS 2', 'Identifiant', 'Mot de passe',
-      'Label NIC 2', 'Adresse IP 2', 'Adresse MAC 2', 'Masque 2', 'Passerelle 2', 'DNS 1 (NIC2)', 'DNS 2 (NIC2)', 'Identifiant 2', 'Mot de passe 2',
-      'Commentaire',
-    ];
+    const headers = colonnesAGarder.map(i => HEADERS_FULL[i]);
     const headerRow = ws.getRow(12);
     headerRow.height = 30;
     headers.forEach((h, i) => {
@@ -498,7 +475,9 @@ router.get('/:id/export-template', async (req, res) => {
       if (salle.produits.length === 0) {
         const row = ws.getRow(rowIdx++);
         row.height = 18;
-        [chantier.nom, salle.nom, salle.etage || '', '(aucun équipement)'].forEach((val, i) => {
+        const ligneVide = new Array(HEADERS_FULL.length).fill('');
+        ligneVide[0] = chantier.nom; ligneVide[1] = salle.nom; ligneVide[2] = salle.etage || ''; ligneVide[3] = '(aucun équipement)';
+        mapLigne(ligneVide).forEach((val, i) => {
           const cell = row.getCell(i + 1);
           cell.value = val;
           cell.font  = { size: 10, italic: true, color: { argb: GRAY_TEXT } };
@@ -514,40 +493,9 @@ router.get('/:id/export-template', async (req, res) => {
         row.height   = 18;
         const rowBg  = pi % 2 === 0 ? ROW_BG_A : ROW_BG_B;
 
-        const vals = [
-          chantier.nom,
-          salle.nom,
-          salle.etage || '',
-          p.type_equipement || '',
-          p.marque || '',
-          p.modele || '',
-          p.serial_number || '',
-          mapStatutToExcel(salle.statut),
-          p.sur_reseau ? 'O' : 'N',
-          p.label_reseau1 || '',
-          p.ip || '',
-          p.mac || '',
-          p.masque || '',
-          p.gateway || '',
-          p.dns || '',
-          p.dns_alt || '',
-          p.login || '',
-          p.mdp || '',
-          p.label_reseau2 || '',
-          p.ip2 || '',
-          p.mac2 || '',
-          p.masque2 || '',
-          p.gateway2 || '',
-          p.dns2 || '',
-          p.dns2_alt || '',
-          p.login2 || '',
-          p.mdp2 || '',
-          p.description || '',
-        ];
-
-        vals.forEach((val, i) => {
+        mapLigne(ligneProduitComplete(chantier, salle, p)).forEach((val, i) => {
+          const isSiteCol = colonnesAGarder[i] < 3;
           const cell      = row.getCell(i + 1);
-          const isSiteCol = i < 3;
           cell.value      = val;
           cell.font       = { size: 10, color: { argb: isSiteCol ? SITE_FG : 'FF1F2937' } };
           cell.fill       = { type: 'pattern', pattern: 'solid', fgColor: { argb: isSiteCol ? SITE_BG : rowBg } };
@@ -584,19 +532,53 @@ const fmtDate = (d) => {
   return [String(dt.getDate()).padStart(2,'0'), String(dt.getMonth()+1).padStart(2,'0'), dt.getFullYear()].join('/');
 };
 
+const COL_WIDTHS_FULL = [
+  18, 22, 12,
+  20, 16, 20, 22,
+  14, 13,
+  18, 16, 16, 16, 16, 14, 14, 16, 18,
+  18, 16, 16, 16, 16, 14, 14, 16, 18,
+  30,
+];
+const HEADERS_FULL = ['Site','Salle','Étage','Type Equipement','Marque','Modèle','S/N','Etat','Réseau (O/N)','Label NIC 1','Adresse IP','Adresse MAC','Masque','Passerelle','DNS 1','DNS 2','Identifiant','Mot de passe','Label NIC 2','Adresse IP 2','Adresse MAC 2','Masque 2','Passerelle 2','DNS 1 (NIC2)','DNS 2 (NIC2)','Identifiant 2','Mot de passe 2','Commentaire'];
+
+// Ligne complete (une valeur par entree de HEADERS_FULL) pour un produit :
+// les champs reseau restent vides si l'equipement n'est pas sur le reseau,
+// meme si la base contient une valeur residuelle (ex: masque herite de la
+// salle au moment de l'ajout, avant meme d'avoir coche "sur reseau").
+function ligneProduitComplete(chantier, salle, p) {
+  const net = p.sur_reseau;
+  return [
+    chantier.nom, salle.nom, salle.etage || '', p.type_equipement || '', p.marque || '', p.modele || '', p.serial_number || '',
+    mapStatutToExcel(salle.statut), p.sur_reseau ? 'O' : 'N',
+    net ? (p.label_reseau1 || '') : '', net ? (p.ip || '') : '', net ? (p.mac || '') : '', net ? (p.masque || '') : '', net ? (p.gateway || '') : '', net ? (p.dns || '') : '', net ? (p.dns_alt || '') : '', net ? (p.login || '') : '', net ? (p.mdp || '') : '',
+    net ? (p.label_reseau2 || '') : '', net ? (p.ip2 || '') : '', net ? (p.mac2 || '') : '', net ? (p.masque2 || '') : '', net ? (p.gateway2 || '') : '', net ? (p.dns2 || '') : '', net ? (p.dns2_alt || '') : '', net ? (p.login2 || '') : '', net ? (p.mdp2 || '') : '',
+    p.description || '',
+  ];
+}
+
+// Colonnes a conserver pour un chantier donne : on retire celles
+// entierement vides (ex: NIC2 jamais utilise, aucun appareil sur
+// reseau...), sauf s'il n'y a aucun equipement du tout (on garde alors
+// la structure de base).
+function colonnesNonVides(toutesLesLignes) {
+  return toutesLesLignes.length > 0
+    ? HEADERS_FULL.map((_, i) => i).filter(i => toutesLesLignes.some(l => l[i] !== '' && l[i] != null))
+    : HEADERS_FULL.map((_, i) => i);
+}
+
 async function buildRapportClientBuffer(chantier, salles) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'AVTrack Pro';
   const ws = wb.addWorksheet('Chantier');
 
-  ws.columns = [
-    { width: 18 }, { width: 22 }, { width: 12 },
-    { width: 20 }, { width: 16 }, { width: 20 }, { width: 22 },
-    { width: 14 }, { width: 13 },
-    { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
-    { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 },
-    { width: 30 },
-  ];
+  const ligneProduit = ligneProduitComplete;
+  const toutesLesLignes = salles.flatMap(salle => salle.produits.map(p => ligneProduit(chantier, salle, p)));
+
+  const colonnesAGarder = colonnesNonVides(toutesLesLignes);
+  const mapLigne = (ligneComplete) => colonnesAGarder.map(i => ligneComplete[i]);
+
+  ws.columns = colonnesAGarder.map(i => ({ width: COL_WIDTHS_FULL[i] }));
 
   const GREEN = 'FF059669', CARD_BG = 'FF181B24', YELLOW = 'FFFFFDE7';
   const HEADER_FG = 'FFFFFFFF', GRAY_TEXT = 'FF9CA3AF';
@@ -634,7 +616,7 @@ async function buildRapportClientBuffer(chantier, salles) {
   applyStyle(ws.getCell('A11'), { value: 'LISTE DES ÉQUIPEMENTS', font: { bold: true, size: 11, color: { argb: HEADER_FG } }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: CARD_BG } }, alignment: { horizontal: 'center', vertical: 'middle' } });
   ws.getRow(11).height = 20;
 
-  const headers = ['Site','Salle','Étage','Type Equipement','Marque','Modèle','S/N','Etat','Réseau (O/N)','Label NIC 1','Adresse IP','Adresse MAC','Masque','Passerelle','DNS 1','DNS 2','Identifiant','Mot de passe','Label NIC 2','Adresse IP 2','Adresse MAC 2','Masque 2','Passerelle 2','DNS 1 (NIC2)','DNS 2 (NIC2)','Identifiant 2','Mot de passe 2','Commentaire'];
+  const headers = colonnesAGarder.map(i => HEADERS_FULL[i]);
   const headerRow = ws.getRow(12); headerRow.height = 30;
   headers.forEach((h, i) => {
     const cell = headerRow.getCell(i + 1);
@@ -660,7 +642,9 @@ async function buildRapportClientBuffer(chantier, salles) {
 
     if (salle.produits.length === 0) {
       const row = ws.getRow(rowIdx++); row.height = 18;
-      [chantier.nom, salle.nom, salle.etage || '', '(aucun équipement)'].forEach((val, i) => {
+      const ligneVide = new Array(HEADERS_FULL.length).fill('');
+      ligneVide[0] = chantier.nom; ligneVide[1] = salle.nom; ligneVide[2] = salle.etage || ''; ligneVide[3] = '(aucun équipement)';
+      mapLigne(ligneVide).forEach((val, i) => {
         const cell = row.getCell(i + 1); cell.value = val;
         cell.font = { size: 10, italic: true, color: { argb: GRAY_TEXT } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_BG_A } };
@@ -672,13 +656,9 @@ async function buildRapportClientBuffer(chantier, salles) {
       const p = salle.produits[pi];
       const curNum = rowIdx++; const row = ws.getRow(curNum); row.height = 18;
       const rowBg = pi % 2 === 0 ? ROW_BG_A : ROW_BG_B;
-      [chantier.nom, salle.nom, salle.etage || '', p.type_equipement || '', p.marque || '', p.modele || '', p.serial_number || '',
-       mapStatutToExcel(salle.statut), p.sur_reseau ? 'O' : 'N',
-       p.label_reseau1 || '', p.ip || '', p.mac || '', p.masque || '', p.gateway || '', p.dns || '', p.dns_alt || '', p.login || '', p.mdp || '',
-       p.label_reseau2 || '', p.ip2 || '', p.mac2 || '', p.masque2 || '', p.gateway2 || '', p.dns2 || '', p.dns2_alt || '', p.login2 || '', p.mdp2 || '',
-       p.description || '',
-      ].forEach((val, i) => {
-        const cell = row.getCell(i + 1); const isSite = i < 3;
+      mapLigne(ligneProduit(chantier, salle, p)).forEach((val, i) => {
+        const isSite = colonnesAGarder[i] < 3;
+        const cell = row.getCell(i + 1);
         cell.value = val; cell.font = { size: 10, color: { argb: isSite ? SITE_FG : 'FF1F2937' } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isSite ? SITE_BG : rowBg } };
         cell.alignment = { vertical: 'middle' }; cell.border = { bottom: BDR_STD, right: BDR_STD };
