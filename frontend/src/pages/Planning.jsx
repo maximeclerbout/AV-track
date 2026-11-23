@@ -69,8 +69,17 @@ export default function Planning() {
     navigate('/chantiers?odoo_numero=' + encodeURIComponent(e.numero_affaire))
   }
 
+  const joursAvecEntrees = jours.filter(d => d.getMonth() === cursor.getMonth() && (parJour[toISODate(d)] || []).length > 0)
+
   return (
     <Layout>
+      <style>{`
+        .planning-agenda { display: none; }
+        @media (max-width: 768px) {
+          .planning-grid { display: none !important; }
+          .planning-agenda { display: flex !important; }
+        }
+      `}</style>
       <div style={{ maxWidth: 1400, margin: '0 auto' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
@@ -113,7 +122,7 @@ export default function Planning() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gap: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="planning-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gap: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' }}>
           {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(j => (
             <div key={j} style={{ background: 'var(--surface-elev)', padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: .5, minWidth: 0 }}>
               {j}
@@ -156,6 +165,50 @@ export default function Planning() {
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{e.titre}</span>
                     </div>
                   )})}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Vue agenda (liste verticale par jour) — bien plus lisible sur téléphone qu'une grille mensuelle */}
+        <div className="planning-agenda" style={{ flexDirection: 'column', gap: 16 }}>
+          {joursAvecEntrees.length === 0 && !loading && (
+            <div style={{ textAlign: 'center', color: 'var(--fg-mute)', padding: '30px 0', fontSize: 13 }}>
+              Aucune intervention ce mois-ci.
+            </div>
+          )}
+          {joursAvecEntrees.map(d => {
+            const iso = toISODate(d)
+            const estAujourdhui = iso === today
+            const entries = parJour[iso] || []
+            return (
+              <div key={iso}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: estAujourdhui ? 'var(--accent)' : 'var(--fg)', marginBottom: 8, textTransform: 'capitalize' }}>
+                  {d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  {estAujourdhui && ' · Aujourd\'hui'}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {entries.map(e => {
+                    const cliquable = /^\d{4,}$/.test(e.numero_affaire || '')
+                    return (
+                      <div key={e.id} onClick={() => ouvrirAffaire(e)}
+                        style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4, cursor: cliquable ? 'pointer' : 'default' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                            {(e.employes?.length ? e.employes : ['?']).map((nom, i) => (
+                              <span key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: EMPLOYE_COLORS[nom] || 'var(--fg-mute)' }} />
+                            ))}
+                          </span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-mute)', fontWeight: 700 }}>
+                            {formatHeure(e.debut)}–{formatHeure(e.fin)}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--fg)', fontWeight: 600 }}>{e.titre}</div>
+                        {e.client && <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>{e.client}</div>}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )
