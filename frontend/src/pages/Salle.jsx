@@ -395,6 +395,7 @@ export default function Salle() {
   }
 
   const touchStartX = useRef(null)
+  const touchStartY = useRef(null)
   const [slide, setSlide] = useState({ dir: null, key: 0 })
   const sortedSalles = [...sallesChantier].sort((a, b) => a.nom.localeCompare(b.nom, undefined, { numeric: true, sensitivity: 'base' }))
   const currentSalleIdx = sortedSalles.findIndex(s => s.id === parseInt(sid))
@@ -406,20 +407,28 @@ export default function Salle() {
     if (dir) { sessionStorage.removeItem('swipeDir'); setSlide(s => ({ dir, key: s.key + 1 })) }
   }, [sid])
 
-  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX }
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
   const handleTouchEnd = (e) => {
     if (touchStartX.current === null) return
-    const diff = touchStartX.current - e.changedTouches[0].clientX
-    if (Math.abs(diff) > 60) {
-      if (diff > 0 && nextSalle) {
+    const diffX = touchStartX.current - e.changedTouches[0].clientX
+    const diffY = touchStartY.current - e.changedTouches[0].clientY
+    // Un vrai swipe horizontal doit nettement dominer le mouvement vertical,
+    // sinon un simple defilement de la page (tres frequent sur cette page
+    // longue) declenchait un changement de salle involontaire.
+    if (Math.abs(diffX) > 80 && Math.abs(diffX) > Math.abs(diffY) * 2) {
+      if (diffX > 0 && nextSalle) {
         sessionStorage.setItem('swipeDir', 'next')
         navigate('/chantiers/' + cid + '/salles/' + nextSalle.id)
-      } else if (diff < 0 && prevSalle) {
+      } else if (diffX < 0 && prevSalle) {
         sessionStorage.setItem('swipeDir', 'prev')
         navigate('/chantiers/' + cid + '/salles/' + prevSalle.id)
       }
     }
     touchStartX.current = null
+    touchStartY.current = null
   }
 
   const produitsFiltres = (salle?.produits || []).filter(p => {
