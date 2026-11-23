@@ -69,7 +69,20 @@ export default function Planning() {
     navigate('/chantiers?odoo_numero=' + encodeURIComponent(e.numero_affaire))
   }
 
-  const joursAvecEntrees = jours.filter(d => d.getMonth() === cursor.getMonth() && (parJour[toISODate(d)] || []).length > 0)
+  // Pas de travail le samedi : colonne/jour retire partout.
+  const joursGrille = useMemo(() => jours.filter(d => d.getDay() !== 6), [jours])
+
+  // Le mois reellement en cours (aujourd'hui) : sur l'agenda mobile, on
+  // n'affiche que la prochaine intervention et la suite — les jours deja
+  // passes de ce mois ne sont plus utiles au quotidien. Naviguer vers un
+  // autre mois (bouton ← toujours disponible) affiche tout ce mois-la.
+  const estMoisReelCourant = cursor.getFullYear() === new Date().getFullYear() && cursor.getMonth() === new Date().getMonth()
+
+  const joursAvecEntrees = jours
+    .filter(d => d.getMonth() === cursor.getMonth())
+    .filter(d => d.getDay() !== 6)
+    .filter(d => !estMoisReelCourant || toISODate(d) >= today)
+    .filter(d => (parJour[toISODate(d)] || []).length > 0)
 
   return (
     <Layout>
@@ -122,13 +135,13 @@ export default function Planning() {
           </div>
         )}
 
-        <div className="planning-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gap: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' }}>
-          {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(j => (
+        <div className="planning-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' }}>
+          {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Dim'].map(j => (
             <div key={j} style={{ background: 'var(--surface-elev)', padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: .5, minWidth: 0 }}>
               {j}
             </div>
           ))}
-          {jours.map(d => {
+          {joursGrille.map(d => {
             const iso = toISODate(d)
             const estMoisCourant = d.getMonth() === cursor.getMonth()
             const estAujourdhui = iso === today
