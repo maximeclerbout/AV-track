@@ -60,8 +60,23 @@ const devinerType = (texte) => {
   return 'Autre';
 };
 
+// Teste la connexion avec la configuration actuellement enregistree
+// (utilise notamment par le bouton "Tester la connexion" des Parametres,
+// pour verifier tout de suite qu'une cle API fraichement collee fonctionne).
+router.get('/status', async (req, res) => {
+  if (!(await odoo.isConfigured())) {
+    return res.json({ ok: false, reason: 'Integration Odoo non configuree.' });
+  }
+  try {
+    const projects = await odoo.searchRead('project.project', [], { fields: ['id'], limit: 1 });
+    res.json({ ok: true, nb_affaires_test: projects.length });
+  } catch (err) {
+    res.json({ ok: false, reason: err.message });
+  }
+});
+
 router.get('/affaires', async (req, res) => {
-  if (!odoo.isConfigured()) {
+  if (!(await odoo.isConfigured())) {
     return res.status(503).json({ error: 'Integration Odoo non configuree sur ce serveur.' });
   }
   try {
@@ -142,7 +157,7 @@ router.get('/affaires', async (req, res) => {
 // deduire la liste des salles et du materiel vendu. Lecture seule — aucune
 // ecriture n'est faite vers Odoo.
 router.get('/affaires/:odooId/ventes', async (req, res) => {
-  if (!odoo.isConfigured()) {
+  if (!(await odoo.isConfigured())) {
     return res.status(503).json({ error: 'Integration Odoo non configuree sur ce serveur.' });
   }
   const odooId = parseInt(req.params.odooId, 10);
@@ -224,7 +239,7 @@ const PLANNING_EMPLOYES = {
 const PLANNING_USER_IDS = Object.keys(PLANNING_EMPLOYES).map(Number);
 
 router.get('/planning', async (req, res) => {
-  if (!odoo.isConfigured()) {
+  if (!(await odoo.isConfigured())) {
     return res.status(503).json({ error: 'Integration Odoo non configuree sur ce serveur.' });
   }
   const start = req.query.start;

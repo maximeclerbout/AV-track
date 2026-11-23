@@ -10,20 +10,22 @@ router.get('/', requireRole('admin'), async (req, res) => {
     const result = await query('SELECT key, value FROM app_settings ORDER BY key');
     const settings = {};
     result.rows.forEach(r => { settings[r.key] = r.value; });
-    // Ne jamais renvoyer le mot de passe en clair
+    // Ne jamais renvoyer les secrets en clair
     if (settings.smtp_pass) settings.smtp_pass = '••••••••';
+    if (settings.odoo_api_key) settings.odoo_api_key = '••••••••';
     res.json(settings);
   } catch (err) { res.status(500).json({ error: 'Erreur serveur.' }); }
 });
 
 router.patch('/', requireRole('admin'), async (req, res) => {
-  const allowed = ['adv_email','app_url','smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure','warevia_url','warevia_token'];
+  const allowed = ['adv_email','app_url','smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure','warevia_url','warevia_token','odoo_url','odoo_db','odoo_login','odoo_api_key'];
   try {
     for (const key of allowed) {
       if (req.body[key] === undefined) continue;
-      // Ne pas écraser le mot de passe si on reçoit les bullets
+      // Ne pas écraser un secret si on reçoit les bullets (valeur masquée non modifiée)
       if (key === 'smtp_pass'     && req.body[key].startsWith('•')) continue;
       if (key === 'warevia_token' && req.body[key].startsWith('•')) continue;
+      if (key === 'odoo_api_key'  && req.body[key].startsWith('•')) continue;
       await query(
         `INSERT INTO app_settings (key, value) VALUES ($1, $2)
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,

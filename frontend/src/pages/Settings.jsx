@@ -989,6 +989,95 @@ function SectionWarevia() {
   )
 }
 
+// ── Section Odoo ──────────────────────────────────────────────────
+function SectionOdoo() {
+  const [cfg, setCfg]       = useState({ odoo_url: '', odoo_db: '', odoo_login: '', odoo_api_key: '' })
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState(null)
+  const [msg, setMsg]       = useState('')
+
+  useEffect(() => {
+    axios.get('/api/settings').then(r => {
+      setCfg({
+        odoo_url: r.data.odoo_url || '',
+        odoo_db: r.data.odoo_db || '',
+        odoo_login: r.data.odoo_login || '',
+        odoo_api_key: r.data.odoo_api_key || ''
+      })
+    }).catch(() => {})
+  }, [])
+
+  const save = async () => {
+    setSaving(true); setMsg(''); setStatus(null)
+    try {
+      await axios.patch('/api/settings', cfg)
+      setMsg('✅ Configuration sauvegardée.')
+    } catch { setMsg('❌ Erreur lors de la sauvegarde.') }
+    finally { setSaving(false) }
+  }
+
+  const test = async () => {
+    setSaving(true); setStatus(null); setMsg('')
+    try {
+      const r = await axios.get('/api/odoo/status')
+      setStatus(r.data)
+    } catch { setStatus({ ok: false, reason: 'Erreur réseau' }) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--fg)', marginBottom: 4 }}>Intégration Odoo</h2>
+        <p style={{ color: 'var(--fg-3)', fontSize: 13 }}>Lecture seule des affaires, ventes et planning depuis Odoo</p>
+      </div>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border-2)', borderRadius: 'var(--r-card)', padding: 24 }}>
+        <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#F59E0B' }}>
+          Les clés API de ce compte Odoo expirent au bout de 24h (2FA active). Pense à générer une nouvelle clé chaque jour dans Odoo (Réglages → Sécurité du compte → Clés API) et à la coller ici.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
+          <div>
+            <label style={labSt}>URL de l'instance Odoo</label>
+            <input value={cfg.odoo_url} onChange={e => setCfg(c => ({ ...c, odoo_url: e.target.value }))}
+              placeholder="https://av-i.odoo.com" style={inSt} />
+          </div>
+          <div>
+            <label style={labSt}>Nom de la base de données</label>
+            <input value={cfg.odoo_db} onChange={e => setCfg(c => ({ ...c, odoo_db: e.target.value }))}
+              placeholder="odoo-ps-..." style={inSt} />
+          </div>
+          <div>
+            <label style={labSt}>Email de connexion</label>
+            <input value={cfg.odoo_login} onChange={e => setCfg(c => ({ ...c, odoo_login: e.target.value }))}
+              placeholder="nom@av-i.fr" style={inSt} />
+          </div>
+          <div>
+            <label style={labSt}>Clé API</label>
+            <input type="password" value={cfg.odoo_api_key} onChange={e => setCfg(c => ({ ...c, odoo_api_key: e.target.value }))}
+              placeholder="Clé générée dans Odoo (valable 24h)" style={inSt} />
+          </div>
+        </div>
+
+        {status && (
+          <div style={{ background: status.ok ? 'var(--accent-soft)' : 'rgba(239,68,68,0.1)', border: '1px solid ' + (status.ok ? 'var(--accent)' : 'rgba(239,68,68,0.3)'), borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: status.ok ? 'var(--accent)' : '#EF4444' }}>
+            {status.ok ? '✅ Connexion OK' : `❌ Connexion échouée : ${status.reason}`}
+          </div>
+        )}
+        {msg && (
+          <div style={{ background: msg.startsWith('✅') ? 'var(--accent-soft)' : 'rgba(239,68,68,0.1)', border: '1px solid ' + (msg.startsWith('✅') ? 'var(--accent)' : 'rgba(239,68,68,0.3)'), borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: msg.startsWith('✅') ? 'var(--accent)' : '#EF4444' }}>{msg}</div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={test} disabled={saving} style={ghostBtn}>Tester la connexion</button>
+          <button onClick={save} disabled={saving} style={primBtn}>
+            <Icon d={icons.save} size={13} color="var(--accent-fg)" />{saving ? 'Sauvegarde…' : 'Sauvegarder'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Page principale ───────────────────────────────────────────────
 export default function Settings() {
   const { theme, setTheme } = useTheme()
@@ -1025,6 +1114,7 @@ export default function Settings() {
         ...(isAdmin ? [
           { id: 'email',    label: 'Email SMTP', icon: icons.mail    },
           { id: 'warevia',  label: 'Warevia',    icon: icons.box     },
+          { id: 'odoo',     label: 'Odoo',       icon: icons.database },
         ] : []),
       ],
     }] : []),
@@ -1071,6 +1161,7 @@ export default function Settings() {
             {section === 'sauvegardes'   && <SectionSauvegardes user={user} />}
             {section === 'email'         && <SectionEmail />}
             {section === 'warevia'       && <SectionWarevia />}
+            {section === 'odoo'          && <SectionOdoo />}
           </div>
         </div>
       </div>
