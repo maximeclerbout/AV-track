@@ -11,6 +11,13 @@ const Icon = ({ d, size = 18, color = 'currentColor' }) => (
   </svg>
 )
 
+const Spinner = ({ size = 14, color = 'currentColor' }) => (
+  <svg style={{ animation: 'spin .8s linear infinite' }} width={size} height={size}
+    viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5">
+    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+  </svg>
+)
+
 const STATUS = {
   a_faire:    { label: 'A faire',    color: 'var(--status-a_faire)'    },
   en_cours:   { label: 'En cours',   color: 'var(--status-en_cours)'   },
@@ -637,6 +644,10 @@ export default function Chantier() {
   const [bls, setBls] = useState([])
   const [uploadingBL, setUploadingBL] = useState(false)
   const [signingBL, setSigningBL] = useState(null)
+  // Indique quel export est en cours ('excel'|'template'|'complet'|'photos'|null),
+  // pour afficher un spinner — ces exports peuvent prendre plusieurs secondes
+  // et sans retour visuel ca pouvait sembler plante.
+  const [exporting, setExporting] = useState(null)
   const [viewingBL, setViewingBL] = useState(null)
   const [blObjectUrl, setBlObjectUrl] = useState(null)
   const [missingPhotosBL, setMissingPhotosBL] = useState(null)
@@ -781,6 +792,7 @@ export default function Chantier() {
   }
 
   const exportExcel = async () => {
+    setExporting('excel')
     try {
       const res = await axios.get('/api/chantiers/' + id + '/export', { responseType: 'blob' })
       const url = window.URL.createObjectURL(new Blob([res.data]))
@@ -789,9 +801,11 @@ export default function Chantier() {
       link.setAttribute('download', 'AVTrack_chantier_' + id + '.xlsx')
       document.body.appendChild(link); link.click(); link.remove()
     } catch (err) { alert('Erreur lors de l\'export') }
+    finally { setExporting(null) }
   }
 
   const exportTemplate = async () => {
+    setExporting('template')
     try {
       const res = await axios.get('/api/chantiers/' + id + '/export-template', { responseType: 'blob' })
       const url = window.URL.createObjectURL(new Blob([res.data]))
@@ -800,9 +814,11 @@ export default function Chantier() {
       link.setAttribute('download', 'AVTrack_export_' + (chantier?.nom || id) + '.xlsx')
       document.body.appendChild(link); link.click(); link.remove()
     } catch (err) { alert('Erreur lors de l\'export') }
+    finally { setExporting(null) }
   }
 
   const exportComplet = async () => {
+    setExporting('complet')
     try {
       const res = await axios.get('/api/chantiers/' + id + '/export-complet', { responseType: 'blob' })
       const url = window.URL.createObjectURL(new Blob([res.data]))
@@ -811,9 +827,11 @@ export default function Chantier() {
       link.setAttribute('download', (chantier?.nom || id) + '_complet.zip')
       document.body.appendChild(link); link.click(); link.remove()
     } catch { alert('Erreur lors de l\'export complet.') }
+    finally { setExporting(null) }
   }
 
   const downloadPhotos = async () => {
+    setExporting('photos')
     try {
       const res = await axios.get('/api/chantiers/' + id + '/photos-zip', { responseType: 'blob' })
       const url = window.URL.createObjectURL(new Blob([res.data]))
@@ -823,6 +841,7 @@ export default function Chantier() {
       link.setAttribute('download', 'Photos_' + label + '.zip')
       document.body.appendChild(link); link.click(); link.remove()
     } catch { alert('Erreur téléchargement photos.') }
+    finally { setExporting(null) }
   }
 
   const uploadBL = async (e) => {
@@ -1013,24 +1032,28 @@ export default function Chantier() {
                   style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#8B5CF6', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Icon d={icons.upload} size={14} color="#8B5CF6" /> Importer un XML
                 </button>
-                <button onClick={exportExcel}
-                  style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
-                  <Icon d={icons.download} size={14} color="#fff" /> Récap chantier
+                <button onClick={exportExcel} disabled={!!exporting}
+                  style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: exporting ? 'default' : 'pointer', opacity: exporting && exporting !== 'excel' ? 0.5 : 1, fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
+                  {exporting === 'excel' ? <Spinner color="#fff" /> : <Icon d={icons.download} size={14} color="#fff" />}
+                  {exporting === 'excel' ? 'Génération...' : 'Récap chantier'}
                 </button>
-                <button onClick={exportTemplate}
+                <button onClick={exportTemplate} disabled={!!exporting}
                   title="Export complet équipements + état, réimportable"
-                  style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)', color: '#00D4FF', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Icon d={icons.download} size={14} color="#00D4FF" /> Rapport client
+                  style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)', color: '#00D4FF', borderRadius: 10, padding: '8px 14px', cursor: exporting ? 'default' : 'pointer', opacity: exporting && exporting !== 'template' ? 0.5 : 1, fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {exporting === 'template' ? <Spinner color="#00D4FF" /> : <Icon d={icons.download} size={14} color="#00D4FF" />}
+                  {exporting === 'template' ? 'Génération...' : 'Rapport client'}
                 </button>
-                <button onClick={exportComplet}
+                <button onClick={exportComplet} disabled={!!exporting}
                   title="ZIP complet : rapport client + photos + programmes par salle"
-                  style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.3)', color: '#A855F7', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Icon d={icons.download} size={14} color="#A855F7" /> Dossier complet
+                  style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.3)', color: '#A855F7', borderRadius: 10, padding: '8px 14px', cursor: exporting ? 'default' : 'pointer', opacity: exporting && exporting !== 'complet' ? 0.5 : 1, fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {exporting === 'complet' ? <Spinner color="#A855F7" /> : <Icon d={icons.download} size={14} color="#A855F7" />}
+                  {exporting === 'complet' ? 'Génération...' : 'Dossier complet'}
                 </button>
-                <button onClick={downloadPhotos}
+                <button onClick={downloadPhotos} disabled={!!exporting}
                   title="Télécharger toutes les photos des salles en ZIP"
-                  style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#F59E0B', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Icon d={icons.camera} size={14} color="#F59E0B" /> Photos ZIP
+                  style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#F59E0B', borderRadius: 10, padding: '8px 14px', cursor: exporting ? 'default' : 'pointer', opacity: exporting && exporting !== 'photos' ? 0.5 : 1, fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {exporting === 'photos' ? <Spinner color="#F59E0B" /> : <Icon d={icons.camera} size={14} color="#F59E0B" />}
+                  {exporting === 'photos' ? 'Génération...' : 'Photos ZIP'}
                 </button>
                 <button onClick={() => setShowValidation(true)}
                   title="Valider les équipements avec le client"
