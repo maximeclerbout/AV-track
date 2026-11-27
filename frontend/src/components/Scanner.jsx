@@ -8,7 +8,7 @@ const Icon = ({ d, size = 18, color = 'currentColor' }) => (
   </svg>
 )
 
-export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le numéro de série', placeholder = 'Ex: SN-SAM-001' }) {
+export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le numéro de série', placeholder = 'Ex: SN-SAM-001', isMac = false }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const canvasRef = useRef(null)
@@ -55,6 +55,27 @@ export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le n
     try {
       const { BrowserMultiFormatReader } = await import('@zxing/library')
       const reader = new BrowserMultiFormatReader()
+      // Par defaut ZXing decode toute la frame video : avec plusieurs
+      // codes-barres proches sur une meme etiquette, n'importe lequel pouvait
+      // etre lu au lieu de celui vise par le cadre affiche a l'ecran. On
+      // restreint donc la capture a la seule zone du cadre (75% x 40%,
+      // centree — meme zone que l'overlay) avant chaque tentative de decodage.
+      reader.drawFrameOnCanvas = function (srcElement) {
+        const canvas = this.getCaptureCanvas(srcElement)
+        const ctx = this.getCaptureCanvasContext(srcElement)
+        const vw = srcElement.videoWidth, vh = srcElement.videoHeight
+        const containerW = srcElement.clientWidth, containerH = srcElement.clientHeight
+        const scale = Math.max(containerW / vw, containerH / vh)
+        const visibleW = containerW / scale, visibleH = containerH / scale
+        const offsetX = (vw - visibleW) / 2, offsetY = (vh - visibleH) / 2
+        const sx = offsetX + 0.125 * visibleW
+        const sy = offsetY + 0.30 * visibleH
+        const sw = 0.75 * visibleW
+        const sh = 0.40 * visibleH
+        canvas.width = sw
+        canvas.height = sh
+        ctx.drawImage(srcElement, sx, sy, sw, sh, 0, 0, sw, sh)
+      }
       reader.decodeFromStream(stream, videoRef.current, (result) => {
         if (result) {
           stopCamera()
@@ -109,15 +130,24 @@ export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le n
       const { data: { text } } = await worker.recognize(canvas)
       await worker.terminate()
 
-      // Extraire les numéros de série — cherche des patterns alphanumériques
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3)
-      const snPatterns = lines.filter(l => /[A-Z0-9]{4,}/.test(l))
-      const bestMatch = snPatterns.length > 0
-        ? snPatterns.reduce((a, b) => a.length > b.length ? a : b)
-        : text.trim()
+      // Une adresse MAC a un format bien precis (6 paires hexa) : sur une
+      // etiquette qui porte aussi un S/N ou une reference juste a cote, la
+      // simple heuristique "ligne la plus longue" attrapait souvent le
+      // mauvais champ. On cherche donc d'abord ce format specifique.
+      const macMatch = isMac ? text.match(/([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}/) : null
 
-      // Nettoyer le résultat
-      const cleaned = bestMatch.replace(/[^A-Z0-9\-_\.]/gi, '').substring(0, 50)
+      let cleaned
+      if (macMatch) {
+        cleaned = macMatch[0].toUpperCase().replace(/-/g, ':')
+      } else {
+        // Extraire les numéros de série — cherche des patterns alphanumériques
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3)
+        const snPatterns = lines.filter(l => /[A-Z0-9]{4,}/.test(l))
+        const bestMatch = snPatterns.length > 0
+          ? snPatterns.reduce((a, b) => a.length > b.length ? a : b)
+          : text.trim()
+        cleaned = bestMatch.replace(/[^A-Z0-9\-_\.]/gi, '').substring(0, 50)
+      }
       setOcrResult(cleaned || text.trim().substring(0, 50))
     } catch (err) {
       setError('Erreur OCR : ' + err.message)

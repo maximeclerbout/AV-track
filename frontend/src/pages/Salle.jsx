@@ -1409,6 +1409,7 @@ export default function Salle() {
             label={isMac ? (fld === 'mac2' ? 'MAC 2' : 'MAC') : 'S/N'}
             hint={isMac ? "l'adresse MAC" : 'le numéro de série'}
             placeholder={isMac ? 'Ex: AA:BB:CC:DD:EE:FF' : 'Ex: SN-SAM-001'}
+            isMac={isMac}
             onResult={val => {
               if (ctx === 'new') setNewProduit(prev => ({ ...prev, [field]: val }))
               else setEditProduitForm(prev => ({ ...prev, [field]: val }))
