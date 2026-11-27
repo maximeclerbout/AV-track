@@ -143,8 +143,25 @@ async function sendBlAuClient({ bl, chantier, email, fichierPath }) {
       </div>
       <div style="border:1px solid #e5e7eb;border-top:none;padding:24px;border-radius:0 0 8px 8px;">
         <p>Bonjour,</p>
-        <p>Veuillez trouver ci-joint le bon de livraison signé pour le chantier <strong>${chantier.nom}</strong>.</p>
-        <p style="margin-top:24px;color:#9ca3af;font-size:12px;">Ce message a été envoyé par AVTrack Pro à la demande d'un technicien.</p>
+        <p>Veuillez trouver ci-joint le bon de livraison signé pour votre chantier.</p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+          <tr style="background:#f9fafb;">
+            <td style="padding:10px 14px;font-weight:700;width:140px;color:#374151;">Chantier</td>
+            <td style="padding:10px 14px;">${chantier.nom}</td>
+          </tr>
+          ${chantier.numero_affaire ? `<tr>
+            <td style="padding:10px 14px;font-weight:700;color:#374151;">N° d'affaire</td>
+            <td style="padding:10px 14px;">${chantier.numero_affaire}</td>
+          </tr>` : ''}
+          ${chantier.client ? `<tr style="background:#f9fafb;">
+            <td style="padding:10px 14px;font-weight:700;color:#374151;">Client</td>
+            <td style="padding:10px 14px;">${chantier.client}</td>
+          </tr>` : ''}
+        </table>
+        <p style="margin-top:24px;color:#9ca3af;font-size:12px;">
+          Ceci est un email automatique, merci de ne pas y répondre.<br/>
+          Ce message a été envoyé par AVTrack Pro à la demande d'un technicien.
+        </p>
       </div>
     </div>`;
 
