@@ -8,6 +8,30 @@ const Icon = ({ d, size = 18, color = 'currentColor' }) => (
   </svg>
 )
 
+// Zone du cadre affiche a l'ecran, en fraction de la video visible (meme
+// valeurs utilisees pour l'overlay CSS et pour le crop reel avant
+// decodage/OCR — une seule source de verite pour eviter que les deux
+// finissent par diverger). Sur une etiquette dense (plusieurs codes-barres
+// tres proches), un cadre trop grand capture systematiquement plusieurs
+// codes a la fois : on vise donc une bande fine, proche de la forme reelle
+// d'un seul code-barres ou d'une seule ligne de texte.
+const BARCODE_BOX = { w: 0.6, h: 0.16 }
+const OCR_BOX = { w: 0.8, h: 0.14 }
+
+function zoneVisible(srcElement, box) {
+  const vw = srcElement.videoWidth, vh = srcElement.videoHeight
+  const containerW = srcElement.clientWidth, containerH = srcElement.clientHeight
+  const scale = Math.max(containerW / vw, containerH / vh)
+  const visibleW = containerW / scale, visibleH = containerH / scale
+  const offsetX = (vw - visibleW) / 2, offsetY = (vh - visibleH) / 2
+  return {
+    sx: offsetX + ((1 - box.w) / 2) * visibleW,
+    sy: offsetY + ((1 - box.h) / 2) * visibleH,
+    sw: box.w * visibleW,
+    sh: box.h * visibleH,
+  }
+}
+
 export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le numéro de série', placeholder = 'Ex: SN-SAM-001', isMac = false }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
@@ -32,7 +56,10 @@ export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le n
     setOcrResult('')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        // Resolution la plus haute possible : une fois le cadre resserre
+        // pour n'isoler qu'un seul code/une seule ligne, il reste moins de
+        // pixels sur la zone utile — plus de resolution de depart compense.
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
       })
       streamRef.current = stream
       if (videoRef.current) {
@@ -53,25 +80,19 @@ export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le n
 
   const startZXing = async (stream) => {
     try {
-      const { BrowserMultiFormatReader } = await import('@zxing/library')
-      const reader = new BrowserMultiFormatReader()
+      const { BrowserMultiFormatReader, DecodeHintType } = await import('@zxing/library')
+      const hints = new Map()
+      hints.set(DecodeHintType.TRY_HARDER, true)
+      const reader = new BrowserMultiFormatReader(hints)
       // Par defaut ZXing decode toute la frame video : avec plusieurs
       // codes-barres proches sur une meme etiquette, n'importe lequel pouvait
       // etre lu au lieu de celui vise par le cadre affiche a l'ecran. On
-      // restreint donc la capture a la seule zone du cadre (75% x 40%,
-      // centree — meme zone que l'overlay) avant chaque tentative de decodage.
+      // restreint donc la capture a la seule zone du cadre (meme zone que
+      // l'overlay) avant chaque tentative de decodage.
       reader.drawFrameOnCanvas = function (srcElement) {
         const canvas = this.getCaptureCanvas(srcElement)
         const ctx = this.getCaptureCanvasContext(srcElement)
-        const vw = srcElement.videoWidth, vh = srcElement.videoHeight
-        const containerW = srcElement.clientWidth, containerH = srcElement.clientHeight
-        const scale = Math.max(containerW / vw, containerH / vh)
-        const visibleW = containerW / scale, visibleH = containerH / scale
-        const offsetX = (vw - visibleW) / 2, offsetY = (vh - visibleH) / 2
-        const sx = offsetX + 0.125 * visibleW
-        const sy = offsetY + 0.30 * visibleH
-        const sw = 0.75 * visibleW
-        const sh = 0.40 * visibleH
+        const { sx, sy, sw, sh } = zoneVisible(srcElement, BARCODE_BOX)
         canvas.width = sw
         canvas.height = sh
         ctx.drawImage(srcElement, sx, sy, sw, sh, 0, 0, sw, sh)
@@ -100,23 +121,8 @@ export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le n
     const video = videoRef.current
     const canvas = canvasRef.current
 
-    // Doit correspondre au cadre affiché en overlay (mode 'ocr') : width 85%, height 30%, centré
-    const vw = video.videoWidth
-    const vh = video.videoHeight
-    const containerW = video.clientWidth
-    const containerH = video.clientHeight
-
-    // La vidéo est en object-fit: cover -> on calcule la portion du flux réellement visible à l'écran
-    const scale = Math.max(containerW / vw, containerH / vh)
-    const visibleW = containerW / scale
-    const visibleH = containerH / scale
-    const offsetX = (vw - visibleW) / 2
-    const offsetY = (vh - visibleH) / 2
-
-    const sx = offsetX + 0.075 * visibleW
-    const sy = offsetY + 0.35 * visibleH
-    const sw = 0.85 * visibleW
-    const sh = 0.30 * visibleH
+    // Doit correspondre au cadre affiché en overlay (mode 'ocr')
+    const { sx, sy, sw, sh } = zoneVisible(video, OCR_BOX)
 
     canvas.width = sw
     canvas.height = sh
@@ -234,18 +240,18 @@ export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le n
                     <canvas ref={canvasRef} style={{ display: 'none' }} />
                     {mode === 'camera' && (
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                        <div style={{ width: '75%', height: '40%', border: '2px solid #00D4FF', borderRadius: 8, boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)' }} />
+                        <div style={{ width: (BARCODE_BOX.w * 100) + '%', height: (BARCODE_BOX.h * 100) + '%', border: '2px solid #00D4FF', borderRadius: 8, boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)' }} />
                       </div>
                     )}
                     {mode === 'ocr' && (
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                        <div style={{ width: '85%', height: '30%', border: '2px solid #8B5CF6', borderRadius: 8, boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)' }} />
+                        <div style={{ width: (OCR_BOX.w * 100) + '%', height: (OCR_BOX.h * 100) + '%', border: '2px solid #8B5CF6', borderRadius: 8, boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)' }} />
                       </div>
                     )}
                     {scanning && (
                       <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, textAlign: 'center' }}>
                         <span style={{ fontSize: 11, color: mode === 'ocr' ? '#8B5CF6' : '#00D4FF', background: 'rgba(0,0,0,0.7)', padding: '3px 12px', borderRadius: 20 }}>
-                          {mode === 'ocr' ? `Cadrez ${hint}...` : 'Pointez vers le code-barres...'}
+                          {mode === 'ocr' ? `Cadrez uniquement ${hint}, rapprochez-vous si l'étiquette est dense...` : "Rapprochez-vous pour n'isoler qu'un seul code-barres..."}
                         </span>
                       </div>
                     )}
