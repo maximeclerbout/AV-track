@@ -117,4 +117,44 @@ async function sendBlSigne({ bl, chantier, signataire, date, fichierPath }) {
   }
 }
 
-module.exports = { sendBlSigne, getSettings };
+// Envoi manuel du BL signe a l'adresse que le technicien saisit pour le
+// client — distinct de sendBlSigne (notification automatique interne a
+// l'ADV, qui continue de se declencher a chaque signature).
+async function sendBlAuClient({ bl, chantier, email, fichierPath }) {
+  const cfg = await getSettings();
+  if (!cfg.smtp_host || !cfg.smtp_user) {
+    throw new Error('SMTP non configuré — configurez-le dans Paramètres > Email.');
+  }
+
+  const transporter = createTransporter(cfg);
+
+  const attachments = [];
+  if (fichierPath && fs.existsSync(fichierPath)) {
+    attachments.push({
+      filename: bl.nom_original.replace(/\.pdf$/i, '_signe.pdf'),
+      path: fichierPath,
+    });
+  }
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;color:#222;">
+      <div style="background:#059669;padding:20px 24px;border-radius:8px 8px 0 0;">
+        <h2 style="margin:0;color:#fff;font-size:20px;">📄 Votre bon de livraison</h2>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-top:none;padding:24px;border-radius:0 0 8px 8px;">
+        <p>Bonjour,</p>
+        <p>Veuillez trouver ci-joint le bon de livraison signé pour le chantier <strong>${chantier.nom}</strong>.</p>
+        <p style="margin-top:24px;color:#9ca3af;font-size:12px;">Ce message a été envoyé par AVTrack Pro à la demande d'un technicien.</p>
+      </div>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `"AVTrack Pro" <${cfg.smtp_from || cfg.smtp_user}>`,
+    to: email,
+    subject: `Bon de livraison signé — ${chantier.nom}`,
+    html,
+    attachments,
+  });
+}
+
+module.exports = { sendBlSigne, sendBlAuClient, getSettings };

@@ -33,6 +33,7 @@ const icons = {
   history: "M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0",
   plus: "M12 5v14M5 12h14",
   download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
+  send: "M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z",
   camera: "M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
   truck: "M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM18.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z",
   pen: "M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z",
@@ -651,6 +652,9 @@ export default function Chantier() {
   const [viewingBL, setViewingBL] = useState(null)
   const [blObjectUrl, setBlObjectUrl] = useState(null)
   const [missingPhotosBL, setMissingPhotosBL] = useState(null)
+  const [sendingBLClient, setSendingBLClient] = useState(null)
+  const [sendClientEmail, setSendClientEmail] = useState('')
+  const [sendClientLoading, setSendClientLoading] = useState(false)
   const [showMapsMenu, setShowMapsMenu] = useState(false)
   const [searchSalle, setSearchSalle] = useState('')
   const [filtreEtage, setFiltreEtage] = useState('tous')
@@ -868,6 +872,21 @@ export default function Chantier() {
       link.setAttribute('download', nom)
       document.body.appendChild(link); link.click(); link.remove()
     } catch (err) { alert('Erreur lors du téléchargement.') }
+  }
+
+  const envoyerBLAuClient = async () => {
+    if (!sendClientEmail.trim()) return
+    setSendClientLoading(true)
+    try {
+      const res = await axios.post('/api/bons-livraison/' + sendingBLClient.id + '/envoyer-client', { email: sendClientEmail.trim() })
+      alert(res.data.message)
+      setSendingBLClient(null)
+      setSendClientEmail('')
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erreur lors de l\'envoi.')
+    } finally {
+      setSendClientLoading(false)
+    }
   }
 
   const viewBL = (bl) => {
@@ -1333,6 +1352,13 @@ export default function Chantier() {
                           <Icon d={icons.download} size={12} color="#10B981" /> BL signé
                         </button>
                       )}
+                      {bl.statut === 'signe' && (
+                        <button onClick={() => { setSendingBLClient(bl); setSendClientEmail('') }}
+                          title="Envoyer le BL signé par email au client"
+                          style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.25)', color: '#00D4FF', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Icon d={icons.send} size={12} color="#00D4FF" /> Envoyer au client
+                        </button>
+                      )}
                       {bl.statut === 'en_attente' && (
                         <button onClick={() => checkPhotosBeforeBL(bl, 'sign')} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Icon d={icons.pen} size={12} color="#fff" /> Signer
@@ -1461,6 +1487,33 @@ export default function Chantier() {
             setSigningBL(null)
           }}
         />
+      )}
+
+      {sendingBLClient && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 420 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>Envoyer le BL au client</div>
+              <button onClick={() => setSendingBLClient(null)} style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: 20 }}>✕</button>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--fg-3)', marginBottom: 14 }}>
+              Le BL signé "{sendingBLClient.nom_original}" sera envoyé par email à l'adresse ci-dessous.
+            </div>
+            <label style={labelStyle}>Email du client</label>
+            <input type="email" value={sendClientEmail} onChange={e => setSendClientEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && envoyerBLAuClient()}
+              placeholder="client@exemple.fr" autoFocus style={inputStyle} />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setSendingBLClient(null)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--fg)', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13 }}>
+                Annuler
+              </button>
+              <button onClick={envoyerBLAuClient} disabled={sendClientLoading || !sendClientEmail.trim()}
+                style={{ background: '#00D4FF', color: '#07202b', border: 'none', borderRadius: 10, padding: '9px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                {sendClientLoading ? 'Envoi...' : 'Envoyer'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {lightboxChantier && chantier.photo_url && (

@@ -5,7 +5,7 @@ const fs = require('fs')
 const { query } = require('../db/pool')
 const { auth } = require('../middleware/auth')
 const { audit } = require('../middleware/audit')
-const { sendBlSigne } = require('../utils/mailer')
+const { sendBlSigne, sendBlAuClient } = require('../utils/mailer')
 
 const router = express.Router()
 
@@ -306,6 +306,35 @@ const { signatureBase64, pdfBase64, nom_signataire, commentaire, date_signature 
   } catch (err) {
     console.error('Erreur signature BL:', err)
     res.status(500).json({ error: 'Erreur serveur.' })
+  }
+})
+
+// POST envoyer le BL signe par email au client (saisi manuellement) — en
+// plus de l'envoi automatique a l'ADV qui a toujours lieu a la signature.
+router.post('/:id/envoyer-client', async (req, res) => {
+  const { email } = req.body
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Adresse email invalide.' })
+  }
+  try {
+    const result = await query('SELECT * FROM bons_livraison WHERE id = $1', [req.params.id])
+    if (result.rows.length === 0) return res.status(404).json({ error: 'BL introuvable.' })
+    const bl = result.rows[0]
+    if (!bl.chemin_signe) return res.status(400).json({ error: 'Ce BL n\'est pas encore signé.' })
+
+    const filePath = path.join('/opt/avtrack/backend', bl.chemin_signe)
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier signé introuvable.' })
+
+    const chantierRes = await query('SELECT * FROM chantiers WHERE id = $1', [bl.chantier_id])
+    const chantier = chantierRes.rows[0] || { nom: '?' }
+
+    await sendBlAuClient({ bl, chantier, email, fichierPath: filePath })
+    await audit(bl.chantier_id, req.user, `BL signé envoyé par email à ${email}`, 'chantier', bl.chantier_id)
+
+    res.json({ message: `BL envoyé à ${email}.` })
+  } catch (err) {
+    console.error('Erreur envoi BL client:', err.message)
+    res.status(500).json({ error: err.message || 'Erreur lors de l\'envoi.' })
   }
 })
 
