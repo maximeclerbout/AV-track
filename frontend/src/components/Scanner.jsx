@@ -139,8 +139,14 @@ export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le n
       // Une adresse MAC a un format bien precis (6 paires hexa) : sur une
       // etiquette qui porte aussi un S/N ou une reference juste a cote, la
       // simple heuristique "ligne la plus longue" attrapait souvent le
-      // mauvais champ. On cherche donc d'abord ce format specifique.
-      const macMatch = isMac ? text.match(/([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}/) : null
+      // mauvais champ. On cherche donc d'abord ce format specifique — avec
+      // ou sans separateurs (beaucoup d'etiquettes impriment les 12
+      // caracteres hexa colles, ex: "00E0DBA30A30").
+      let macMatch = isMac ? text.match(/([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}/) : null
+      if (isMac && !macMatch) {
+        const brut = text.match(/\b[0-9A-Fa-f]{12}\b/)
+        if (brut) macMatch = [brut[0].replace(/(.{2})(?=.)/g, '$1:')]
+      }
 
       let cleaned
       if (macMatch) {
@@ -152,7 +158,10 @@ export default function Scanner({ onResult, onClose, label = 'S/N', hint = 'le n
         const bestMatch = snPatterns.length > 0
           ? snPatterns.reduce((a, b) => a.length > b.length ? a : b)
           : text.trim()
-        cleaned = bestMatch.replace(/[^A-Z0-9\-_\.]/gi, '').substring(0, 50)
+        // Retire un prefixe "SN"/"S/N"/"SERIAL" (souvent imprime juste avant
+        // le numero sur l'etiquette et capture avec lui) avant de nettoyer.
+        const sansPrefixe = bestMatch.replace(/^\s*(s\s*\/?\s*n|serial\s*(number|no)?)\s*[:#\-]?\s*/i, '')
+        cleaned = sansPrefixe.replace(/[^A-Z0-9\-_\.]/gi, '').substring(0, 50)
       }
       setOcrResult(cleaned || text.trim().substring(0, 50))
     } catch (err) {
